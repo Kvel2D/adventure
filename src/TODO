@@ -1,25 +1,14 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-swapping armor doesn't work
-
-room generation
-    rooms are rectangles, connected randomly, must not intersect
-    
 items
-    items as entities? or separate class?
-        maybe entities is better so that a mob can spawn another mob that attacks or can be used
-        then items are equivalent to a mob spawning an entity
+    moving items to inventory
+    dragging and dropping items within inventory
+    right click on item to drop, drops in a circle around player(error if no space)
     mobs drop items on death
         only zero or one item per mob, drops at the location of death
     potions, stack infinitely
-    gold, on pickup it's converted to counter in stats screen
-    armor
-        absorb 1 dmg per fight per 10 armor points
-        10 = 1dmg, 15 = 1dmg, 21 = 2dmg
-        show this when hovering over armor number in stats
-        screw durability
-        head, chest, pants (boots?)
+
 
 ---------------------------------------------------------------------------------------------
 BUGS
@@ -31,6 +20,9 @@ DONE
 
 ---------------------------------------------------------------------------------------------
 IDEAS
+
+room generation
+    rooms are rectangles, connected randomly, must not intersect
 
 cells with effects
     poison - works like bloodborne, but full damage instantly at completion of meter, meter invisible, in effect allows for constant accumulation of poison in realtime which periodically "ticks"
@@ -55,15 +47,9 @@ crab-hand
     this is an aura
     crab disappears on end
 
-armor can be sold or not?
-    probably not
-
 swap hp spell
     swap your and mob's hp
     the only real way to "level up" hp, bought for a ton of money or a rare
-
-show armor as cute little pixely parts on player
-    change color and look slightly
 
 spells
     no mana, spells are scrolls that have charges

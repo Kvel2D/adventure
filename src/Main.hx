@@ -38,7 +38,11 @@ static inline var message_history_length_max = 20;
 var message_history = new Array<String>();
 
 static inline var message_history_y = 800;
-static inline var player_stats_y = 100;
+static inline var ui_x_offset = 13;
+static inline var player_stats_y = 0;
+static inline var inventory_y = 170;
+static inline var inventory_width = 4;
+static inline var inventory_height = 4;
 static inline var target_stats_y = 300;
 
 var interact_target: Entity = null;
@@ -76,10 +80,11 @@ function new() {
     }
 
     Entity.make(98, 98, 'snail');
+    Entity.make(98, 97, 'snail');
+    Entity.make(98, 96, 'snail');
     Entity.make(108, 100, 'bear');
     Entity.make(105, 98, 'fountain');
 
-    Entity.make(106, 100, 'copper');
     Entity.make_armor(107, 98, ArmorType_Head);
     Entity.make_armor(107, 97, ArmorType_Head);
     Entity.make_armor(108, 98, ArmorType_Chest);
@@ -88,16 +93,12 @@ function new() {
     Entity.make_armor(109, 97, ArmorType_Legs);
 }
 
-function entity_picked_up(e: Entity): Bool {
-    return Entity.picked_up.exists(e.id) && Entity.picked_up[e.id];
-}
-
 function get_free_map(): Vector<Vector<Bool>> {
     var free_map = Data.bool_2d_vector(map_width, map_height, true);
     // Entities
     for (e in Entity.all) {
-        
-        if (!entity_picked_up(e)) {
+
+        if (!e.is_picked_up()) {
             free_map[e.x][e.y] = false;
         }
     }
@@ -170,26 +171,35 @@ function pick_up_entity(e: Entity) {
 
         var current_armor = player_armor[armor.type];
         if (current_armor != null) {
-            trace('Current armor: ${Entity.armor[player_armor[armor.type].id].name}');
-    
             var current_armor_armor = Entity.armor[current_armor.id];
             add_message('You take off ${current_armor_armor.name}');
+
+            // Drop armor to location of new armor
             Entity.picked_up[current_armor.id] = false;
             current_armor.x = e.x;
             current_armor.y = e.y;
-
-            trace('Current armor: ${Entity.armor[player_armor[armor.type].id].name}');
-
         }
 
         add_message('You put on ${armor.name}');
-
         player_armor[armor.type] = e;
-
-            trace('Current armor: ${Entity.armor[player_armor[armor.type].id].name}');
-        
         Entity.picked_up[e.id] = true;
     }
+}
+
+function player_defense(): Int {
+    var total = 0;
+    for (armor_type in Type.allEnums(ArmorType)) {
+        if (player_armor[armor_type] != null) {
+            var armor = Entity.armor[player_armor[armor_type].id];
+            total += armor.defense;
+        }
+    }
+    return total;
+}
+
+function player_defense_absorb(): Int {
+    // Each 10 points of defense absorbs 1 dmg per fight
+    return Math.floor(player_defense() / 10);
 }
 
 function end_turn() {
@@ -253,7 +263,12 @@ function update() {
             // Interact on right click
             interact_target = hovered_entity;
         } else if (Mouse.left_click() && Entity.combat.exists(hovered_entity.type)) {
+            //
             // Attack on left click
+            //
+
+            // Add buffer of defense before combat
+            var defense_absorb_left = player_defense_absorb();
 
             var entity_combat = Entity.combat[hovered_entity.type];
             var entity_health = entity_combat.health;
@@ -263,9 +278,19 @@ function update() {
 
             while (player_health > 0 && entity_health > 0) {
                 // Simulate player and mob taking turns attacking
+                if (defense_absorb_left > 0) {
+                    defense_absorb_left -= entity_attack;
+
+                    if (defense_absorb_left < 0) {
+                        // Fix for negative absorb
+                        player_health += defense_absorb_left;
+                        damage_taken -= defense_absorb_left;
+                    }
+                } else {
+                    player_health -= entity_attack;
+                    damage_taken += entity_attack;
+                }
                 entity_health -= player_attack;
-                player_health -= entity_attack;
-                damage_taken += entity_attack;
             }
 
             add_message('You attack ${hovered_entity.type}.');
@@ -274,6 +299,17 @@ function update() {
 
             if (entity_health <= 0) {
                 add_message('You slay ${hovered_entity.type}.');
+
+                // Some entities drop copper
+                if (Entity.give_copper_on_death.exists(hovered_entity.type)) {
+                    var give_copper = Entity.give_copper_on_death[hovered_entity.type];
+
+                    if (Random.chance(give_copper.chance)) {
+                        var drop_amount = Random.int(give_copper.min, give_copper.max);
+                        copper_count += drop_amount;
+                        add_message('${hovered_entity.type} drops $drop_amount copper.');
+                    }
+                }
             }
 
             if (player_health <= 0) {
@@ -323,21 +359,37 @@ function update() {
     // Entities
     Text.change_size(32);
     for (e in Entity.all) {
-        if (!out_of_bounds(e.x, e.y) && Entity.draw_char.exists(e.type) && !entity_picked_up(e)) {
+        if (!out_of_bounds(e.x, e.y) && !e.is_picked_up()) {
+            if (Entity.draw_char.exists(e.type)) {
+                // Draw entity as char
+                var draw_char = Entity.draw_char[e.type];
 
-            var draw_char = Entity.draw_char[e.type];
+                var draw_char_color = Col.WHITE;
+                if (Entity.draw_char_color.exists(e.type)) {
+                    draw_char_color = Entity.draw_char_color[e.type];
+                }
 
-            var draw_char_color = Col.WHITE;
-            if (Entity.draw_char_color.exists(e.type)) {
-                draw_char_color = Entity.draw_char_color[e.type];
+                Text.display(screen_x(e.x), screen_y(e.y), draw_char, draw_char_color);
+            } else if (Entity.armor.exists(e.id)) {
+                // Draw armor tile
+                var armor = Entity.armor[e.id];
+                Gfx.draw_tile(screen_x(e.x), screen_y(e.y), armor.tile);
             }
-
-            Text.display(screen_x(e.x), screen_y(e.y), draw_char, draw_char_color);
         }
     }
 
-    // Player
-    Gfx.draw_tile(screen_x(player_x), screen_y(player_y), Tile.Player); 
+    // Player, draw as parts of each armor
+    for (armor_type in Type.allEnums(ArmorType)) {
+        var armor_tile: Int;
+        if (player_armor[armor_type] == null) {
+            armor_tile = Entity.armor_tile[armor_type][0];
+        } else {
+            var armor = Entity.armor[player_armor[armor_type].id];
+            armor_tile = armor.tile;
+        }
+
+        Gfx.draw_tile(screen_x(player_x), screen_y(player_y), armor_tile); 
+    }
 
     //
     // Right-hand menu bar
@@ -345,21 +397,23 @@ function update() {
     Gfx.scale(1, 1, 0, 0);
     Text.change_size(12);
 
-    var y: Float = 0;
+    var ui_y: Float = 0;
+    var ui_x = view_width * tilesize * world_scale + ui_x_offset;
     function down_line(text) {
-        Text.display(1005, y, text);
-        y += (Text.height() + 2);
+        Text.display(ui_x, ui_y, text);
+        ui_y += (Text.height() + 2);
     }
     function up_line(text) {
-        Text.display(1005, y, text);
-        y -= (Text.height() + 2);
+        Text.display(ui_x, ui_y, text);
+        ui_y -= (Text.height() + 2);
     }
 
     // Player stats
-    y = player_stats_y;
+    ui_y = player_stats_y;
     down_line('PLAYER');
     down_line('Health: ${player_health}/${player_health_max}');
     down_line('Attack: ${player_attack}');
+    down_line('Defense: ${player_defense()} (absorb ${player_defense_absorb()} damage per fight)');
     down_line('Copper: ${copper_count}');
     down_line('Armor:');
     for (armor_type in Type.allEnums(ArmorType)) {
@@ -370,29 +424,20 @@ function update() {
             down_line('$armor_type: ${Entity.armor[armor.id].name}');
         }
     }
-    // var head = player_armor[ArmorType_Head];
-    // if (head == null) {
-    //     down_line('Head: none');
-    // } else {
-    //     down_line('Head: ${Entity.armor[head.id].name}');
-    // }
-    // var chest = player_armor[ArmorType_Chest];
-    // if (chest == null) {
-    //     down_line('Chest: none');
-    // } else {
-    //     down_line('Chest: ${Entity.armor[chest.id].name}');
-    // }
-    // var legs = player_armor[ArmorType_Legs];
-    // if (legs == null) {
-    //     down_line('Chest: none');
-    // } else {
-    //     down_line('Chest: ${Entity.armor[legs.id].name}');
-    // }
 
+    ui_y = inventory_y - Text.height();
+    down_line('INVENTORY');
+    ui_y = inventory_y;
+    var inventory_cell_width = tilesize * world_scale;
+    for (x in 0...inventory_width) {
+        for (y in 0...inventory_height) {
+            Gfx.draw_box(ui_x + x * inventory_cell_width, inventory_y + y * inventory_cell_width, inventory_cell_width, inventory_cell_width, Col.WHITE);
+        }
+    }
 
     // Hovered entity stats
     if (hovered_entity != null) {
-        y = target_stats_y;
+        ui_y = target_stats_y;
         down_line('TARGET');
         down_line('Id: ${hovered_entity.id}');
         down_line('Type: ${hovered_entity.type}');
@@ -406,17 +451,18 @@ function update() {
         }
         if (Entity.armor.exists(hovered_entity.id)) {
             down_line('Armor name: ${Entity.armor[hovered_entity.id].name}');
+            down_line('Armor defense: ${Entity.armor[hovered_entity.id].defense}');
         }
     }
 
     // Messages
-    y = message_history_y;
+    ui_y = message_history_y;
     for (message in message_history) {
         up_line(message);
     }
 
     // Interact menu
-    if (interact_target != null && !entity_picked_up(interact_target)) {
+    if (interact_target != null && !interact_target.is_picked_up()) {
         GUI.x = screen_x(interact_target.x) + tilesize * world_scale;
         GUI.y = screen_y(interact_target.y) + tilesize * world_scale;
 

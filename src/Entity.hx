@@ -23,6 +23,14 @@ typedef Use = {
 typedef Armor = {
     var type: ArmorType;
     var name: String;
+    var tile: Int;
+    var defense: Int;
+}
+
+typedef GiveCopper = {
+    var chance: Int;
+    var min: Int;
+    var max: Int;
 }
 
 @:publicFields
@@ -43,14 +51,11 @@ static var draw_char = [
     'bear' => 'B',
     'fountain' => 'F',
     'item' => 'I',
-    'copper' => 'C',
-    'armor' => 'A',
 ];
 
 static var draw_char_color = [
     'snail' => Col.RED,
     'bear' => Col.RED,
-    'copper' => Col.YELLOW,
     'armor' => Col.GRAY,
 ];
 
@@ -58,7 +63,6 @@ static var description = [
     'snail' => 'A green snail with a brown shell.',
     'bear' => 'A brown bear, looks cute.',
     'fountain' => 'A beautiful fountain. Water flowing through it looks magical.',
-    'item' => 'It\'s an item.',
 ];
 
 static var talk = [
@@ -71,19 +75,29 @@ static var combat = [
     'bear' => {health: 2, attack: 2, message: 'Bear roars angrily at you.'},
 ];
 
+static var give_copper_on_death = [
+    'snail' => {chance: 50, min: 1, max: 1},
+    'bear' => {chance: 50, min: 1, max: 2},
+];
+
 static var use = [
     'fountain' => {name: 'heal 2', charges_max: 1},
 ];
 
 static var pick_up = [
-    'copper' => true,
     'armor' => true,
 ];
 
-static var armor_names = [
-    ArmorType_Head => ['leather helmet', 'copper helmet', 'iron helmet',],
-    ArmorType_Chest => ['leather chest', 'copper chest', 'iron chest',],
-    ArmorType_Legs => ['leather pants', 'copper pants', 'iron pants',],
+static var armor_tile = [
+    ArmorType_Head => [Tile.Head0, Tile.Head1, Tile.Head2, Tile.Head3, Tile.Head4],
+    ArmorType_Chest => [Tile.Chest0, Tile.Chest1, Tile.Chest2, Tile.Chest3, Tile.Chest4],
+    ArmorType_Legs => [Tile.Legs0, Tile.Legs1, Tile.Legs2, Tile.Legs3, Tile.Legs4],
+];
+
+static var armor_name = [
+    ArmorType_Head => ['no helmet', 'leather helmet', 'copper helmet', 'iron helmet', 'obsidian helmet'],
+    ArmorType_Chest => ['no chestplate', 'leather chestplate', 'copper chestplate', 'iron chestplate', 'obsidian chestplate'],
+    ArmorType_Legs => ['no pants', 'leather pants', 'copper pants', 'iron pants', 'obsidian pants'],
 ];
 
 // 
@@ -92,7 +106,11 @@ static var armor_names = [
 static var use_charges = new Map<Int, Int>();
 static var stacks = new Map<Int, Int>();
 static var armor = new Map<Int, Armor>();
+
 static var picked_up = new Map<Int, Bool>();
+function is_picked_up(): Bool {
+    return picked_up.exists(id) && picked_up[id];
+}
 
 static function make(x: Int, y: Int, type: String): Entity {
     var e = new Entity();
@@ -120,9 +138,13 @@ static function make(x: Int, y: Int, type: String): Entity {
 static function make_armor(x: Int, y: Int, armor_type: ArmorType) {
     var e = make(x, y, 'armor');
 
+    var level = Random.int(1, 4);
+
     armor[e.id] = {
         type: armor_type,
-        name: Random.pick(armor_names[armor_type])
+        name: armor_name[armor_type][level],
+        tile: armor_tile[armor_type][level],
+        defense: level * 4,
     };
 }
 
@@ -153,7 +175,7 @@ static var all: Array<Entity> = [];
 
 static function at(x, y): Entity {
     for (e in all) {
-        if (e.x == x && e.y == y) {
+        if (e.x == x && e.y == y && !e.is_picked_up()) {
             return e;
             break;
         }
