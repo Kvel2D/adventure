@@ -1,6 +1,8 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
+swapping armor doesn't work
+
 room generation
     rooms are rectangles, connected randomly, must not intersect
     

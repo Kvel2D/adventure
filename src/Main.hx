@@ -19,27 +19,33 @@ static inline var map_height = 200;
 static inline var view_width = 31;
 static inline var view_height = 31;
 
-static var tiles = Data.int_2d_vector(map_width, map_height);
-static var walls = Data.bool_2d_vector(map_width, map_height);
+var tiles = Data.int_2d_vector(map_width, map_height);
+var walls = Data.bool_2d_vector(map_width, map_height);
 
-static var player_x = 100;
-static var player_y = 100;
-static var player_health_max = 10;
-static var player_health = 10;
-static var player_attack = 1;
+var player_x = 100;
+var player_y = 100;
+var player_health_max = 10;
+var player_health = 10;
+var player_attack = 1;
+var copper_count = 0;
+var player_armor: Map<ArmorType, Entity> = [
+ArmorType_Head => null,
+ArmorType_Chest => null,
+ArmorType_Legs => null,
+];
 
 static inline var message_history_length_max = 20;
-static var message_history = new Array<String>();
+var message_history = new Array<String>();
 
 static inline var message_history_y = 800;
 static inline var player_stats_y = 100;
-static inline var target_stats_y = 200;
+static inline var target_stats_y = 300;
 
-static var interact_target: Entity = null;
-static var done_interaction = false;
-static var player_acted = false;
-static var world_scale = 4;
-static var need_to_update_tiles_canvas = true;
+var interact_target: Entity = null;
+var done_interaction = false;
+var player_acted = false;
+var world_scale = 4;
+var need_to_update_tiles_canvas = true;
 
 function new() {
     Gfx.resize_screen(screen_width, screen_height, 1);
@@ -70,15 +76,30 @@ function new() {
     }
 
     Entity.make(98, 98, 'snail');
-    Entity.make(108, 98, 'bear');
+    Entity.make(108, 100, 'bear');
     Entity.make(105, 98, 'fountain');
+
+    Entity.make(106, 100, 'copper');
+    Entity.make_armor(107, 98, ArmorType_Head);
+    Entity.make_armor(107, 97, ArmorType_Head);
+    Entity.make_armor(108, 98, ArmorType_Chest);
+    Entity.make_armor(108, 97, ArmorType_Chest);
+    Entity.make_armor(109, 98, ArmorType_Legs);
+    Entity.make_armor(109, 97, ArmorType_Legs);
+}
+
+function entity_picked_up(e: Entity): Bool {
+    return Entity.picked_up.exists(e.id) && Entity.picked_up[e.id];
 }
 
 function get_free_map(): Vector<Vector<Bool>> {
     var free_map = Data.bool_2d_vector(map_width, map_height, true);
     // Entities
     for (e in Entity.all) {
-        free_map[e.x][e.y] = false;
+        
+        if (!entity_picked_up(e)) {
+            free_map[e.x][e.y] = false;
+        }
     }
     // Walls
     for (x in 0...map_width) {
@@ -113,21 +134,61 @@ function out_of_bounds(x, y) {
     return x < 0 || y < 0 || x >= map_width || y >= map_height;
 }
 
-static function add_message(message) {
+function add_message(message) {
     message_history.insert(0, message);
 }
 
 function use_entity(e: Entity) {
     var use = Entity.use[e.type];
+    var use_charges = Entity.use_charges[e.id];
 
-    if (use == 'heal 2') {
-        player_health += 2;
+    if (use_charges > 0) {
+        if (use.name == 'heal 2') {
+            player_health += 2;
 
-        if (player_health > player_health_max) {
-            player_health = player_health_max;
+            if (player_health > player_health_max) {
+                player_health = player_health_max;
+            }
+
+            use_charges--;
+
+            Entity.use_charges[e.id] = use_charges;
+
+            add_message('${e.type} heals you for 2 health.');
+        }
+    }
+}
+
+function pick_up_entity(e: Entity) {
+    if (e.type == 'copper') {
+        copper_count += Entity.stacks[e.id];
+
+        // Copper goes away after pick up
+        Entity.all.remove(e);
+    } else if (Entity.armor.exists(e.id)) {
+        var armor = Entity.armor[e.id];
+
+        var current_armor = player_armor[armor.type];
+        if (current_armor != null) {
+            trace('Current armor: ${Entity.armor[player_armor[armor.type].id].name}');
+    
+            var current_armor_armor = Entity.armor[current_armor.id];
+            add_message('You take off ${current_armor_armor.name}');
+            Entity.picked_up[current_armor.id] = false;
+            current_armor.x = e.x;
+            current_armor.y = e.y;
+
+            trace('Current armor: ${Entity.armor[player_armor[armor.type].id].name}');
+
         }
 
-        add_message('${e.type} heals you for 2 health.');
+        add_message('You put on ${armor.name}');
+
+        player_armor[armor.type] = e;
+
+            trace('Current armor: ${Entity.armor[player_armor[armor.type].id].name}');
+        
+        Entity.picked_up[e.id] = true;
     }
 }
 
@@ -195,7 +256,6 @@ function update() {
             // Attack on left click
 
             var entity_combat = Entity.combat[hovered_entity.type];
-            add_message(entity_combat.message);
             var entity_health = entity_combat.health;
             var entity_attack = entity_combat.attack;
 
@@ -208,6 +268,8 @@ function update() {
                 damage_taken += entity_attack;
             }
 
+            add_message('You attack ${hovered_entity.type}.');
+            add_message(entity_combat.message);
             add_message('You take ${damage_taken} damage from ${hovered_entity.type}.');
 
             if (entity_health <= 0) {
@@ -261,8 +323,16 @@ function update() {
     // Entities
     Text.change_size(32);
     for (e in Entity.all) {
-        if (!out_of_bounds(e.x, e.y) && Entity.draw_char.exists(e.type)) {
-            Text.display(screen_x(e.x), screen_y(e.y), Entity.draw_char[e.type]);
+        if (!out_of_bounds(e.x, e.y) && Entity.draw_char.exists(e.type) && !entity_picked_up(e)) {
+
+            var draw_char = Entity.draw_char[e.type];
+
+            var draw_char_color = Col.WHITE;
+            if (Entity.draw_char_color.exists(e.type)) {
+                draw_char_color = Entity.draw_char_color[e.type];
+            }
+
+            Text.display(screen_x(e.x), screen_y(e.y), draw_char, draw_char_color);
         }
     }
 
@@ -287,19 +357,55 @@ function update() {
 
     // Player stats
     y = player_stats_y;
-    down_line('Player stats');
+    down_line('PLAYER');
     down_line('Health: ${player_health}/${player_health_max}');
     down_line('Attack: ${player_attack}');
+    down_line('Copper: ${copper_count}');
+    down_line('Armor:');
+    for (armor_type in Type.allEnums(ArmorType)) {
+        var armor = player_armor[armor_type];
+        if (armor == null) {
+            down_line('$armor_type: none');
+        } else {
+            down_line('$armor_type: ${Entity.armor[armor.id].name}');
+        }
+    }
+    // var head = player_armor[ArmorType_Head];
+    // if (head == null) {
+    //     down_line('Head: none');
+    // } else {
+    //     down_line('Head: ${Entity.armor[head.id].name}');
+    // }
+    // var chest = player_armor[ArmorType_Chest];
+    // if (chest == null) {
+    //     down_line('Chest: none');
+    // } else {
+    //     down_line('Chest: ${Entity.armor[chest.id].name}');
+    // }
+    // var legs = player_armor[ArmorType_Legs];
+    // if (legs == null) {
+    //     down_line('Chest: none');
+    // } else {
+    //     down_line('Chest: ${Entity.armor[legs.id].name}');
+    // }
+
 
     // Hovered entity stats
     if (hovered_entity != null) {
         y = target_stats_y;
-        down_line('Target stats');
+        down_line('TARGET');
+        down_line('Id: ${hovered_entity.id}');
         down_line('Type: ${hovered_entity.type}');
         if (Entity.combat.exists(hovered_entity.type)) {
             var entity_combat = Entity.combat[hovered_entity.type];
             down_line('Health: ${entity_combat.health}');
             down_line('Attack: ${entity_combat.attack}');
+        }
+        if (Entity.description.exists(hovered_entity.type)) {
+            down_line(Entity.description[hovered_entity.type]);
+        }
+        if (Entity.armor.exists(hovered_entity.id)) {
+            down_line('Armor name: ${Entity.armor[hovered_entity.id].name}');
         }
     }
 
@@ -310,16 +416,10 @@ function update() {
     }
 
     // Interact menu
-    if (interact_target != null) {
+    if (interact_target != null && !entity_picked_up(interact_target)) {
         GUI.x = screen_x(interact_target.x) + tilesize * world_scale;
         GUI.y = screen_y(interact_target.y) + tilesize * world_scale;
 
-        if (Entity.examine.exists(interact_target.type)) {
-            if (GUI.auto_text_button('Examine')) {
-                add_message(Entity.examine[interact_target.type]);
-                done_interaction = true;
-            }
-        }
         if (Entity.talk.exists(interact_target.type)) {
             if (GUI.auto_text_button('Talk')) {
                 add_message(Entity.talk[interact_target.type]);
@@ -329,6 +429,14 @@ function update() {
         if (Entity.use.exists(interact_target.type)) {
             if (GUI.auto_text_button('Use')) {
                 use_entity(interact_target);
+
+                done_interaction = true;
+            }
+        }
+
+        if (Entity.pick_up.exists(interact_target.type)) {
+            if (GUI.auto_text_button('Pick up')) {
+                pick_up_entity(interact_target);
 
                 done_interaction = true;
             }
