@@ -1,0 +1,75 @@
+---------------------------------------------------------------------------------------------
+TODO
+
+room generation
+    rooms are rectangles, connected randomly, must not intersect
+    
+items
+    items as entities? or separate class?
+        maybe entities is better so that a mob can spawn another mob that attacks or can be used
+        then items are equivalent to a mob spawning an entity
+    mobs drop items on death
+        only zero or one item per mob, drops at the location of death
+    potions, stack infinitely
+    gold, on pickup it's converted to counter in stats screen
+    armor
+        absorb 1 dmg per fight per 10 armor points
+        10 = 1dmg, 15 = 1dmg, 21 = 2dmg
+        show this when hovering over armor number in stats
+        screw durability
+        head, chest, pants (boots?)
+
+---------------------------------------------------------------------------------------------
+BUGS
+
+
+
+---------------------------------------------------------------------------------------------
+DONE
+
+---------------------------------------------------------------------------------------------
+IDEAS
+
+cells with effects
+    poison - works like bloodborne, but full damage instantly at completion of meter, meter invisible, in effect allows for constant accumulation of poison in realtime which periodically "ticks"
+    straight damage when stepping on for the first time (lava)
+
+doors opened with buttons
+    can make rooms be one-way entrance by putting a button and a door at the entrance
+    (one way entrance poison room)
+
+chests
+
+merchanct block entrance to shop storage which contains a chest
+    could attack merchant to open the way and get the chest but merchant is deadly
+
+boots that make you immune to lava
+
+aura system
+    buffs/poison/interact object effects translate into auras that affect the player, auras have time which ticks down, displayed in a list under stats
+
+crab-hand
+    crabs can be attacked but also can be used to gain +X to dmg for a limited time while taking damage periodically
+    this is an aura
+    crab disappears on end
+
+armor can be sold or not?
+    probably not
+
+swap hp spell
+    swap your and mob's hp
+    the only real way to "level up" hp, bought for a ton of money or a rare
+
+show armor as cute little pixely parts on player
+    change color and look slightly
+
+spells
+    no mana, spells are scrolls that have charges
+    equip into weapon slot, used automatically during the fight
+    one charge per fight
+
+pushable blocks ala sokoban
+    use blocks to push a button to open a door
+    but block is surround by enemies, need to clear them to be able to push it
+    pushed by moving next to block
+    can grab block for undoing purposes by holding G
