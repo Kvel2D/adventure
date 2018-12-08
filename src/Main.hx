@@ -113,8 +113,9 @@ function get_free_map(): Vector<Vector<Bool>> {
     // Entities
     var free_map = Data.bool_2d_vector(map_width, map_height, true);
     for (e in Entity.all) {
-        if (!e.equipped_or_picked_up()) {
-            free_map[e.x][e.y] = false;
+        if (Entity.position.exists(e.id)) {
+            var pos = Entity.position[e.id];
+            free_map[pos.x][pos.y] = false;
         }
     }
     // Walls
@@ -203,8 +204,13 @@ function equip_entity(e: Entity) {
 
         // Drop armor to location of new armor
         Entity.equipment[equipped_entity.id].equipped = false;
-        equipped_entity.x = e.x;
-        equipped_entity.y = e.y;
+        if (Entity.position.exists(e.id)) {
+            var equipped_pos = Entity.position[e.id];
+            Entity.position[equipped_entity.id] = {
+                x: equipped_pos.x,
+                y: equipped_pos.y
+            };
+        }
     }
 
     add_message('You put on ${Entity.equipment[e.id].name}.');
@@ -216,6 +222,7 @@ function equip_entity(e: Entity) {
         player_weapon = e;
     }
     Entity.equipment[e.id].equipped = true;
+    Entity.position.remove(e.id);
 }
 
 function pick_up_entity(e: Entity) {
@@ -223,11 +230,12 @@ function pick_up_entity(e: Entity) {
         inventory.push(e);
 
         add_message('You pick up ${Entity.item[e.id].name}.');
+
+        Entity.item[e.id].picked_up = true;
+        Entity.position.remove(e.id);
     } else {
         add_message('Inventory is full.');
     }
-
-    Entity.item[e.id].picked_up = true;
 }
 
 function drop_entity(e: Entity) {
@@ -251,8 +259,10 @@ function drop_entity(e: Entity) {
     }
 
     if (free_x != -1 && free_y != -1) {
-        e.x = free_x;
-        e.y = free_y;
+        Entity.position[e.id] = {
+            x: free_x,
+            y: free_y
+        };
         Entity.item[e.id].picked_up = false;
         inventory.remove(e);
         add_message('You drop ${Entity.item[e.id].name}.');
@@ -286,7 +296,12 @@ function player_defense_absorb(): Int {
 }
 
 function player_next_to_entity(e: Entity): Bool {
-    return Math.dst2(e.x, e.y, player_x, player_y) <= 2;
+    if (Entity.position.exists(e.id)) {
+        var pos = Entity.position[e.id];
+        return Math.dst2(pos.x, pos.y, player_x, player_y) <= 2;
+    } else {
+        return false;
+    }
 }
 
 function end_turn() {
@@ -362,8 +377,11 @@ function update() {
     var hovered_anywhere_y: Int = 0;
     if (hovered_map != null) {
         hovered_anywhere = hovered_map;
-        hovered_anywhere_x = screen_x(hovered_anywhere.x);
-        hovered_anywhere_y = screen_y(hovered_anywhere.y);
+        if (Entity.position.exists(hovered_anywhere.id)) {
+            var pos = Entity.position[hovered_anywhere.id];
+            hovered_anywhere_x = screen_x(pos.x);
+            hovered_anywhere_y = screen_y(pos.y);
+        }
     } else {
         // Check for entities in inventory
         var mouse_inventory_x = Math.floor((Mouse.x - ui_x) / world_scale / tilesize);
@@ -418,16 +436,19 @@ function update() {
         var entity_attack = entity_combat.attack;
 
         var damage_taken = 0;
+        var damage_absorbed = 0;
 
         while (player_health > 0 && entity_health > 0) {
             // Simulate player and mob taking turns attacking
             if (defense_absorb_left > 0) {
                 defense_absorb_left -= entity_attack;
+                damage_absorbed += entity_attack;
 
                 if (defense_absorb_left < 0) {
                     // Fix for negative absorb
                     player_health += defense_absorb_left;
                     damage_taken -= defense_absorb_left;
+                    damage_absorbed += defense_absorb_left;
                 }
             } else {
                 player_health -= entity_attack;
@@ -438,6 +459,7 @@ function update() {
 
         add_message('You attack ${hovered_map.type}.');
         add_message(entity_combat.message);
+        add_message('Your armor absorbs ${damage_absorbed} damage from ${hovered_map.type}.');
         add_message('You take ${damage_taken} damage from ${hovered_map.type}.');
 
         if (entity_health <= 0) {
@@ -497,7 +519,8 @@ function update() {
     // Entities
     Text.change_size(32);
     for (e in Entity.all) {
-        if (!out_of_map_bounds(e.x, e.y) && !e.equipped_or_picked_up()) {
+        if (Entity.position.exists(e.id)) {
+            var pos = Entity.position[e.id];
             if (Entity.draw_char.exists(e.type)) {
                 // Draw char
                 var draw_char = Entity.draw_char[e.type];
@@ -507,11 +530,11 @@ function update() {
                     draw_char_color = Entity.draw_char_color[e.type];
                 }
 
-                Text.display(screen_x(e.x), screen_y(e.y), draw_char, draw_char_color);
+                Text.display(screen_x(pos.x), screen_y(pos.y), draw_char, draw_char_color);
             } else if (Entity.draw_tile.exists(e.id)) {
                 // Draw tile
                 var tile = Entity.draw_tile[e.id];
-                Gfx.draw_tile(screen_x(e.x), screen_y(e.y), tile);
+                Gfx.draw_tile(screen_x(pos.x), screen_y(pos.y), tile);
             }
         }
     }
@@ -652,13 +675,8 @@ function update() {
     }
 
     if (interact_target != null) {
-        if (interact_target.equipped_or_picked_up()) {
-            GUI.x = interact_target_x + tilesize * world_scale;
-            GUI.y = interact_target_y;
-        } else {
-            GUI.x = screen_x(interact_target.x) + tilesize * world_scale;
-            GUI.y = screen_y(interact_target.y);
-        }
+        GUI.x = interact_target_x + tilesize * world_scale;
+        GUI.y = interact_target_y;
         if (Entity.talk.exists(interact_target.type)) {
             if (GUI.auto_text_button('Talk')) {
                 add_message(Entity.talk[interact_target.type]);
