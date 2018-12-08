@@ -13,6 +13,10 @@ enum WeaponType {
     WeaponType_Sword;
 }
 
+enum UseType {
+    UseType_Heal;
+}
+
 typedef Combat = {
     var health: Int;
     var attack: Int;
@@ -20,8 +24,10 @@ typedef Combat = {
 }
 
 typedef Use = {
-    var name: String;
-    var charges_max: Int;
+    var type: UseType;
+    var value: Int;
+    var charges: Int;
+    var consumable: Bool;
 }
 
 typedef Equipment = {
@@ -64,6 +70,13 @@ var y: Int = 0;
 // 
 // Type specific
 //
+static var name = [
+    'snail' => 'S',
+    'bear' => 'B',
+    'fountain' => 'F',
+    'item' => 'I',
+];
+
 static var draw_char = [
     'snail' => 'S',
     'bear' => 'B',
@@ -97,10 +110,6 @@ static var give_copper_on_death = [
     'bear' => {chance: 50, min: 1, max: 2},
 ];
 
-static var use = [
-    'fountain' => {name: 'heal 2', charges_max: 1},
-];
-
 //
 // Subtype specific
 //
@@ -127,13 +136,12 @@ static var weapon_tile = [
 // 
 // Instance specific
 //
-static var use_charges = new Map<Int, Int>();
-static var stacks = new Map<Int, Int>();
+static var draw_tile = new Map<Int, Int>();
 static var equipment = new Map<Int, Equipment>();
 static var armor = new Map<Int, Armor>();
 static var weapon = new Map<Int, Weapon>();
-static var draw_tile = new Map<Int, Int>();
 static var item = new Map<Int, Item>();
+static var use = new Map<Int, Use>();
 
 function equipped_or_picked_up(): Bool {
     return (equipment.exists(id) && equipment[id].equipped) || (item.exists(id) && item[id].picked_up);
@@ -146,11 +154,6 @@ static function make(x: Int, y: Int, type: String): Entity {
     id_max++;
     e.x = x;
     e.y = y;
-
-    if (use.exists(type)) {
-        var entity_use = use[type];
-        use_charges[e.id] = entity_use.charges_max;
-    }
 
     all.push(e);
 
@@ -188,7 +191,20 @@ static function make_sword(x: Int, y: Int) {
         type: weapon_type, 
         attack: Main.PLAYER_BASE_ATTACK + level
     };
-    Entity.draw_tile[e.id] = weapon_tile[weapon_type][level];
+    Entity.draw_tile[e.id] = weapon_tile[weapon_type][level - 1];
+}
+
+static function make_fountain(x: Int, y: Int): Entity {
+    var e = make(x, y, 'fountain');
+    
+    use[e.id] = {
+        type: UseType_Heal,
+        value: 2, 
+        charges: 1,
+        consumable: false,
+    };
+
+    return e;
 }
 
 static function make_potion(x: Int, y: Int) {
@@ -198,6 +214,14 @@ static function make_potion(x: Int, y: Int) {
         name: "Healing potion",
         picked_up: false,
     };
+
+    use[e.id] = {
+        type: UseType_Heal,
+        value: 2,
+        charges: 1,
+        consumable: true,
+    };
+
     Entity.draw_tile[e.id] = Tile.Potion;
 }
 
@@ -218,9 +242,8 @@ function print() {
     if (Entity.weapon.exists(id)) {
         trace('weapon=${Entity.weapon[id]}');
     }
-    if (Entity.use.exists(type)) {
-        trace('use=${Entity.use[type]}');
-        trace('use_charges=${Entity.use_charges[id]}');
+    if (Entity.use.exists(id)) {
+        trace('use=${Entity.use[id]}');
     }
     if (Entity.description.exists(type)) {
         trace('description=${Entity.description[type]}');

@@ -1,16 +1,15 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-mouse collision with items in inventory
+make sure entities not on map are ignored correctly where they are supposed to be ignored
 
-items
-    "item" set
-    enables "pick up" right click menu
-    moves item to inventory array
-    render inventory array in the inventory
-    check for hover over entities in inventory
-    mobs drop items on death
-        only zero or one item per mob, drops at the location of death
+draw target tooltip at target location, drawing it at the ui is distracting
+
+mobs drop items on death
+    only zero or one item per mob, drops at the location of death
+
+be able to use equipment while equipped
+    special effects like boosting armor temporarily, etc
 
 ---------------------------------------------------------------------------------------------
 BUGS
@@ -55,8 +54,7 @@ swap hp spell
 
 spells
     no mana, spells are scrolls that have charges
-    equip into weapon slot, used automatically during the fight
-    one charge per fight
+    use affects future fights or something
 
 pushable blocks ala sokoban
     use blocks to push a button to open a door
