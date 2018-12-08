@@ -1,14 +1,16 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
+mouse collision with items in inventory
+
 items
-    moving items to inventory
-    dragging and dropping items within inventory
-    right click on item to drop, drops in a circle around player(error if no space)
+    "item" set
+    enables "pick up" right click menu
+    moves item to inventory array
+    render inventory array in the inventory
+    check for hover over entities in inventory
     mobs drop items on death
         only zero or one item per mob, drops at the location of death
-    potions, stack infinitely
-
 
 ---------------------------------------------------------------------------------------------
 BUGS

@@ -9,6 +9,10 @@ enum ArmorType {
     ArmorType_Legs;
 }
 
+enum WeaponType {
+    WeaponType_Sword;
+}
+
 typedef Combat = {
     var health: Int;
     var attack: Int;
@@ -20,11 +24,19 @@ typedef Use = {
     var charges_max: Int;
 }
 
+typedef Equipment = {
+    var name: String;
+    var equipped: Bool;
+}
+
 typedef Armor = {
     var type: ArmorType;
-    var name: String;
-    var tile: Int;
     var defense: Int;
+}
+
+typedef Weapon = {
+    var type: WeaponType;
+    var attack: Int;
 }
 
 typedef GiveCopper = {
@@ -32,6 +44,12 @@ typedef GiveCopper = {
     var min: Int;
     var max: Int;
 }
+
+typedef Item = {
+    var name: String;
+    var picked_up: Bool;
+}
+
 
 @:publicFields
 class Entity {
@@ -56,7 +74,6 @@ static var draw_char = [
 static var draw_char_color = [
     'snail' => Col.RED,
     'bear' => Col.RED,
-    'armor' => Col.GRAY,
 ];
 
 static var description = [
@@ -84,32 +101,42 @@ static var use = [
     'fountain' => {name: 'heal 2', charges_max: 1},
 ];
 
-static var pick_up = [
-    'armor' => true,
-];
-
-static var armor_tile = [
-    ArmorType_Head => [Tile.Head0, Tile.Head1, Tile.Head2, Tile.Head3, Tile.Head4],
-    ArmorType_Chest => [Tile.Chest0, Tile.Chest1, Tile.Chest2, Tile.Chest3, Tile.Chest4],
-    ArmorType_Legs => [Tile.Legs0, Tile.Legs1, Tile.Legs2, Tile.Legs3, Tile.Legs4],
-];
+//
+// Subtype specific
+//
 
 static var armor_name = [
     ArmorType_Head => ['no helmet', 'leather helmet', 'copper helmet', 'iron helmet', 'obsidian helmet'],
     ArmorType_Chest => ['no chestplate', 'leather chestplate', 'copper chestplate', 'iron chestplate', 'obsidian chestplate'],
     ArmorType_Legs => ['no pants', 'leather pants', 'copper pants', 'iron pants', 'obsidian pants'],
 ];
+static var armor_tile = [
+    ArmorType_Head => [Tile.Head0, Tile.Head1, Tile.Head2, Tile.Head3, Tile.Head4],
+    ArmorType_Chest => [Tile.Chest0, Tile.Chest1, Tile.Chest2, Tile.Chest3, Tile.Chest4],
+    ArmorType_Legs => [Tile.Legs0, Tile.Legs1, Tile.Legs2, Tile.Legs3, Tile.Legs4],
+];
+
+static var weapon_name = [
+    WeaponType_Sword => ['no weapon', 'wooden sword', 'copper sword', 'iron sword', 'obsidian sword'],
+];
+static var weapon_tile = [
+    WeaponType_Sword => [Tile.Sword1, Tile.Sword2, Tile.Sword3, Tile.Sword4],
+];
+
 
 // 
 // Instance specific
 //
 static var use_charges = new Map<Int, Int>();
 static var stacks = new Map<Int, Int>();
+static var equipment = new Map<Int, Equipment>();
 static var armor = new Map<Int, Armor>();
+static var weapon = new Map<Int, Weapon>();
+static var draw_tile = new Map<Int, Int>();
+static var item = new Map<Int, Item>();
 
-static var picked_up = new Map<Int, Bool>();
-function is_picked_up(): Bool {
-    return picked_up.exists(id) && picked_up[id];
+function equipped_or_picked_up(): Bool {
+    return (equipment.exists(id) && equipment[id].equipped) || (item.exists(id) && item[id].picked_up);
 }
 
 static function make(x: Int, y: Int, type: String): Entity {
@@ -125,11 +152,6 @@ static function make(x: Int, y: Int, type: String): Entity {
         use_charges[e.id] = entity_use.charges_max;
     }
 
-    if (pick_up.exists(e.type)) {
-        picked_up[e.id] = false;
-        stacks[e.id] = 1;
-    }
-
     all.push(e);
 
     return e;
@@ -140,12 +162,43 @@ static function make_armor(x: Int, y: Int, armor_type: ArmorType) {
 
     var level = Random.int(1, 4);
 
-    armor[e.id] = {
-        type: armor_type,
+    Entity.equipment[e.id] = {
         name: armor_name[armor_type][level],
-        tile: armor_tile[armor_type][level],
-        defense: level * 4,
+        equipped: false,
     };
+    Entity.armor[e.id] = {
+        type: armor_type, 
+        defense: level * 4
+    };
+    Entity.draw_tile[e.id] = armor_tile[armor_type][level];
+}
+
+static function make_sword(x: Int, y: Int) {
+    var e = make(x, y, 'weapon');
+
+    var level = Random.int(1, 4);
+
+    var weapon_type = WeaponType_Sword;
+
+    Entity.equipment[e.id] = {
+        name: weapon_name[weapon_type][level],
+        equipped: false,
+    };
+    Entity.weapon[e.id] = {
+        type: weapon_type, 
+        attack: Main.PLAYER_BASE_ATTACK + level
+    };
+    Entity.draw_tile[e.id] = weapon_tile[weapon_type][level];
+}
+
+static function make_potion(x: Int, y: Int) {
+    var e = make(x, y, 'potion');
+
+    Entity.item[e.id] = {
+        name: "Healing potion",
+        picked_up: false,
+    };
+    Entity.draw_tile[e.id] = Tile.Potion;
 }
 
 function print() {
@@ -156,8 +209,14 @@ function print() {
     if (Entity.draw_char.exists(type)) {
         trace('draw_char=${Entity.draw_char[type]}');
     }
-    if (Entity.combat.exists(type)) {
-        trace('combat=${Entity.combat[type]}');
+    if (Entity.equipment.exists(id)) {
+        trace('equipment=${Entity.equipment[id]}');
+    }
+    if (Entity.armor.exists(id)) {
+        trace('armor=${Entity.armor[id]}');
+    }
+    if (Entity.weapon.exists(id)) {
+        trace('weapon=${Entity.weapon[id]}');
     }
     if (Entity.use.exists(type)) {
         trace('use=${Entity.use[type]}');
@@ -175,7 +234,7 @@ static var all: Array<Entity> = [];
 
 static function at(x, y): Entity {
     for (e in all) {
-        if (e.x == x && e.y == y && !e.is_picked_up()) {
+        if (e.x == x && e.y == y && !e.equipped_or_picked_up()) {
             return e;
             break;
         }

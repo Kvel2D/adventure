@@ -35,4 +35,11 @@ class Tile {
     static inline var Head4 = at(4, 2);
     static inline var Chest4 = at(4, 3);
     static inline var Legs4 = at(4, 4);
+
+    static inline var Sword1 = at(1, 7);
+    static inline var Sword2 = at(2, 7);
+    static inline var Sword3 = at(3, 7);
+    static inline var Sword4 = at(4, 7);
+
+    static inline var Potion = at(1, 1);
 }
