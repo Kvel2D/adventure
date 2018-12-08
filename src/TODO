@@ -1,7 +1,12 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-NEED Text.display_wrapped()
+background for tooltip
+
+room generation
+    rooms are rectangles, connected randomly, must not intersect
+
+get playable version ASAP and PLAY IT
 
 ---------------------------------------------------------------------------------------------
 BUGS
@@ -14,8 +19,20 @@ DONE
 ---------------------------------------------------------------------------------------------
 IDEAS
 
-room generation
-    rooms are rectangles, connected randomly, must not intersect
+portals
+
+line of sight
+    can't see behind doors
+    view distance limited
+    remember entity once seen?
+
+spell scrolls
+    increase attack for next N fights
+    absorb X damage for next N fights
+    increase movement speed(double?)
+
+aura system
+    buffs/poison/interact object effects translate into auras that affect the player, auras have time which ticks down, displayed in a list under stats
 
 cells with effects
     poison - works like bloodborne, but full damage instantly at completion of meter, meter invisible, in effect allows for constant accumulation of poison in realtime which periodically "ticks"
@@ -27,13 +44,10 @@ doors opened with buttons
 
 chests
 
-merchanct block entrance to shop storage which contains a chest
+merchant block entrance to shop storage which contains a chest
     could attack merchant to open the way and get the chest but merchant is deadly
 
 boots that make you immune to lava
-
-aura system
-    buffs/poison/interact object effects translate into auras that affect the player, auras have time which ticks down, displayed in a list under stats
 
 crab-hand
     crabs can be attacked but also can be used to gain +X to dmg for a limited time while taking damage periodically
@@ -43,10 +57,6 @@ crab-hand
 swap hp spell
     swap your and mob's hp
     the only real way to "level up" hp, bought for a ton of money or a rare
-
-spells
-    no mana, spells are scrolls that have charges
-    use affects future fights or something
 
 pushable blocks ala sokoban
     use blocks to push a button to open a door

@@ -47,12 +47,12 @@ class Data {
         return vector;
     }
 
-    public static function int_2d_vector(width: Int, height: Int): Vector<Vector<Int>> {
+    public static function int_2d_vector(width: Int, height: Int, default_value: Int = 0): Vector<Vector<Int>> {
         var vector: Vector<Vector<Int>> = new Vector(width);
         for (i in 0...width) {
             vector[i] = new Vector(height);
             for (j in 0...height) {
-                vector[i][j] = 0;
+                vector[i][j] = default_value;
             }
         }
         return vector;
