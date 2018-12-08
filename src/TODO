@@ -1,15 +1,7 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-make sure entities not on map are ignored correctly where they are supposed to be ignored
-
-draw target tooltip at target location, drawing it at the ui is distracting
-
-mobs drop items on death
-    only zero or one item per mob, drops at the location of death
-
-be able to use equipment while equipped
-    special effects like boosting armor temporarily, etc
+NEED Text.display_wrapped()
 
 ---------------------------------------------------------------------------------------------
 BUGS
@@ -61,3 +53,4 @@ pushable blocks ala sokoban
     but block is surround by enemies, need to clear them to be able to push it
     pushed by moving next to block
     can grab block for undoing purposes by holding G
+

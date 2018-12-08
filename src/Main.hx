@@ -11,17 +11,17 @@ using Lambda;
 class Main {
 // NOTE: force unindent
 
-static inline var screen_width = 1600;
-static inline var screen_height = 1000;
-static inline var tilesize = 8;
-static inline var map_width = 200;
-static inline var map_height = 200;
-static inline var view_width = 31;
-static inline var view_height = 31;
-static inline var world_scale = 4;
+static inline var SCREEN_WIDTH = 1600;
+static inline var SCREEN_HEIGHT = 1000;
+static inline var TILESIZE = 8;
+static inline var MAP_WIDTH = 200;
+static inline var MAP_HEIGHT = 200;
+static inline var VIEW_WIDTH = 31;
+static inline var VIEW_HEIGHT = 31;
+static inline var WORLD_SCALE = 4;
 
-var tiles = Data.int_2d_vector(map_width, map_height);
-var walls = Data.bool_2d_vector(map_width, map_height);
+var tiles = Data.int_2d_vector(MAP_WIDTH, MAP_HEIGHT);
+var walls = Data.bool_2d_vector(MAP_WIDTH, MAP_HEIGHT);
 
 static inline var PLAYER_BASE_ATTACK = 1;
 var player_x = 100;
@@ -43,9 +43,8 @@ static inline var message_history_length_max = 20;
 var message_history = new Array<String>();
 
 // UI
-static inline var message_history_y = 800;
-static inline var ui_x_offset = 13;
-static inline var ui_x = tilesize * view_width * world_scale + ui_x_offset;
+static inline var MESSAGE_HISTORY_Y = 800;
+static inline var UI_X = TILESIZE * VIEW_WIDTH * WORLD_SCALE + 13;
 static inline var player_stats_y = 0;
 static inline var target_stats_y = 300;
 
@@ -64,14 +63,14 @@ var player_acted = false;
 var need_to_update_tiles_canvas = true;
 
 function new() {
-    Gfx.resize_screen(screen_width, screen_height, 1);
+    Gfx.resize_screen(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
     Text.setfont('pixelFJ8', 8);
-    Gfx.load_tiles('tiles', tilesize, tilesize);
+    Gfx.load_tiles('tiles', TILESIZE, TILESIZE);
 
-    Gfx.create_image("tiles_canvas", view_width * tilesize, view_height * tilesize);
+    Gfx.create_image("tiles_canvas", VIEW_WIDTH * TILESIZE, VIEW_HEIGHT * TILESIZE);
 
-    for (x in 0...map_width) {
-        for (y in 0...map_height) {
+    for (x in 0...MAP_WIDTH) {
+        for (y in 0...MAP_HEIGHT) {
             walls[x][y] = false;
         }
     }
@@ -81,8 +80,8 @@ function new() {
     walls[104][100] = true;
     walls[105][105] = true;
 
-    for (x in 0...map_width) {
-        for (y in 0...map_height) {
+    for (x in 0...MAP_WIDTH) {
+        for (y in 0...MAP_HEIGHT) {
             if (walls[x][y]) {
                 tiles[x][y] = Tile.Wall;
             } else {
@@ -91,9 +90,9 @@ function new() {
         }
     }
 
-    Entity.make(98, 98, 'snail');
-    Entity.make(98, 97, 'snail');
-    Entity.make(98, 96, 'snail');
+    Entity.make_snail(98, 98);
+    Entity.make_snail(98, 97);
+    Entity.make_snail(98, 96);
     Entity.make(108, 100, 'bear');
 
     Entity.make_fountain(105, 98);
@@ -111,7 +110,7 @@ function new() {
 
 function get_free_map(): Vector<Vector<Bool>> {
     // Entities
-    var free_map = Data.bool_2d_vector(map_width, map_height, true);
+    var free_map = Data.bool_2d_vector(MAP_WIDTH, MAP_HEIGHT, true);
     for (e in Entity.all) {
         if (Entity.position.exists(e.id)) {
             var pos = Entity.position[e.id];
@@ -119,8 +118,8 @@ function get_free_map(): Vector<Vector<Bool>> {
         }
     }
     // Walls
-    for (x in 0...map_width) {
-        for (y in 0...map_height) {
+    for (x in 0...MAP_WIDTH) {
+        for (y in 0...MAP_HEIGHT) {
             if (walls[x][y]) {
                 free_map[x][y] = false;
             }
@@ -133,24 +132,24 @@ function get_free_map(): Vector<Vector<Bool>> {
 }
 
 function screen_x(x) {
-    return unscaled_screen_x(x) * world_scale;
+    return unscaled_screen_x(x) * WORLD_SCALE;
 }
 function screen_y(y) {
-    return unscaled_screen_y(y) * world_scale;
+    return unscaled_screen_y(y) * WORLD_SCALE;
 }
 function unscaled_screen_x(x) {
-    return (x - player_x + Math.floor(view_width / 2)) * tilesize;
+    return (x - player_x + Math.floor(VIEW_WIDTH / 2)) * TILESIZE;
 }
 function unscaled_screen_y(y) {
-    return (y - player_y + Math.floor(view_height / 2)) * tilesize;
+    return (y - player_y + Math.floor(VIEW_HEIGHT / 2)) * TILESIZE;
 }
 
 function out_of_map_bounds(x, y) {
-    return x < 0 || y < 0 || x >= map_width || y >= map_height;
+    return x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT;
 }
 
 function out_of_view_bounds(x, y) {
-    return x < (player_x - Math.floor(view_width / 2)) || y < (player_y - Math.floor(view_height / 2)) || x > (player_x + Math.floor(view_width / 2)) || y > (player_y + Math.floor(view_height / 2));
+    return x < (player_x - Math.floor(VIEW_WIDTH / 2)) || y < (player_y - Math.floor(VIEW_HEIGHT / 2)) || x > (player_x + Math.floor(VIEW_WIDTH / 2)) || y > (player_y + Math.floor(VIEW_HEIGHT / 2));
 }
 
 function add_message(message: String) {
@@ -180,7 +179,7 @@ function use_entity(e: Entity) {
 
                 if (use.charges == 0 && use.consumable) {
                     // Consumables disappear when all charges are used
-                    Entity.all.remove(e);
+                    Entity.remove(e);
                     inventory.remove(e);
                 }
             }
@@ -362,8 +361,8 @@ function update() {
     //
     // Find entity under mouse
     //
-    var mouse_map_x = Math.floor(Mouse.x / world_scale / tilesize + player_x - Math.floor(view_width / 2));
-    var mouse_map_y = Math.floor(Mouse.y / world_scale / tilesize + player_y - Math.floor(view_height / 2));
+    var mouse_map_x = Math.floor(Mouse.x / WORLD_SCALE / TILESIZE + player_x - Math.floor(VIEW_WIDTH / 2));
+    var mouse_map_y = Math.floor(Mouse.y / WORLD_SCALE / TILESIZE + player_y - Math.floor(VIEW_HEIGHT / 2));
 
     // Check for entities on map
     var hovered_map: Entity = null;
@@ -384,8 +383,8 @@ function update() {
         }
     } else {
         // Check for entities in inventory
-        var mouse_inventory_x = Math.floor((Mouse.x - ui_x) / world_scale / tilesize);
-        var mouse_inventory_y = Math.floor((Mouse.y - inventory_y) / world_scale / tilesize);
+        var mouse_inventory_x = Math.floor((Mouse.x - UI_X) / WORLD_SCALE / TILESIZE);
+        var mouse_inventory_y = Math.floor((Mouse.y - inventory_y) / WORLD_SCALE / TILESIZE);
 
         function out_of_inventory_bounds(x, y) {
             return x < 0 || y < 0 || x >= inventory_width || y >= inventory_height;
@@ -395,15 +394,15 @@ function update() {
             var inventory_i = mouse_inventory_x + mouse_inventory_y * inventory_width;
             if (inventory_i < inventory.length) {
                 hovered_anywhere = inventory[inventory_i];
-                hovered_anywhere_x = ui_x + mouse_inventory_x * tilesize * world_scale;
-                hovered_anywhere_y = inventory_y + mouse_inventory_y * tilesize * world_scale;
+                hovered_anywhere_x = UI_X + mouse_inventory_x * TILESIZE * WORLD_SCALE;
+                hovered_anywhere_y = inventory_y + mouse_inventory_y * TILESIZE * WORLD_SCALE;
             }
         }
 
         if (hovered_anywhere == null) {
             // Check for equipped entities
-            var mouse_equip_x = Math.floor((Mouse.x - ui_x) / world_scale / tilesize);
-            var mouse_equip_y = Math.floor((Mouse.y - equipment_y) / world_scale / tilesize);
+            var mouse_equip_x = Math.floor((Mouse.x - UI_X) / WORLD_SCALE / TILESIZE);
+            var mouse_equip_y = Math.floor((Mouse.y - equipment_y) / WORLD_SCALE / TILESIZE);
 
             if (mouse_equip_x >= 0 && mouse_equip_x < equipment_width && mouse_equip_y == 0) {
                 if (mouse_equip_x == 0) {
@@ -417,7 +416,7 @@ function update() {
                 }
 
                 if (hovered_anywhere != null) {
-                    hovered_anywhere_x = ui_x + mouse_equip_x * tilesize * world_scale;
+                    hovered_anywhere_x = UI_X + mouse_equip_x * TILESIZE * WORLD_SCALE;
                     hovered_anywhere_y = equipment_y;
                 }
             }
@@ -482,7 +481,17 @@ function update() {
         }
 
         if (entity_health <= 0) {
-            Entity.all.remove(hovered_map);
+            if (Entity.drop_item.exists(hovered_map.id) && Entity.position.exists(hovered_map.id)) {
+                var drop_item = Entity.drop_item[hovered_map.id];
+                var pos = Entity.position[hovered_map.id];
+                if (Random.chance(drop_item.chance)) {
+                    add_message('${hovered_map.type} drops ${drop_item.type}.');
+                    Entity.make_item(pos.x, pos.y, drop_item.type);
+                }
+            }
+
+            Entity.remove(hovered_map);
+            hovered_map = null;
         }
 
         end_turn();
@@ -497,10 +506,10 @@ function update() {
         Gfx.draw_to_image("tiles_canvas");
         Gfx.scale(1, 1, 0, 0);
         Gfx.clear_screen(Col.BLUE);
-        var start_x = player_x - Math.floor(view_width / 2);
-        var end_x = player_x + Math.ceil(view_width / 2);
-        var start_y = player_y - Math.floor(view_height / 2);
-        var end_y = player_y + Math.ceil(view_height / 2);
+        var start_x = player_x - Math.floor(VIEW_WIDTH / 2);
+        var end_x = player_x + Math.ceil(VIEW_WIDTH / 2);
+        var start_y = player_y - Math.floor(VIEW_HEIGHT / 2);
+        var end_y = player_y + Math.ceil(VIEW_HEIGHT / 2);
         for (x in start_x...end_x) {
             for (y in start_y...end_y) {
                 if (!out_of_map_bounds(x, y)) {
@@ -513,7 +522,7 @@ function update() {
         need_to_update_tiles_canvas = false;
     }
 
-    Gfx.scale(world_scale, world_scale, 0, 0);
+    Gfx.scale(WORLD_SCALE, WORLD_SCALE, 0, 0);
     Gfx.draw_image(0, 0, "tiles_canvas");
 
     // Entities
@@ -552,7 +561,7 @@ function update() {
     }
     if (player_weapon != null) {
         var weapon_tile = Entity.draw_tile[player_weapon.id];
-        Gfx.draw_tile(screen_x(player_x) + 0.3 * tilesize * world_scale, screen_y(player_y), weapon_tile); 
+        Gfx.draw_tile(screen_x(player_x) + 0.3 * TILESIZE * WORLD_SCALE, screen_y(player_y), weapon_tile); 
     }
 
     //
@@ -561,18 +570,20 @@ function update() {
     Gfx.scale(1, 1, 0, 0);
     Text.change_size(12);
 
-    var ui_y: Float = 0;
+    var current_ui_x: Float = 0;
+    var current_ui_y: Float = 0;
     function down_line(text) {
-        Text.display(ui_x, ui_y, text);
-        ui_y += (Text.height() + 2);
+        Text.display(current_ui_x, current_ui_y, text);
+        current_ui_y += (Text.height() + 2);
     }
     function up_line(text) {
-        Text.display(ui_x, ui_y, text);
-        ui_y -= (Text.height() + 2);
+        Text.display(current_ui_x, current_ui_y, text);
+        current_ui_y -= (Text.height() + 2);
     }
 
     // Player stats
-    ui_y = player_stats_y;
+    current_ui_x = UI_X;
+    current_ui_y = player_stats_y;
     down_line('PLAYER');
     down_line('Health: ${player_health}/${player_health_max}');
     down_line('Attack: ${player_attack()}');
@@ -582,21 +593,21 @@ function update() {
 
     // Equipment
     down_line('EQUIPMENT');
-    var tile_screen_size = tilesize * world_scale;
+    var tile_screen_size = TILESIZE * WORLD_SCALE;
     for (i in 0...equipment_width) {
-        Gfx.draw_box(ui_x + i * tile_screen_size, equipment_y, tile_screen_size, tile_screen_size, Col.WHITE);
+        Gfx.draw_box(UI_X + i * tile_screen_size, equipment_y, tile_screen_size, tile_screen_size, Col.WHITE);
     }
-    Gfx.scale(world_scale, world_scale, 0, 0);
+    Gfx.scale(WORLD_SCALE, WORLD_SCALE, 0, 0);
     if (player_weapon != null && Entity.draw_tile.exists(player_weapon.id)) {
         var tile = Entity.draw_tile[player_weapon.id];
-        Gfx.draw_tile(ui_x, equipment_y, tile);
+        Gfx.draw_tile(UI_X, equipment_y, tile);
     }
     var armor_i = 1;
     for (armor_type in Type.allEnums(ArmorType)) {
         var armor = player_armor[armor_type];
         if (armor != null && Entity.draw_tile.exists(armor.id)) {
             var tile = Entity.draw_tile[armor.id];
-            Gfx.draw_tile(ui_x + armor_i * tile_screen_size, equipment_y, tile);
+            Gfx.draw_tile(UI_X + armor_i * tile_screen_size, equipment_y, tile);
         }
         armor_i++;
     }
@@ -605,23 +616,23 @@ function update() {
     //
     // Inventory
     //
-    ui_y = inventory_y - Text.height();
+    current_ui_y = inventory_y - Text.height();
     down_line('INVENTORY');
     // Inventory cells
     for (x in 0...inventory_width) {
         for (y in 0...inventory_height) {
-            Gfx.draw_box(ui_x + x * tile_screen_size, inventory_y + y * tile_screen_size, tile_screen_size, tile_screen_size, Col.WHITE);
+            Gfx.draw_box(UI_X + x * tile_screen_size, inventory_y + y * tile_screen_size, tile_screen_size, tile_screen_size, Col.WHITE);
         }
     }
     // Inventory entities
-    Gfx.scale(world_scale, world_scale, 0, 0);
+    Gfx.scale(WORLD_SCALE, WORLD_SCALE, 0, 0);
     var item_x = 0;
     var item_y = 0;
     for (e in inventory) {
         if (Entity.draw_tile.exists(e.id)) {
             // Draw tile
             var tile = Entity.draw_tile[e.id];
-            Gfx.draw_tile(ui_x + item_x * tilesize * world_scale, ui_y + item_y * tilesize * world_scale, tile);
+            Gfx.draw_tile(UI_X + item_x * TILESIZE * WORLD_SCALE, current_ui_y + item_y * TILESIZE * WORLD_SCALE, tile);
         }
 
         item_x++;
@@ -633,11 +644,13 @@ function update() {
     Gfx.scale(1, 1, 0, 0);
 
     //
-    // Hovered entity stats
+    // Hovered entity tooltip
     //
     if (hovered_anywhere != null) {
         var e = hovered_anywhere;
-        ui_y = target_stats_y;
+        // current_ui_y = target_stats_y;
+        current_ui_x = hovered_anywhere_x + TILESIZE * WORLD_SCALE;
+        current_ui_y = hovered_anywhere_y;
         down_line('TARGET');
         down_line('Id: ${e.id}');
         down_line('Type: ${e.type}');
@@ -675,7 +688,7 @@ function update() {
     }
 
     if (interact_target != null) {
-        GUI.x = interact_target_x + tilesize * world_scale;
+        GUI.x = interact_target_x + TILESIZE * WORLD_SCALE;
         GUI.y = interact_target_y;
         if (Entity.talk.exists(interact_target.type)) {
             if (GUI.auto_text_button('Talk')) {
@@ -728,10 +741,12 @@ function update() {
     //
     // Messages
     //
+    current_ui_y = hovered_anywhere_y;
     if (message_history.length > message_history_length_max) {
         message_history.pop();
     }
-    ui_y = message_history_y;
+    current_ui_x = UI_X;
+    current_ui_y = MESSAGE_HISTORY_Y;
     for (message in message_history) {
         up_line(message);
     }

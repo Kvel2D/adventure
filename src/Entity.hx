@@ -61,6 +61,10 @@ typedef Position = {
     var y: Int;
 }
 
+typedef DropItem = {
+    var type: String;
+    var chance: Int;
+}
 
 @:publicFields
 class Entity {
@@ -146,6 +150,7 @@ static var armor = new Map<Int, Armor>();
 static var weapon = new Map<Int, Weapon>();
 static var item = new Map<Int, Item>();
 static var use = new Map<Int, Use>();
+static var drop_item = new Map<Int, DropItem>();
 
 function equipped_or_picked_up(): Bool {
     return (equipment.exists(id) && equipment[id].equipped) || (item.exists(id) && item[id].picked_up);
@@ -165,6 +170,24 @@ static function make(x: Int, y: Int, type: String): Entity {
     all.push(e);
 
     return e;
+}
+
+static function make_snail(x: Int, y: Int) {
+    var e = make(x, y, 'snail');
+    drop_item[e.id] = {
+        type: 'potion', 
+        chance: 50
+    };
+}
+
+static function make_item(x: Int, y: Int, type: String) {
+    if (type == 'armor') {
+        make_armor(x, y, ArmorType_Head);
+    } else if (type == 'weapon') {
+        make_sword(x, y);
+    } else if (type == 'potion') {
+        make_potion(x, y);
+    }
 }
 
 static function make_armor(x: Int, y: Int, armor_type: ArmorType) {
@@ -275,6 +298,17 @@ static function at(x, y): Entity {
     }
 
     return null;
+}
+
+static function remove(e: Entity) {
+    all.remove(e);
+    Entity.position.remove(e.id);
+    Entity.draw_tile.remove(e.id);
+    Entity.equipment.remove(e.id);
+    Entity.armor.remove(e.id);
+    Entity.weapon.remove(e.id);
+    Entity.use.remove(e.id);
+    Entity.drop_item.remove(e.id);
 }
 
 function new() {}
