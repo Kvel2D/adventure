@@ -9,73 +9,70 @@ using haxegon.MathExtensions;
 class Main {
 // NOTE: force unindent
 
-static inline var SCREEN_WIDTH = 1600;
-static inline var SCREEN_HEIGHT = 1000;
-static inline var TILESIZE = 8;
-static inline var MAP_WIDTH = 200;
-static inline var MAP_HEIGHT = 200;
-static inline var VIEW_WIDTH = 31;
-static inline var VIEW_HEIGHT = 31;
-static inline var WORLD_SCALE = 4;
+static inline var screen_width = 1600;
+static inline var screen_height = 1000;
+static inline var tilesize = 8;
+static inline var map_width = 200;
+static inline var map_height = 200;
+static inline var view_width = 31;
+static inline var view_height = 31;
+static inline var world_scale = 4;
 
-var tiles = Data.int_2d_vector(MAP_WIDTH, MAP_HEIGHT);
-var walls = Data.bool_2d_vector(MAP_WIDTH, MAP_HEIGHT);
+var tiles = Data.int_2d_vector(map_width, map_height);
+var walls = Data.bool_2d_vector(map_width, map_height);
 
-static inline var PLAYER_BASE_ATTACK = 1;
+static inline var player_base_attack = 1;
 var player_x = 100;
 var player_y = 100;
 var player_health_max = 10;
 var player_health = 10;
 var copper_count = 0;
 
-var player_armor = [
-ArmorType_Head => new EntityRef(),
-ArmorType_Chest => new EntityRef(),
-ArmorType_Legs => new EntityRef(),
-];
-var player_weapon = new EntityRef();
 static inline var equipment_y = 110;
 static inline var equipment_width = 4;
+var player_armor = [
+ArmorType_Head => Entity.NONE,
+ArmorType_Chest => Entity.NONE,
+ArmorType_Legs => Entity.NONE,
+];
+var player_weapon = Entity.NONE;
 
+static inline var message_history_y = 800;
 static inline var message_history_length_max = 20;
 var message_history = new Array<String>();
 
-// UI
-static inline var MESSAGE_HISTORY_Y = 800;
-static inline var UI_X = TILESIZE * VIEW_WIDTH * WORLD_SCALE + 13;
+static inline var ui_x = tilesize * view_width * world_scale + 13;
 static inline var player_stats_y = 0;
-static inline var target_stats_y = 300;
 
 // Inventory
 static inline var inventory_y = 170;
 static inline var inventory_width = 4;
 static inline var inventory_height = 4;
 static inline var inventory_size = inventory_width * inventory_height;
-var inventory = new Vector<Vector<EntityRef>>(inventory_width);
+var inventory = new Vector<Vector<Int>>(inventory_width);
 
-var interact_target = new EntityRef();
+var interact_target = Entity.NONE;
 var interact_target_x: Int;
 var interact_target_y: Int;
-var done_interaction = false;
 var player_acted = false;
 var need_to_update_tiles_canvas = true;
 
 function new() {
     for (x in 0...inventory_width) {
-        inventory[x] = new Vector<EntityRef>(inventory_height);
+        inventory[x] = new Vector<Int>(inventory_height);
         for (y in 0...inventory_height) {
-            inventory[x][y] = new EntityRef();
+            inventory[x][y] = Entity.NONE;
         }
     }
 
-    Gfx.resize_screen(SCREEN_WIDTH, SCREEN_HEIGHT, 1);
+    Gfx.resize_screen(screen_width, screen_height, 1);
     Text.setfont('pixelFJ8', 8);
-    Gfx.load_tiles('tiles', TILESIZE, TILESIZE);
+    Gfx.load_tiles('tiles', tilesize, tilesize);
 
-    Gfx.create_image("tiles_canvas", VIEW_WIDTH * TILESIZE, VIEW_HEIGHT * TILESIZE);
+    Gfx.create_image("tiles_canvas", view_width * tilesize, view_height * tilesize);
 
-    for (x in 0...MAP_WIDTH) {
-        for (y in 0...MAP_HEIGHT) {
+    for (x in 0...map_width) {
+        for (y in 0...map_height) {
             walls[x][y] = false;
         }
     }
@@ -85,8 +82,8 @@ function new() {
     walls[104][100] = true;
     walls[105][105] = true;
 
-    for (x in 0...MAP_WIDTH) {
-        for (y in 0...MAP_HEIGHT) {
+    for (x in 0...map_width) {
+        for (y in 0...map_height) {
             if (walls[x][y]) {
                 tiles[x][y] = Tile.Wall;
             } else {
@@ -111,20 +108,34 @@ function new() {
 
     MakeEntity.sword(110, 97);
     MakeEntity.potion(110, 98);
+
+    MakeEntity.potion(100, 95);
+    MakeEntity.potion(101, 95);
+    MakeEntity.potion(102, 95);
+    MakeEntity.potion(103, 95);
+    MakeEntity.potion(104, 95);
+    MakeEntity.potion(105, 95);
+    MakeEntity.potion(106, 95);
+    MakeEntity.potion(107, 95);
+    MakeEntity.potion(108, 95);
+    MakeEntity.potion(109, 95);
+    MakeEntity.potion(110, 95);
+    MakeEntity.potion(111, 95);
+    MakeEntity.potion(112, 95);
+    MakeEntity.potion(113, 95);
+    MakeEntity.potion(114, 95);
+    MakeEntity.potion(115, 95);
 }
 
 function get_free_map(): Vector<Vector<Bool>> {
     // Entities
-    var free_map = Data.bool_2d_vector(MAP_WIDTH, MAP_HEIGHT, true);
-    for (e in Entity.all) {
-        if (Entity.position.exists(e)) {
-            var pos = Entity.position[e];
-            free_map[pos.x][pos.y] = false;
-        }
+    var free_map = Data.bool_2d_vector(map_width, map_height, true);
+    for (pos in Entity.position) {
+        free_map[pos.x][pos.y] = false;
     }
     // Walls
-    for (x in 0...MAP_WIDTH) {
-        for (y in 0...MAP_HEIGHT) {
+    for (x in 0...map_width) {
+        for (y in 0...map_height) {
             if (walls[x][y]) {
                 free_map[x][y] = false;
             }
@@ -137,24 +148,24 @@ function get_free_map(): Vector<Vector<Bool>> {
 }
 
 function screen_x(x) {
-    return unscaled_screen_x(x) * WORLD_SCALE;
+    return unscaled_screen_x(x) * world_scale;
 }
 function screen_y(y) {
-    return unscaled_screen_y(y) * WORLD_SCALE;
+    return unscaled_screen_y(y) * world_scale;
 }
 function unscaled_screen_x(x) {
-    return (x - player_x + Math.floor(VIEW_WIDTH / 2)) * TILESIZE;
+    return (x - player_x + Math.floor(view_width / 2)) * tilesize;
 }
 function unscaled_screen_y(y) {
-    return (y - player_y + Math.floor(VIEW_HEIGHT / 2)) * TILESIZE;
+    return (y - player_y + Math.floor(view_height / 2)) * tilesize;
 }
 
 function out_of_map_bounds(x, y) {
-    return x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT;
+    return x < 0 || y < 0 || x >= map_width || y >= map_height;
 }
 
 function out_of_view_bounds(x, y) {
-    return x < (player_x - Math.floor(VIEW_WIDTH / 2)) || y < (player_y - Math.floor(VIEW_HEIGHT / 2)) || x > (player_x + Math.floor(VIEW_WIDTH / 2)) || y > (player_y + Math.floor(VIEW_HEIGHT / 2));
+    return x < (player_x - Math.floor(view_width / 2)) || y < (player_y - Math.floor(view_height / 2)) || x > (player_x + Math.floor(view_width / 2)) || y > (player_y + Math.floor(view_height / 2));
 }
 
 function add_message(message: String) {
@@ -194,41 +205,45 @@ function use_entity(e: Int) {
 }
 
 function equip_entity(e: Int) {
-    var unequip_e = Entity.NONE;
+    var old_e = Entity.NONE;
     if (Entity.armor.exists(e)) {
-        var armor = Entity.armor[e];
-        unequip_e = player_armor[armor.type].id();
+        var old_armor = Entity.armor[e];
+        old_e = player_armor[old_armor.type];
     } else if (Entity.weapon.exists(e)) {
-        unequip_e = player_weapon.id();
+        old_e = player_weapon;
     }
 
-    if (unequip_e != Entity.NONE) {
-        add_message('You take off ${Entity.equipment[unequip_e].name}.');
+    // Remove new equipment from map
+    var e_pos = Entity.position[e];
+    var drop_x = e_pos.x;
+    var drop_y = e_pos.y;
+    Entity.remove_position(e);
 
-        // Drop armor to location of new armor
-        if (Entity.position.exists(e)) {
-            var e_pos = Entity.position[e];
-            Entity.set_position(unequip_e, e_pos.x, e_pos.y);
-        }
+    // Unequip old equipment
+    if (Entity.equipment.exists(old_e)) {
+        add_message('You take off ${Entity.equipment[old_e].name}.');
+        Entity.set_position(old_e, drop_x, drop_y);
     }
 
     add_message('You put on ${Entity.equipment[e].name}.');
 
     if (Entity.armor.exists(e)) {
         var armor = Entity.armor[e];
-        player_armor[armor.type].copy_id(e);
+        player_armor[armor.type] = e;
     } else if (Entity.weapon.exists(e)) {
-        player_weapon.copy_id(e);
+        player_weapon = e;
     }
-    Entity.remove_position(e);
 }
 
 function pick_up_entity(e: Int) {
     // Flip loop order so that rows are filled first
     for (y in 0...inventory_height) {
         for (x in 0...inventory_width) {
-            if (inventory[x][y].id() == Entity.NONE) {
-                inventory[x][y].copy_id(e);
+            // Inventory slot is free if it points to entity that is not an item(removed) or an entity that is an item but has position(dropped on map)
+            var doesnt_exist = !Entity.item.exists(inventory[x][y]);
+            var not_in_inventory = Entity.item.exists(inventory[x][y]) && Entity.position.exists(inventory[x][y]);
+            if (doesnt_exist || not_in_inventory) {
+                inventory[x][y] = e;
 
                 add_message('You pick up ${Entity.item[e].name}.');
                 Entity.remove_position(e);
@@ -264,33 +279,26 @@ function drop_entity(e: Int) {
         add_message('You drop ${Entity.item[e].name}.');
 
         Entity.set_position(e, free_x, free_y);
-
-        // Remove from inventory
-        for (x in 0...inventory_width) {
-            for (y in 0...inventory_height) {
-                if (inventory[x][y].id() == e) {
-                    inventory[x][y].clear();
-                }
-            }
-        }
     } else {
         add_message('No space to drop item.');
     }
 }
 
 function player_attack(): Int {
-    if (player_weapon.id() == Entity.NONE) {
-        return PLAYER_BASE_ATTACK;
+    // Weapon is valid if it's a weapon and it doesn't have a position(not on map)
+    if (Entity.weapon.exists(player_weapon) && !Entity.position.exists(player_weapon)) {
+        return Entity.weapon[player_weapon].attack;
     } else {
-        return Entity.weapon[player_weapon.id()].attack;
+        return player_base_attack;
     }
 }
 
 function player_defense(): Int {
+    // Armor is valid if it's an armor and it doesn't have a position(not on map)
     var total = 0;
     for (armor_type in Type.allEnums(ArmorType)) {
-        if (player_armor[armor_type].id() != Entity.NONE) {
-            var armor = Entity.armor[player_armor[armor_type].id()];
+        if (Entity.armor.exists(player_armor[armor_type]) && !Entity.position.exists(player_armor[armor_type])) {
+            var armor = Entity.armor[player_armor[armor_type]];
             total += armor.defense;
         }
     }
@@ -308,7 +316,7 @@ function player_next_to(pos: Position): Bool {
 
 function end_turn() {
     if (!player_acted) {
-        // do mob stuff, if they move
+        // NOTE: do mob stuff here
 
         player_acted = true;
     }
@@ -363,75 +371,63 @@ function update() {
     //
     // Find entity under mouse
     //
-    var mouse_map_x = Math.floor(Mouse.x / WORLD_SCALE / TILESIZE + player_x - Math.floor(VIEW_WIDTH / 2));
-    var mouse_map_y = Math.floor(Mouse.y / WORLD_SCALE / TILESIZE + player_y - Math.floor(VIEW_HEIGHT / 2));
+    var mouse_map_x = Math.floor(Mouse.x / world_scale / tilesize + player_x - Math.floor(view_width / 2));
+    var mouse_map_y = Math.floor(Mouse.y / world_scale / tilesize + player_y - Math.floor(view_height / 2));
 
     // Check for entities on map
-    var hovered_map = new EntityRef();
+    var hovered_map = Entity.NONE;
     if (!out_of_view_bounds(mouse_map_x, mouse_map_y)) {
         hovered_map = Entity.at(mouse_map_x, mouse_map_y);
     }
 
-    // Check for entities anywhere, including inventory/equipment
-    var hovered_anywhere = new EntityRef();
+    // Check for entities anywhere, map/inventory/equipment
+    var hovered_anywhere = Entity.NONE;
     var hovered_anywhere_x: Int = 0;
     var hovered_anywhere_y: Int = 0;
-    if (hovered_map.id() != Entity.NONE) {
-        hovered_anywhere.copy_ref(hovered_map);
-        if (Entity.position.exists(hovered_anywhere.id())) {
-            var pos = Entity.position[hovered_anywhere.id()];
-            hovered_anywhere_x = screen_x(pos.x);
-            hovered_anywhere_y = screen_y(pos.y);
-        }
+    if (Entity.position.exists(hovered_map)) {
+        // Hovering over map
+        var pos = Entity.position[hovered_map];
+        hovered_anywhere = hovered_map;
+        hovered_anywhere_x = screen_x(pos.x);
+        hovered_anywhere_y = screen_y(pos.y);
     } else {
-        // Check for entities in inventory
-        var mouse_inventory_x = Math.floor((Mouse.x - UI_X) / WORLD_SCALE / TILESIZE);
-        var mouse_inventory_y = Math.floor((Mouse.y - inventory_y) / WORLD_SCALE / TILESIZE);
+        // Check if hovering over inventory or equipment
+        var mouse_inventory_x = Math.floor((Mouse.x - ui_x) / world_scale / tilesize);
+        var mouse_inventory_y = Math.floor((Mouse.y - inventory_y) / world_scale / tilesize);
+        var mouse_equip_x = Math.floor((Mouse.x - ui_x) / world_scale / tilesize);
+        var mouse_equip_y = Math.floor((Mouse.y - equipment_y) / world_scale / tilesize);
 
-        function out_of_inventory_bounds(x, y) {
-            return x < 0 || y < 0 || x >= inventory_width || y >= inventory_height;
+        function hovering_inventory(x, y) {
+            return x >= 0 && y >= 0 && x < inventory_width && y < inventory_height;
+        }
+        function hovering_equipment(x, y) {
+            return y == 0 && x >= 0 && x < equipment_width;
         }
 
-        if (!out_of_inventory_bounds(mouse_inventory_x, mouse_inventory_y)) {
-            var hovered_id = inventory[mouse_inventory_x][mouse_inventory_y].id();
-            if (hovered_id != Entity.NONE) {
-                hovered_anywhere.copy_id(hovered_id);
-                hovered_anywhere_x = UI_X + mouse_inventory_x * TILESIZE * WORLD_SCALE;
-                hovered_anywhere_y = inventory_y + mouse_inventory_y * TILESIZE * WORLD_SCALE;
+        if (hovering_inventory(mouse_inventory_x, mouse_inventory_y)) {
+            hovered_anywhere = inventory[mouse_inventory_x][mouse_inventory_y];
+            hovered_anywhere_x = ui_x + mouse_inventory_x * tilesize * world_scale;
+            hovered_anywhere_y = inventory_y + mouse_inventory_y * tilesize * world_scale;
+        } else if (hovering_equipment(mouse_equip_x, mouse_equip_y)) {
+            hovered_anywhere = switch (mouse_equip_x) {
+                case 0: player_weapon;
+                case 1: player_armor[ArmorType_Head];
+                case 2: player_armor[ArmorType_Chest];
+                case 3: player_armor[ArmorType_Legs];
+                default: Entity.NONE;
             }
-        }
-
-        if (hovered_anywhere.id() == Entity.NONE) {
-            // Check for equipped entities
-            var mouse_equip_x = Math.floor((Mouse.x - UI_X) / WORLD_SCALE / TILESIZE);
-            var mouse_equip_y = Math.floor((Mouse.y - equipment_y) / WORLD_SCALE / TILESIZE);
-
-            if (mouse_equip_x >= 0 && mouse_equip_x < equipment_width && mouse_equip_y == 0) {
-                if (mouse_equip_x == 0) {
-                    hovered_anywhere.copy_ref(player_weapon);
-                } else if (mouse_equip_x == 1) {
-                    hovered_anywhere.copy_ref(player_armor[ArmorType_Head]);
-                } else if (mouse_equip_x == 2) {
-                    hovered_anywhere.copy_ref(player_armor[ArmorType_Chest]);
-                } else if (mouse_equip_x == 3) {
-                    hovered_anywhere.copy_ref(player_armor[ArmorType_Legs]);
-                }
-
-                if (hovered_anywhere.id() != Entity.NONE) {
-                    hovered_anywhere_x = UI_X + mouse_equip_x * TILESIZE * WORLD_SCALE;
-                    hovered_anywhere_y = equipment_y;
-                }
-            }
+            hovered_anywhere_x = ui_x + mouse_equip_x * tilesize * world_scale;
+            hovered_anywhere_y = equipment_y;
         }
     }
 
     //
     // Attack on left click
     //
-    if (Mouse.left_click() && !player_acted && hovered_map.id() != Entity.NONE && Entity.position.exists(hovered_map.id()) && player_next_to(Entity.position[hovered_map.id()]) && Entity.combat.exists(hovered_map.id())) {
+    if (Mouse.left_click() && !player_acted && Entity.position.exists(hovered_map) && player_next_to(Entity.position[hovered_map]) && Entity.combat.exists(hovered_map)) {
         var defense_absorb_left = player_defense_absorb();
 
-        var entity_combat = Entity.combat[hovered_map.id()];
+        var entity_combat = Entity.combat[hovered_map];
         var entity_health = entity_combat.health;
         var entity_attack = entity_combat.attack;
 
@@ -458,8 +454,8 @@ function update() {
         }
 
         var target_name = 'noname';
-        if (Entity.name.exists(hovered_map.id())) {
-            target_name = Entity.name[hovered_map.id()];
+        if (Entity.name.exists(hovered_map)) {
+            target_name = Entity.name[hovered_map];
         }
         add_message('------------------------------');
         add_message('You attack $target_name.');
@@ -472,8 +468,8 @@ function update() {
             add_message('You slay $target_name.');
 
             // Some entities drop copper
-            if (Entity.give_copper_on_death.exists(hovered_map.id())) {
-                var give_copper = Entity.give_copper_on_death[hovered_map.id()];
+            if (Entity.give_copper_on_death.exists(hovered_map)) {
+                var give_copper = Entity.give_copper_on_death[hovered_map];
 
                 if (Random.chance(give_copper.chance)) {
                     var drop_amount = Random.int(give_copper.min, give_copper.max);
@@ -488,17 +484,17 @@ function update() {
         }
 
         if (entity_health <= 0) {
-            if (Entity.drop_item.exists(hovered_map.id()) && Entity.position.exists(hovered_map.id())) {
-                var drop_item = Entity.drop_item[hovered_map.id()];
-                var pos = Entity.position[hovered_map.id()];
+            if (Entity.drop_item.exists(hovered_map) && Entity.position.exists(hovered_map)) {
+                var drop_item = Entity.drop_item[hovered_map];
+                var pos = Entity.position[hovered_map];
                 if (Random.chance(drop_item.chance)) {
                     add_message('$target_name drops ${drop_item.type}.');
-                    Entity.remove_position(hovered_map.id());
+                    Entity.remove_position(hovered_map);
                     MakeEntity.item(pos.x, pos.y, drop_item.type);
                 }
             }
 
-            Entity.remove(hovered_map.id());
+            Entity.remove(hovered_map);
         }
 
         end_turn();
@@ -513,13 +509,13 @@ function update() {
         Gfx.draw_to_image("tiles_canvas");
         Gfx.scale(1, 1, 0, 0);
         Gfx.clear_screen(Col.BLUE);
-        var start_x = player_x - Math.floor(VIEW_WIDTH / 2);
-        var end_x = player_x + Math.ceil(VIEW_WIDTH / 2);
-        var start_y = player_y - Math.floor(VIEW_HEIGHT / 2);
-        var end_y = player_y + Math.ceil(VIEW_HEIGHT / 2);
+        var start_x = player_x - Math.floor(view_width / 2);
+        var end_x = player_x + Math.ceil(view_width / 2);
+        var start_y = player_y - Math.floor(view_height / 2);
+        var end_y = player_y + Math.ceil(view_height / 2);
         for (x in start_x...end_x) {
             for (y in start_y...end_y) {
-                if (!out_of_map_bounds(x, y)) {
+                if (!out_of_view_bounds(x, y)) {
                     Gfx.draw_tile(unscaled_screen_x(x), unscaled_screen_y(y), tiles[x][y]);
                 }
             }
@@ -529,14 +525,14 @@ function update() {
         need_to_update_tiles_canvas = false;
     }
 
-    Gfx.scale(WORLD_SCALE, WORLD_SCALE, 0, 0);
+    Gfx.scale(world_scale, world_scale, 0, 0);
     Gfx.draw_image(0, 0, "tiles_canvas");
 
     // Entities
     Text.change_size(32);
-    for (e in Entity.all) {
-        if (Entity.position.exists(e)) {
-            var pos = Entity.position[e];
+    for (e in Entity.position.keys()) {
+        var pos = Entity.position[e];
+        if (!out_of_view_bounds(pos.x, pos.y)) {
             if (Entity.draw_char.exists(e)) {
                 // Draw char
                 var draw_char = Entity.draw_char[e];
@@ -552,22 +548,21 @@ function update() {
     // Player, draw as parts of each equipment
     for (armor_type in Type.allEnums(ArmorType)) {
         var armor_tile: Int;
-        if (player_armor[armor_type].id() == Entity.NONE) {
-            var base_armor_tiles = [
-            ArmorType_Head => Tile.Head0,
-            ArmorType_Chest => Tile.Chest0,
-            ArmorType_Legs => Tile.Legs0,
-            ];
-            armor_tile = base_armor_tiles[armor_type];
+        if (Entity.draw_tile.exists(player_armor[armor_type])) {
+            armor_tile = Entity.draw_tile[player_armor[armor_type]];
         } else {
-            armor_tile = Entity.draw_tile[player_armor[armor_type].id()];
+            armor_tile = switch (armor_type) {
+                case ArmorType_Head: Tile.Head0;
+                case ArmorType_Chest: Tile.Chest0;
+                case ArmorType_Legs: Tile.Legs0;
+            }
         }
 
         Gfx.draw_tile(screen_x(player_x), screen_y(player_y), armor_tile); 
     }
-    if (player_weapon.id() != Entity.NONE) {
-        var weapon_tile = Entity.draw_tile[player_weapon.id()];
-        Gfx.draw_tile(screen_x(player_x) + 0.3 * TILESIZE * WORLD_SCALE, screen_y(player_y), weapon_tile); 
+    if (Entity.draw_tile.exists(player_weapon)) {
+        var weapon_tile = Entity.draw_tile[player_weapon];
+        Gfx.draw_tile(screen_x(player_x) + 0.3 * tilesize * world_scale, screen_y(player_y), weapon_tile); 
     }
 
     //
@@ -588,7 +583,7 @@ function update() {
     }
 
     // Player stats
-    current_ui_x = UI_X;
+    current_ui_x = ui_x;
     current_ui_y = player_stats_y;
     down_line('PLAYER');
     down_line('Health: ${player_health}/${player_health_max}');
@@ -599,21 +594,20 @@ function update() {
 
     // Equipment
     down_line('EQUIPMENT');
-    var tile_screen_size = TILESIZE * WORLD_SCALE;
+    var tile_screen_size = tilesize * world_scale;
     for (i in 0...equipment_width) {
-        Gfx.draw_box(UI_X + i * tile_screen_size, equipment_y, tile_screen_size, tile_screen_size, Col.WHITE);
+        Gfx.draw_box(ui_x + i * tile_screen_size, equipment_y, tile_screen_size, tile_screen_size, Col.WHITE);
     }
-    Gfx.scale(WORLD_SCALE, WORLD_SCALE, 0, 0);
-    if (player_weapon.id() != Entity.NONE && Entity.draw_tile.exists(player_weapon.id())) {
-        var tile = Entity.draw_tile[player_weapon.id()];
-        Gfx.draw_tile(UI_X, equipment_y, tile);
+    Gfx.scale(world_scale, world_scale, 0, 0);
+    if (Entity.draw_tile.exists(player_weapon)) {
+        var tile = Entity.draw_tile[player_weapon];
+        Gfx.draw_tile(ui_x, equipment_y, tile);
     }
     var armor_i = 1;
     for (armor_type in Type.allEnums(ArmorType)) {
-        var armor = player_armor[armor_type].id();
-        if (armor != Entity.NONE && Entity.draw_tile.exists(armor)) {
-            var tile = Entity.draw_tile[armor];
-            Gfx.draw_tile(UI_X + armor_i * tile_screen_size, equipment_y, tile);
+        if (Entity.draw_tile.exists(player_armor[armor_type])) {
+            var tile = Entity.draw_tile[player_armor[armor_type]];
+            Gfx.draw_tile(ui_x + armor_i * tile_screen_size, equipment_y, tile);
         }
         armor_i++;
     }
@@ -627,17 +621,15 @@ function update() {
     // Inventory cells
     for (x in 0...inventory_width) {
         for (y in 0...inventory_height) {
-            Gfx.draw_box(UI_X + x * tile_screen_size, inventory_y + y * tile_screen_size, tile_screen_size, tile_screen_size, Col.WHITE);
+            Gfx.draw_box(ui_x + x * tile_screen_size, inventory_y + y * tile_screen_size, tile_screen_size, tile_screen_size, Col.WHITE);
         }
     }
     // Inventory entities
-    Gfx.scale(WORLD_SCALE, WORLD_SCALE, 0, 0);
+    Gfx.scale(world_scale, world_scale, 0, 0);
     for (x in 0...inventory_width) {
         for (y in 0...inventory_height) {
-            var id = inventory[x][y].id();
-            if (id != Entity.NONE && Entity.draw_tile.exists(id)) {
-                var tile = Entity.draw_tile[id];
-                Gfx.draw_tile(UI_X + x * TILESIZE * WORLD_SCALE, current_ui_y + y * TILESIZE * WORLD_SCALE, tile);
+            if (Entity.draw_tile.exists(inventory[x][y]) && !Entity.position.exists(inventory[x][y])) {
+                Gfx.draw_tile(ui_x + x * tilesize * world_scale, current_ui_y + y * tilesize * world_scale, Entity.draw_tile[inventory[x][y]]);
             }
         }
     }
@@ -646,100 +638,94 @@ function update() {
     //
     // Hovered entity tooltip
     //
-    if (hovered_anywhere.id() != Entity.NONE) {
-        var e = hovered_anywhere.id();
-        // current_ui_y = target_stats_y;
-        current_ui_x = hovered_anywhere_x + TILESIZE * WORLD_SCALE;
-        current_ui_y = hovered_anywhere_y;
-        down_line('Id: ${e}');
-        if (Entity.name.exists(e)) {
-            down_line('Name: ${Entity.name[e]}');
-        }
-        if (Entity.combat.exists(e)) {
-            var entity_combat = Entity.combat[e];
-            down_line('Health: ${entity_combat.health}');
-            down_line('Attack: ${entity_combat.attack}');
-        }
-        if (Entity.description.exists(e)) {
-            down_line(Entity.description[e]);
-        }
-        if (Entity.equipment.exists(e)) {
-            down_line('Equipment name: ${Entity.equipment[e].name}');
-        }
-        if (Entity.weapon.exists(e)) {
-            down_line('Equipment attack: ${Entity.weapon[e].attack}');
-        }
-        if (Entity.armor.exists(e)) {
-            down_line('Equipment defense: ${Entity.armor[e].defense}');
-        }
+    current_ui_x = hovered_anywhere_x + tilesize * world_scale;
+    current_ui_y = hovered_anywhere_y;
+    if (Entity.name.exists(hovered_anywhere)) {
+        down_line('Id: ${hovered_anywhere}');
+        down_line('Name: ${Entity.name[hovered_anywhere]}');
+    }
+    if (Entity.combat.exists(hovered_anywhere)) {
+        var entity_combat = Entity.combat[hovered_anywhere];
+        down_line('Health: ${entity_combat.health}');
+        down_line('Attack: ${entity_combat.attack}');
+    }
+    if (Entity.description.exists(hovered_anywhere)) {
+        down_line(Entity.description[hovered_anywhere]);
+    }
+    if (Entity.equipment.exists(hovered_anywhere)) {
+        down_line('Equipment name: ${Entity.equipment[hovered_anywhere].name}');
+    }
+    if (Entity.weapon.exists(hovered_anywhere)) {
+        down_line('Equipment attack: ${Entity.weapon[hovered_anywhere].attack}');
+    }
+    if (Entity.armor.exists(hovered_anywhere)) {
+        down_line('Equipment defense: ${Entity.armor[hovered_anywhere].defense}');
     }
 
     //
     // Interact menu
     //
+    // Set interact target on right click
     if (Mouse.right_click() && !player_acted) {
-        interact_target.copy_ref(hovered_anywhere);
+        interact_target = hovered_anywhere;
         interact_target_x = hovered_anywhere_x;
         interact_target_y = hovered_anywhere_y;
     }
 
     // Stop interaction if entity too far away
-    if (interact_target.id() != Entity.NONE && Entity.position.exists(interact_target.id()) && !player_next_to(Entity.position[interact_target.id()])) {
-        interact_target.clear();
+    if (Entity.position.exists(interact_target) && !player_next_to(Entity.position[interact_target])) {
+        interact_target = Entity.NONE;
     }
 
-    if (interact_target.id() != Entity.NONE) {
-        GUI.x = interact_target_x + TILESIZE * WORLD_SCALE;
-        GUI.y = interact_target_y;
-        if (Entity.talk.exists(interact_target.id())) {
-            if (GUI.auto_text_button('Talk')) {
-                add_message(Entity.talk[interact_target.id()]);
-                done_interaction = true;
-            }
+    // Interaction buttons
+    var done_interaction = false;
+    GUI.x = interact_target_x + tilesize * world_scale;
+    GUI.y = interact_target_y;
+    if (Entity.talk.exists(interact_target)) {
+        if (GUI.auto_text_button('Talk')) {
+            add_message(Entity.talk[interact_target]);
+            done_interaction = true;
         }
-        if (Entity.use.exists(interact_target.id())) {
-            if (GUI.auto_text_button('Use')) {
-                use_entity(interact_target.id());
+    }
+    if (Entity.use.exists(interact_target)) {
+        if (GUI.auto_text_button('Use')) {
+            use_entity(interact_target);
 
-                done_interaction = true;
-            }
+            done_interaction = true;
         }
-        if (Entity.equipment.exists(interact_target.id()) && Entity.position.exists(interact_target.id())) {
-            // Can equip if on map
-            if (GUI.auto_text_button('Equip')) {
-                equip_entity(interact_target.id());
+    }
+    if (Entity.equipment.exists(interact_target) && Entity.position.exists(interact_target)) {
+        // Can equip if is equipment and is on map
+        if (GUI.auto_text_button('Equip')) {
+            equip_entity(interact_target);
 
-                done_interaction = true;
-            }
+            done_interaction = true;
         }
-        if (Entity.item.exists(interact_target.id())) {
+    }
+    if (Entity.item.exists(interact_target)) {
+        if (Entity.position.exists(interact_target)) {
             // Can be picked up if on map
+            if (GUI.auto_text_button('Pick up')) {
+                pick_up_entity(interact_target);
+
+                done_interaction = true;
+            }
+        } else {
             // Can be dropped up if not on map(in inventory)
-            var item = Entity.item[interact_target.id()];
-            if (Entity.position.exists(interact_target.id())) {
-                if (GUI.auto_text_button('Pick up')) {
-                    pick_up_entity(interact_target.id());
+            if (GUI.auto_text_button('Drop')) {
+                drop_entity(interact_target);
 
-                    done_interaction = true;
-                }
-            } else {
-                if (GUI.auto_text_button('Drop')) {
-                    drop_entity(interact_target.id());
-
-                    done_interaction = true;
-                }
+                done_interaction = true;
             }
         }
+    }
 
-        if (done_interaction) {
-            interact_target.clear();
-            done_interaction = false;
-            end_turn();
-        } else if (Mouse.left_click()) {
-            // Clicked out of context menu
-            interact_target.clear();
-            done_interaction = false;
-        }
+    if (done_interaction) {
+        interact_target = Entity.NONE;
+        end_turn();
+    } else if (Mouse.left_click()) {
+        // Clicked out of context menu
+        interact_target = Entity.NONE;
     }
 
     //
@@ -749,8 +735,8 @@ function update() {
     if (message_history.length > message_history_length_max) {
         message_history.pop();
     }
-    current_ui_x = UI_X;
-    current_ui_y = MESSAGE_HISTORY_Y;
+    current_ui_x = ui_x;
+    current_ui_y = message_history_y;
     for (message in message_history) {
         up_line(message);
     }

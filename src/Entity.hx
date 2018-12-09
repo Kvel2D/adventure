@@ -1,8 +1,6 @@
 
 import haxegon.*;
 
-using Lambda;
-
 enum ArmorType {
     ArmorType_Head;
     ArmorType_Chest;
@@ -69,41 +67,14 @@ typedef DrawChar = {
     var color: Int;
 }
 
-class EntityRef {
-    var internal_id = Entity.NONE;
-
-    public function clear() {
-        internal_id = Entity.NONE;
-    }
-
-    public function id(): Int {
-        if (!Entity.all.has(internal_id)) {
-            clear();
-        }
-        return internal_id;
-    }
-
-    public function copy_ref(ref: EntityRef) {
-        internal_id = ref.id();
-    }
-
-    public function copy_id(ref: Int) {
-        if (Entity.all.has(ref)) {
-            internal_id = ref;
-        } else {
-            clear();
-        }
-    }
-
-    public function new() {}
-}
-
 @:publicFields
 class Entity {
 // NOTE: force unindent
 
-static var all: Array<Int> = [];
+static var all = new Array<Int>();
 static var id_max: Int = 0;
+// NOTE: only use NONE for initializing and clearing entity references
+// don't "==/!= NONE", check for component existence instead
 static inline var NONE = -1;
 
 static var position = new Map<Int, Position>();
@@ -132,13 +103,21 @@ static function make(): Int {
 
 static function remove(e: Int) {
     all.remove(e);
-    remove_position(e);
+
+    position.remove(e);
+    name.remove(e);
+    description.remove(e);
     draw_tile.remove(e);
+    draw_char.remove(e);
     equipment.remove(e);
     armor.remove(e);
     weapon.remove(e);
+    item.remove(e);
     use.remove(e);
+    combat.remove(e);
     drop_item.remove(e);
+    talk.remove(e);
+    give_copper_on_death.remove(e);
 }
 
 static function print(e: Int) {
@@ -193,7 +172,7 @@ static function validate(e: Int) {
 //
 // Position stuff
 //
-static var position_map = Data.int_2d_vector(Main.MAP_WIDTH, Main.MAP_HEIGHT, Entity.NONE);
+static var position_map = Data.int_2d_vector(Main.map_width, Main.map_height, Entity.NONE);
 
 static function set_position(e: Int, x: Int, y: Int) {
     // Clear old position
@@ -223,12 +202,8 @@ static function remove_position(e: Int) {
     position.remove(e);
 }
 
-static function at(x: Int, y: Int): EntityRef {
-    var e = position_map[x][y];
-    var ref = new EntityRef();
-    ref.copy_id(e);
-
-    return ref;
+static function at(x: Int, y: Int): Int {
+    return position_map[x][y];
 }
 
 function new() {}

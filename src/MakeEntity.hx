@@ -117,7 +117,7 @@ static function sword(x: Int, y: Int): Int {
     };
     Entity.weapon[e] = {
         type: weapon_type, 
-        attack: Main.PLAYER_BASE_ATTACK + level
+        attack: Main.player_base_attack + level
     };
     Entity.draw_tile[e] = weapon_tile[weapon_type][level - 1];
 
