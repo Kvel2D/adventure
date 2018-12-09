@@ -1,8 +1,6 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-background for tooltip
-
 room generation
     rooms are rectangles, connected randomly, must not intersect
 
@@ -18,6 +16,13 @@ DONE
 
 ---------------------------------------------------------------------------------------------
 IDEAS
+
+display spell effect in tooltip
+    start as "unknown"
+    after one use, it will say what it actually is
+
+make combat non-instant, currently deciding to attack or not is a math problem and you can't use items during the fight
+make it real-time?
 
 portals
 
