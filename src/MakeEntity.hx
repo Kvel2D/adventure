@@ -13,7 +13,7 @@ static function snail(x: Int, y: Int): Int {
     Entity.name[e] = 'Snail';
     Entity.drop_item[e] = {
         type: 'potion', 
-        chance: 100
+        chance: 20
     };
     Entity.draw_char[e] = {
         char: 'S',
@@ -57,6 +57,10 @@ static function bear(x: Int, y: Int): Int {
         health: 2, 
         attack: 2, 
         message: 'Bear roars angrily at you.'
+    };
+    Entity.drop_item[e] = {
+        type: 'potion', 
+        chance: 20
     };
 
     Entity.validate(e);

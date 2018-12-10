@@ -1,14 +1,13 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-get playable version ASAP and PLAY IT
+make enemies move towards player
 
-fill rooms with entities
+NEED LOS
 
-each room gets random number of entities depending on area
-    generate those entities
-    then place them in rooms
-
+figure out how much armor can absorb
+    could also make absorb be chance based
+    current one probably too OP
 
 ---------------------------------------------------------------------------------------------
 BUGS
@@ -20,6 +19,12 @@ DONE
 
 ---------------------------------------------------------------------------------------------
 IDEAS
+
+default actions on left-click
+    enemies = attack
+    usable = use
+    enemies and use => no action
+        then need attack option in context menu
 
 rings and amulets(regular item with max amount in inventory?)
 

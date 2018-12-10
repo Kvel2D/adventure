@@ -1,5 +1,7 @@
 
 import haxegon.*;
+import Entity;
+import MakeEntity;
 
 using haxegon.MathExtensions;
 
@@ -26,6 +28,11 @@ typedef Connection = {
     j: Int
 }
 
+typedef Spawn = {
+    fun: Dynamic,
+    chance: Float
+};
+
 @:publicFields
 class GenerateWorld {
 // NOTE: force unindent
@@ -36,6 +43,59 @@ static var min = 10;
 static var max = 20;
 static var spacing = 3;
 static var iterations = 400;
+static var max_entities_per_biggest_room = 8;
+
+static function fill_rooms_with_entities(rooms: Array<Room>) {
+
+    var spawns: Array<Spawn> = [
+    {fun: MakeEntity.snail, chance: 10.0},
+    {fun: MakeEntity.bear, chance: 10.0},
+    {fun: MakeEntity.potion, chance: 1.0},
+    {fun: MakeEntity.fountain, chance: 3.0},
+    ];
+    var chance_total = 0.0;
+    for (s in spawns) {
+        chance_total += s.chance;
+    }
+    for (i in 1...spawns.length) {
+        spawns[i].chance += spawns[i - 1].chance;
+    }
+
+    // spawn only one entity in first room
+    for (i in 1...rooms.length) {
+        var r = rooms[i];
+        var entities = new Array<Int>();
+
+        var positions = new Array<Position>();
+        for (x in r.x...(r.x + r.width)) {
+            for (y in r.y...(r.y + r.height)) {
+                positions.push({
+                    x: x,
+                    y: y
+                });
+            }
+        }
+        Random.shuffle(positions);
+
+        function random_entity(): Int {
+            var k = Random.float(0, chance_total);
+
+            var pos = positions.pop();
+            for (s in spawns) {
+                if (k <= s.chance) {
+                    return s.fun(pos.x, pos.y);
+                }
+            }
+
+            return Entity.NONE;
+        }
+
+        var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * max_entities_per_biggest_room));
+        for (i in 0...amount) {
+            entities.push(random_entity());
+        }
+    }
+}
 
 // Randomly place rooms that don't intersect with other rooms
 static function generate_via_digging(): Array<Room> {
@@ -77,6 +137,7 @@ static function connect_rooms(rooms: Array<Room>): Array<Connection> {
     var connected = Data.bool_2d_vector(rooms.length, rooms.length, false);
 
     // Connect rooms with horizontal or vertical lines with random attach points
+    // TODO: possible to have a room that doesn't intersect with any other room, bad if player is spawned in it
     for (i in 0...rooms.length) {
         for (j in 0...rooms.length) {
             if (i == j || connected[i][j]) {
@@ -87,6 +148,7 @@ static function connect_rooms(rooms: Array<Room>): Array<Connection> {
             var other = rooms[j];
 
             if (Math.collision_1d(r.y, r.y + r.height, other.y, other.y + other.height) != 0) {
+                // Collission along y-axis
                 var x1;
                 var x2;
                 if (r.x < other.x) {
@@ -113,6 +175,7 @@ static function connect_rooms(rooms: Array<Room>): Array<Connection> {
                 connected[i][j] = true;
                 connected[j][i] = true;
             } else if (Math.collision_1d(r.x, r.x + r.width, other.x, other.x + other.width) != 0) {
+                // Collission along x-axis
                 var y1;
                 var y2;
                 if (r.y < other.y) {
@@ -334,18 +397,6 @@ static function generate_rooms_via_bst(): Array<Room> {
     }
 
     return rooms;
-}
-
-static function draw_rooms(rooms: Array<Room>, scale: Int = 1) {
-    for (r in rooms) {
-        Gfx.draw_box(r.x * scale, r.y * scale, r.width * scale, r.height * scale, Col.WHITE);
-    }
-}
-
-static function draw_connections(connections: Array<Connection>, scale: Int = 1) {
-    for (c in connections) {
-        Gfx.draw_line(c.x1 * scale, c.y1 * scale, c.x2 * scale, c.y2 * scale, Col.BLUE);
-    }
 }
 
 function new() {}

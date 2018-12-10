@@ -19,11 +19,13 @@ static inline var view_width = 31;
 static inline var view_height = 31;
 static inline var world_scale = 4;
 
-static inline var funtown_x = 20;
-static inline var funtown_y = 20;
+static inline var funtown_x = 15;
+static inline var funtown_y = 15;
 var in_funtown = true;
 var previous_world_x = 20;
 var previous_world_y = 20;
+var draw_map = false;
+static inline var map_scale = 4;
 
 var tiles = Data.int_2d_vector(map_width, map_height);
 var walls = Data.bool_2d_vector(map_width, map_height);
@@ -78,14 +80,6 @@ function new() {
 
     Gfx.create_image('tiles_canvas', view_width * tilesize, view_height * tilesize);
 
-    if (in_funtown) {
-        player_x = funtown_x;
-        player_y = funtown_y;
-    } else {
-        player_x = previous_world_x;
-        player_y = previous_world_y;
-    }
-
     for (x in 0...inventory_width) {
         inventory[x] = new Vector<Int>(inventory_height);
         for (y in 0...inventory_height) {
@@ -100,8 +94,8 @@ function new() {
     }
 
     // Funtown
-    for (x in 0...30) {
-        for (y in 0...30) {
+    for (x in 0...funtown_x + 1) {
+        for (y in 0...funtown_y + 1) {
             walls[x][y] = false;
         }
     }
@@ -127,6 +121,19 @@ function new() {
                 walls[x][y] = false;
             }
         }
+    }
+
+    GenerateWorld.fill_rooms_with_entities(rooms);
+
+    previous_world_x = rooms[0].x;
+    previous_world_y = rooms[0].y;
+
+    if (in_funtown) {
+        player_x = funtown_x;
+        player_y = funtown_y;
+    } else {
+        player_x = previous_world_x;
+        player_y = previous_world_y;
     }
 
     for (x in 0...map_width) {
@@ -235,6 +242,11 @@ function use_entity(e: Int) {
                 add_message('${display_name} heals you for ${use.value} health.');
             }
         }
+    }
+
+    // Chance color to gray if out of charges
+    if (use.charges == 0 && Entity.draw_char.exists(e)) {
+        Entity.draw_char[e].color = Col.GRAY;
     }
 
     // Consumables disappear when all charges are used
@@ -469,30 +481,27 @@ function update() {
         var defense_absorb_left = player_defense_absorb();
 
         var entity_combat = Entity.combat[hovered_map];
-        var entity_health = entity_combat.health;
-        var entity_attack = entity_combat.attack;
 
         var damage_taken = 0;
         var damage_absorbed = 0;
 
-        while (player_health > 0 && entity_health > 0) {
-            // Simulate player and mob taking turns attacking
-            if (defense_absorb_left > 0) {
-                defense_absorb_left -= entity_attack;
-                damage_absorbed += entity_attack;
+        // Player and mob attack at the same time
+        // TODO: figure if mob should attack if player attack kills it this turn
+        if (defense_absorb_left > 0) {
+            defense_absorb_left -= entity_combat.attack;
+            damage_absorbed += entity_combat.attack;
 
-                if (defense_absorb_left < 0) {
-                    // Fix for negative absorb
-                    player_health += defense_absorb_left;
-                    damage_taken -= defense_absorb_left;
-                    damage_absorbed += defense_absorb_left;
-                }
-            } else {
-                player_health -= entity_attack;
-                damage_taken += entity_attack;
+            if (defense_absorb_left < 0) {
+                // Fix for negative absorb
+                player_health += defense_absorb_left;
+                damage_taken -= defense_absorb_left;
+                damage_absorbed += defense_absorb_left;
             }
-            entity_health -= player_attack();
+        } else {
+            player_health -= entity_combat.attack;
+            damage_taken += entity_combat.attack;
         }
+        entity_combat.health -= player_attack();
 
         var target_name = 'noname';
         if (Entity.name.exists(hovered_map)) {
@@ -509,7 +518,7 @@ function update() {
         }
         
 
-        if (entity_health <= 0) {
+        if (entity_combat.health <= 0) {
             add_message('You slay $target_name.');
 
             // Some entities drop copper
@@ -528,7 +537,7 @@ function update() {
             add_message('You died.');
         }
 
-        if (entity_health <= 0) {
+        if (entity_combat.health <= 0) {
             if (Entity.drop_item.exists(hovered_map) && Entity.position.exists(hovered_map)) {
                 var drop_item = Entity.drop_item[hovered_map];
                 var pos = Entity.position[hovered_map];
@@ -855,10 +864,29 @@ function update() {
             redraw_tile_canvas = true;
         }
     }
+
+    if (GUI.text_button(ui_x, 970, 'Toggle map')) {
+        draw_map = !draw_map;
+    }
     
-    GenerateWorld.draw_rooms(rooms, 4);
-    GenerateWorld.draw_connections(connections, 4);
-    Gfx.scale(1, 1);
+    if (draw_map) {
+        for (c in connections) {
+            var width = c.x2 - c.x1;
+            var height = c.y2 - c.y1;
+            if (width == 0) {
+                width = 1;
+            }
+            if (height == 0) {
+                height = 1;
+            }
+            Gfx.draw_box(c.x1 * map_scale, c.y1 * map_scale, (width) * map_scale, (height) * map_scale, Col.BLUE);
+        }
+        for (r in rooms) {
+            Gfx.draw_box(r.x * map_scale, r.y * map_scale, (r.width + 1) * map_scale, (r.height + 1) * map_scale, Col.WHITE);
+        }
+
+        Gfx.draw_box(player_x * map_scale, player_y * map_scale, map_scale, map_scale, Col.RED);
+    }
 
     if (Input.pressed(Key.SPACE)) {
         rooms = GenerateWorld.generate_via_digging();
