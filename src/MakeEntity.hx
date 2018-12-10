@@ -178,4 +178,27 @@ static function item(x: Int, y: Int, item_type: String) {
         potion(x, y);
     }
 }
+
+static function chest(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Chest';
+    Entity.draw_char[e] = {
+        char: 'C',
+        color: Col.YELLOW
+    };
+    Entity.drop_item[e] = {
+        type: 'weapon', 
+        chance: 100
+    };
+    Entity.description[e] = 'An unlocked chest.';
+    Entity.combat[e] = {
+        health: 1, 
+        attack: 0, 
+        message: 'Chest opens with a creak.'
+    };
+
+    return e;
+}
 }

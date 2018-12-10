@@ -1,10 +1,14 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-room generation
-    rooms are rectangles, connected randomly, must not intersect
-
 get playable version ASAP and PLAY IT
+
+fill rooms with entities
+
+each room gets random number of entities depending on area
+    generate those entities
+    then place them in rooms
+
 
 ---------------------------------------------------------------------------------------------
 BUGS
@@ -16,6 +20,8 @@ DONE
 
 ---------------------------------------------------------------------------------------------
 IDEAS
+
+rings and amulets(regular item with max amount in inventory?)
 
 display spell effect in tooltip
     start as "unknown"
@@ -69,3 +75,15 @@ pushable blocks ala sokoban
     pushed by moving next to block
     can grab block for undoing purposes by holding G
 
+refine room generation
+
+rival component - contains it's own "faction" and an enemy "faction", they attack each other instead of player if they are close
+
+moving entities should avoid the positions around choke points to prevent cheesing
+
+probably will need to cache entity tiles as well
+
+can optimize map draw further by predrawing the whole map as view-sized segments and drawing the 4 segments that intersect current view
+
+locked chests that need keys
+locked doors that need keys(key spawned randomly in world a bit far away from door)

@@ -2,6 +2,7 @@
 import haxegon.*;
 import haxe.ds.Vector;
 import Entity;
+import GenerateWorld;
 
 using haxegon.MathExtensions;
 
@@ -18,12 +19,18 @@ static inline var view_width = 31;
 static inline var view_height = 31;
 static inline var world_scale = 4;
 
+static inline var funtown_x = 20;
+static inline var funtown_y = 20;
+var in_funtown = true;
+var previous_world_x = 20;
+var previous_world_y = 20;
+
 var tiles = Data.int_2d_vector(map_width, map_height);
 var walls = Data.bool_2d_vector(map_width, map_height);
 
 static inline var player_base_attack = 1;
-var player_x = 100;
-var player_y = 100;
+var player_x = 0;
+var player_y = 0;
 var player_health_max = 10;
 var player_health = 10;
 var copper_count = 0;
@@ -55,9 +62,30 @@ var interact_target = Entity.NONE;
 var interact_target_x: Int;
 var interact_target_y: Int;
 var player_acted = false;
-var need_to_update_tiles_canvas = true;
+
+var move_tile_canvas = false;
+var canvas_dx = 0;
+var canvas_dy = 0;
+var redraw_tile_canvas = true;
+
+var rooms: Array<Room>;
+var connections: Array<Connection>;
 
 function new() {
+    Gfx.resize_screen(screen_width, screen_height, 1);
+    Text.setfont('pixelFJ8', 8);
+    Gfx.load_tiles('tiles', tilesize, tilesize);
+
+    Gfx.create_image('tiles_canvas', view_width * tilesize, view_height * tilesize);
+
+    if (in_funtown) {
+        player_x = funtown_x;
+        player_y = funtown_y;
+    } else {
+        player_x = previous_world_x;
+        player_y = previous_world_y;
+    }
+
     for (x in 0...inventory_width) {
         inventory[x] = new Vector<Int>(inventory_height);
         for (y in 0...inventory_height) {
@@ -65,22 +93,41 @@ function new() {
         }
     }
 
-    Gfx.resize_screen(screen_width, screen_height, 1);
-    Text.setfont('pixelFJ8', 8);
-    Gfx.load_tiles('tiles', tilesize, tilesize);
-
-    Gfx.create_image("tiles_canvas", view_width * tilesize, view_height * tilesize);
-
     for (x in 0...map_width) {
         for (y in 0...map_height) {
-            walls[x][y] = false;
+            walls[x][y] = true;
         }
     }
 
-    walls[102][100] = true;
-    walls[103][100] = true;
-    walls[104][100] = true;
-    walls[105][105] = true;
+    // Funtown
+    for (x in 0...30) {
+        for (y in 0...30) {
+            walls[x][y] = false;
+        }
+    }
+    walls[2][4] = true;
+    walls[2][5] = true;
+    walls[2][6] = true;
+    walls[3][6] = true;
+
+    rooms = GenerateWorld.generate_via_digging();
+    connections = GenerateWorld.connect_rooms(rooms);
+
+    // Clear walls for rooms and connections
+    for (r in rooms) {
+        for (x in r.x...(r.x + r.width + 1)) {
+            for (y in r.y...(r.y + r.height + 1)) {
+                walls[x][y] = false;
+            }
+        }
+    }
+    for (c in connections) {
+        for (x in c.x1...(c.x2 + 1)) {
+            for (y in c.y1...(c.y2 + 1)) {
+                walls[x][y] = false;
+            }
+        }
+    }
 
     for (x in 0...map_width) {
         for (y in 0...map_height) {
@@ -92,39 +139,31 @@ function new() {
         }
     }
 
-    MakeEntity.snail(98, 98);
-    MakeEntity.snail(98, 97);
-    MakeEntity.snail(98, 96);
-    MakeEntity.bear(108, 100);
+    MakeEntity.snail(10, 3);
+    MakeEntity.snail(10, 4);
+    MakeEntity.snail(10, 5);
+    MakeEntity.bear(8, 8);
 
-    MakeEntity.fountain(105, 98);
+    MakeEntity.fountain(8, 10);
 
-    MakeEntity.armor(107, 98, ArmorType_Head);
-    MakeEntity.armor(107, 97, ArmorType_Head);
-    MakeEntity.armor(108, 98, ArmorType_Chest);
-    MakeEntity.armor(108, 97, ArmorType_Chest);
-    MakeEntity.armor(109, 98, ArmorType_Legs);
-    MakeEntity.armor(109, 97, ArmorType_Legs);
+    for (i in 0...2) {
+        var x = 7;
+        var y = 5;
+        MakeEntity.armor(x + 0, y + i, ArmorType_Head);
+        MakeEntity.armor(x + 1, y + i, ArmorType_Chest);
+        MakeEntity.armor(x + 2, y + i, ArmorType_Legs);
+    }
 
-    MakeEntity.sword(110, 97);
-    MakeEntity.potion(110, 98);
+    MakeEntity.sword(6, 7);
+    MakeEntity.potion(6, 8);
 
-    MakeEntity.potion(100, 95);
-    MakeEntity.potion(101, 95);
-    MakeEntity.potion(102, 95);
-    MakeEntity.potion(103, 95);
-    MakeEntity.potion(104, 95);
-    MakeEntity.potion(105, 95);
-    MakeEntity.potion(106, 95);
-    MakeEntity.potion(107, 95);
-    MakeEntity.potion(108, 95);
-    MakeEntity.potion(109, 95);
-    MakeEntity.potion(110, 95);
-    MakeEntity.potion(111, 95);
-    MakeEntity.potion(112, 95);
-    MakeEntity.potion(113, 95);
-    MakeEntity.potion(114, 95);
-    MakeEntity.potion(115, 95);
+    MakeEntity.chest(2, 15);
+
+    for (i in 0...15) {
+        var x = 0;
+        var y = 0;
+        MakeEntity.potion(x + i, y);
+    }
 }
 
 function get_free_map(): Vector<Vector<Bool>> {
@@ -357,10 +396,12 @@ function update() {
         player_y += player_dy;
 
         // Need to redraw tiles if player moved
-        need_to_update_tiles_canvas = true;
+        move_tile_canvas = true;
 
         var free_map = get_free_map();
-        if (free_map[player_x][player_y]) {
+        if (free_map[player_x][player_y] || Input.pressed(Key.I)) {
+            canvas_dx = player_dx;
+            canvas_dy = player_dy;
             end_turn();
         } else {
             player_x -= player_dx;
@@ -376,7 +417,7 @@ function update() {
 
     // Check for entities on map
     var hovered_map = Entity.NONE;
-    if (!out_of_view_bounds(mouse_map_x, mouse_map_y)) {
+    if (!out_of_view_bounds(mouse_map_x, mouse_map_y) && !out_of_map_bounds(mouse_map_x, mouse_map_y)) {
         hovered_map = Entity.at(mouse_map_x, mouse_map_y);
     }
 
@@ -460,8 +501,12 @@ function update() {
         add_message('------------------------------');
         add_message('You attack $target_name.');
         add_message(entity_combat.message);
-        add_message('You take ${damage_taken} damage from $target_name.');
-        add_message('Your armor absorbs ${damage_absorbed} damage.');
+        if (damage_taken != 0) {
+            add_message('You take ${damage_taken} damage from $target_name.');
+        }
+        if (damage_absorbed != 0) {
+            add_message('Your armor absorbs ${damage_absorbed} damage.');
+        }
         
 
         if (entity_health <= 0) {
@@ -505,8 +550,9 @@ function update() {
     //
 
     // Tiles
-    if (need_to_update_tiles_canvas) {
-        Gfx.draw_to_image("tiles_canvas");
+    redraw_tile_canvas = true;
+    if (redraw_tile_canvas) {
+        Gfx.draw_to_image('tiles_canvas');
         Gfx.scale(1, 1, 0, 0);
         Gfx.clear_screen(Col.BLUE);
         var start_x = player_x - Math.floor(view_width / 2);
@@ -515,14 +561,65 @@ function update() {
         var end_y = player_y + Math.ceil(view_height / 2);
         for (x in start_x...end_x) {
             for (y in start_y...end_y) {
-                if (!out_of_view_bounds(x, y)) {
+                if (!out_of_view_bounds(x, y) && !out_of_map_bounds(x, y)) {
                     Gfx.draw_tile(unscaled_screen_x(x), unscaled_screen_y(y), tiles[x][y]);
                 }
             }
         }
         Gfx.draw_to_screen();
 
-        need_to_update_tiles_canvas = false;
+        redraw_tile_canvas = false;
+    } else if (move_tile_canvas) {
+        Gfx.draw_to_image('tiles_canvas');
+        Gfx.scale(1, 1, 0, 0);
+        Gfx.draw_image((-canvas_dx) * tilesize, (-canvas_dy) * tilesize, 'tiles_canvas');
+
+        if (canvas_dx != 0) {
+            // Draw first or last column
+            var x = player_x - canvas_dx * Math.ceil(view_width / 2);
+            var start_y = player_y - Math.floor(view_height / 2);
+            var end_y = player_y + Math.ceil(view_height / 2);
+
+            // Clear before old row
+            var clear_x = if (canvas_dx < 0) {
+                unscaled_screen_x(-1);
+            } else {
+                unscaled_screen_x(map_width);
+            };
+            Gfx.fill_box(clear_x, 0, tilesize, view_height * tilesize, Col.BLACK);
+
+            for (y in start_y...end_y) {
+                if (!out_of_map_bounds(x, y)) {
+                    Gfx.draw_tile(unscaled_screen_x(x), unscaled_screen_y(y), tiles[x][y]);
+                }
+            }
+        }
+        if (canvas_dy != 0) {
+            // Draw top bottom row
+            var start_x = player_x - Math.floor(view_width / 2);
+            var end_x = player_x + Math.ceil(view_width / 2);
+            var y = player_y - canvas_dy * Math.floor(view_height / 2);
+
+            // Clear before old row
+            var clear_y  = if (canvas_dy < 0) {
+                unscaled_screen_y(-1);
+            } else {
+                unscaled_screen_y(map_height);
+            };
+            Gfx.fill_box(0, clear_y, view_height * tilesize, tilesize, Col.BLACK);
+
+            for (x in start_x...end_x) {
+                if (!out_of_map_bounds(x, y)) {
+                    Gfx.draw_tile(unscaled_screen_x(x), unscaled_screen_y(y), tiles[x][y]);
+                }
+            }
+        }
+
+        Gfx.draw_to_screen();
+
+        canvas_dx = 0;
+        canvas_dy = 0;
+        move_tile_canvas = false;
     }
 
     Gfx.scale(world_scale, world_scale, 0, 0);
@@ -739,6 +836,33 @@ function update() {
     current_ui_y = message_history_y;
     for (message in message_history) {
         up_line(message);
+    }
+
+    if (in_funtown) {
+        if (GUI.text_button(ui_x, 950, 'To world')) {
+            in_funtown = false;
+            player_x = previous_world_x;
+            player_y = previous_world_y;
+            redraw_tile_canvas = true;
+        }
+    } else {
+        if (GUI.text_button(ui_x, 950, 'To funtown')) {
+            in_funtown = true;
+            previous_world_x = player_x;
+            previous_world_y = player_y;
+            player_x = funtown_x;
+            player_y = funtown_y;
+            redraw_tile_canvas = true;
+        }
+    }
+    
+    GenerateWorld.draw_rooms(rooms, 4);
+    GenerateWorld.draw_connections(connections, 4);
+    Gfx.scale(1, 1);
+
+    if (Input.pressed(Key.SPACE)) {
+        rooms = GenerateWorld.generate_via_digging();
+        connections = GenerateWorld.connect_rooms(rooms);
     }
 
     Text.display(0, 0, 'FPS: ${Gfx.render_fps()}');
