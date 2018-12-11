@@ -1,4 +1,3 @@
-package haxegon;
 
 typedef Vector2 = {
     x: Float,

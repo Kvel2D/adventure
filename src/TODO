@@ -1,13 +1,20 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
+make connections be rooms as well
+
+for each entity, save it's current room in Position, update of set_position
+    only update entities that are in current player room
+    OR currently in view?
+
 make enemies move towards player
+    assign each entity to a room, remember which room entity is in
+    do a_star only for the room
+    need to figure out which room player is in
+        entities only chase while in same room
+    only process chase components for entities in current room
+    entities should avoid the positions around choke points to prevent cheesing
 
-NEED LOS
-
-figure out how much armor can absorb
-    could also make absorb be chance based
-    current one probably too OP
 
 ---------------------------------------------------------------------------------------------
 BUGS
@@ -20,27 +27,13 @@ DONE
 ---------------------------------------------------------------------------------------------
 IDEAS
 
-default actions on left-click
-    enemies = attack
-    usable = use
-    enemies and use => no action
-        then need attack option in context menu
-
 rings and amulets(regular item with max amount in inventory?)
 
 display spell effect in tooltip
     start as "unknown"
     after one use, it will say what it actually is
 
-make combat non-instant, currently deciding to attack or not is a math problem and you can't use items during the fight
-make it real-time?
-
 portals
-
-line of sight
-    can't see behind doors
-    view distance limited
-    remember entity once seen?
 
 spell scrolls
     increase attack for next N fights
@@ -57,8 +50,6 @@ cells with effects
 doors opened with buttons
     can make rooms be one-way entrance by putting a button and a door at the entrance
     (one way entrance poison room)
-
-chests
 
 merchant block entrance to shop storage which contains a chest
     could attack merchant to open the way and get the chest but merchant is deadly
@@ -80,15 +71,33 @@ pushable blocks ala sokoban
     pushed by moving next to block
     can grab block for undoing purposes by holding G
 
-refine room generation
-
 rival component - contains it's own "faction" and an enemy "faction", they attack each other instead of player if they are close
-
-moving entities should avoid the positions around choke points to prevent cheesing
-
-probably will need to cache entity tiles as well
-
-can optimize map draw further by predrawing the whole map as view-sized segments and drawing the 4 segments that intersect current view
 
 locked chests that need keys
 locked doors that need keys(key spawned randomly in world a bit far away from door)
+
+long-range attack for entities
+    attacks player if no LOS(i.e. player can see it)
+
+dmg numbers above player that float up
+    makes it more obvious when you are hit
+
+default actions on left-click
+    enemies = attack
+    usable = use
+    enemies and use => no action
+        then need attack option in context menu
+
+elements system
+    fire, lightning, shadow(maybe something else too)
+    each dmg bonus and stuff is one of those
+    regular dmg is melee
+    mobs can be immune to some elements, including melee
+        ex: a mob that can only be defeated with shadow
+    dmg bonus spells for same element don't stack
+        +2fire dmg followed by +4fire dmg = +4fire dmg
+        limits the max amount of bonus you can get
+        have to use multiple elements if you want to go crazy
+
+make levels
+    the world could be a tower

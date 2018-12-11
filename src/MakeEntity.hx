@@ -29,8 +29,12 @@ static function snail(x: Int, y: Int): Int {
     Entity.combat[e] = {
         health: 2, 
         attack: 1, 
-        message: 'Snail silently defends itself.'
+        message: 'Snail silently defends itself.',
+        can_attack: true,
     };
+    // Entity.chase_player[e] = {
+    //     flag: true,
+    // };
 
     Entity.validate(e);
 
@@ -56,7 +60,8 @@ static function bear(x: Int, y: Int): Int {
     Entity.combat[e] = {
         health: 2, 
         attack: 2, 
-        message: 'Bear roars angrily at you.'
+        message: 'Bear roars angrily at you.',
+        can_attack: true,
     };
     Entity.drop_item[e] = {
         type: 'potion', 
@@ -200,7 +205,8 @@ static function chest(x: Int, y: Int): Int {
     Entity.combat[e] = {
         health: 1, 
         attack: 0, 
-        message: 'Chest opens with a creak.'
+        message: 'Chest opens with a creak.',
+        can_attack: true,
     };
 
     return e;

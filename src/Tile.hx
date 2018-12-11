@@ -11,6 +11,8 @@ class Tile {
     static inline var Player = at(0, 0);
     static inline var Wall = at(1, 0);
     static inline var Ground = at(2, 0);
+    static inline var DarkerWall = at(5, 1);
+    static inline var DarkerGround = at(6, 1);
     static inline var Gnome = at(3, 0);
     static inline var Bananas = at(4, 0);
     static inline var Tree = at(5, 0);

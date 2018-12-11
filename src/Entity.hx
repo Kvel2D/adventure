@@ -19,6 +19,7 @@ typedef Combat = {
     var health: Int;
     var attack: Int;
     var message: String;
+    var can_attack: Bool;
 }
 
 typedef Use = {
@@ -67,6 +68,10 @@ typedef DrawChar = {
     var color: Int;
 }
 
+typedef ChasePlayer = {
+    var flag: Bool;
+}
+
 @:publicFields
 class Entity {
 // NOTE: force unindent
@@ -91,6 +96,7 @@ static var combat = new Map<Int, Combat>();
 static var drop_item = new Map<Int, DropItem>();
 static var talk = new Map<Int, String>();
 static var give_copper_on_death = new Map<Int, GiveCopper>();
+static var chase_player = new Map<Int, ChasePlayer>();
 
 static function make(): Int {
     var e = id_max;
@@ -118,6 +124,8 @@ static function remove(e: Int) {
     drop_item.remove(e);
     talk.remove(e);
     give_copper_on_death.remove(e);
+
+    chase_player.remove(e);
 }
 
 static function print(e: Int) {
@@ -136,6 +144,8 @@ static function print(e: Int) {
     trace('drop_item=${drop_item[e]}');
     trace('talk=${talk[e]}');
     trace('give_copper_on_death=${give_copper_on_death[e]}');
+
+    trace('chase_player=${chase_player[e]}');
 }
 
 static function validate(e: Int) {
@@ -157,10 +167,18 @@ static function validate(e: Int) {
         trace('Missing *initial* dependency: Item needs Position on creation.');
         error = true;
     }
+    if (chase_player.exists(e) && !position.exists(e)) {
+        trace('Missing dependency: ChasePlayer needs Position.');
+        error = true;
+    }
 
     // Conflicts
     if (armor.exists(e) && weapon.exists(e)) {
         trace('Conflict: Armor and Weapon.');
+        error = true;
+    }
+    if (item.exists(e) && equipment.exists(e)) {
+        trace('Conflict: Item and Equipment.');
         error = true;
     }
 
@@ -172,7 +190,7 @@ static function validate(e: Int) {
 //
 // Position stuff
 //
-static var position_map = Data.int_2d_vector(Main.map_width, Main.map_height, Entity.NONE);
+static var position_map = Data.create2darray(Main.map_width, Main.map_height, Entity.NONE);
 
 static function set_position(e: Int, x: Int, y: Int) {
     // Clear old position

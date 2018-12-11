@@ -3,7 +3,7 @@ import haxegon.*;
 import Entity;
 import MakeEntity;
 
-using haxegon.MathExtensions;
+using MathExtensions;
 
 typedef PreRoom = {
     x: Float,
@@ -75,7 +75,8 @@ static function fill_rooms_with_entities(rooms: Array<Room>) {
                 });
             }
         }
-        Random.shuffle(positions);
+        // TODO: randomize positions
+        // Random.shuffle(positions);
 
         function random_entity(): Int {
             var k = Random.float(0, chance_total);
@@ -134,13 +135,19 @@ static function connect_rooms(rooms: Array<Room>): Array<Connection> {
     var horizontals = new Array<Connection>();
     var verticals = new Array<Connection>();
 
-    var connected = Data.bool_2d_vector(rooms.length, rooms.length, false);
+    var connected = Data.create2darray(rooms.length, rooms.length, false);
+
+    var unconnected_rooms = new Array<Room>();
 
     // Connect rooms with horizontal or vertical lines with random attach points
     // TODO: possible to have a room that doesn't intersect with any other room, bad if player is spawned in it
     for (i in 0...rooms.length) {
+        var unconnected = true;
         for (j in 0...rooms.length) {
             if (i == j || connected[i][j]) {
+                if (connected[i][j]) {
+                    unconnected = false;
+                }
                 continue;
             }
 
@@ -164,7 +171,7 @@ static function connect_rooms(rooms: Array<Room>): Array<Connection> {
                 var y_max = Std.int(Math.min(r.y + r.height, other.y + other.height));
                 var y = Random.int(y_min, y_max);
                 horizontals.push({
-                    x1: x1, 
+                    x1: x1 + 1, 
                     y1: y, 
                     x2: x2, 
                     y2: y,
@@ -174,6 +181,7 @@ static function connect_rooms(rooms: Array<Room>): Array<Connection> {
 
                 connected[i][j] = true;
                 connected[j][i] = true;
+                unconnected = false;
             } else if (Math.collision_1d(r.x, r.x + r.width, other.x, other.x + other.width) != 0) {
                 // Collission along x-axis
                 var y1;
@@ -192,7 +200,7 @@ static function connect_rooms(rooms: Array<Room>): Array<Connection> {
                 var x = Random.int(x_min, x_max);
                 verticals.push({
                     x1: x, 
-                    y1: y1, 
+                    y1: y1 + 1, 
                     x2: x, 
                     y2: y2,
                     i: i,
@@ -201,8 +209,17 @@ static function connect_rooms(rooms: Array<Room>): Array<Connection> {
 
                 connected[i][j] = true;
                 connected[j][i] = true;
+                unconnected = false;
             }
         }
+
+        if (unconnected) {
+            unconnected_rooms.push(rooms[i]);
+        }
+    }
+
+    for (r in unconnected_rooms) {
+        rooms.remove(r);
     }
 
     // Remove connections that intersect with rooms
@@ -307,96 +324,6 @@ static function connect_rooms(rooms: Array<Room>): Array<Connection> {
     }
 
     return connections;
-}
-
-static function generate_rooms_via_bst(): Array<Room> {
-    var rooms = new Array<Room>();
-
-    var room_width = 30;
-    var room_height = 20;
-
-    var max = 0.3;
-    var max = 0.3;
-
-
-    var world_width = Main.map_width - origin_x - 1;
-    var world_height = Main.map_height - origin_y - 1;
-
-    var pre_rooms = new Array<PreRoom>();
-    pre_rooms.push({
-        x: 0.0,
-        y: 0.0,
-        width: 1.0,
-        height: 1.0
-    });
-
-    while (true) {
-        var done = true;
-
-        var new_rooms = new Array<PreRoom>();
-
-        for (r in pre_rooms) {
-            var split = false;
-            if (r.width > max || r.height > max) {
-                done = false;
-                split = true;
-            }
-
-            if (split) {
-                var split_horizontally = false;
-                if (r.width > max && r.height > max) {
-                    split_horizontally = Random.bool();
-                } else if (r.width > max) {
-                    split_horizontally = true;
-                } else {
-                    split_horizontally = false;
-                }
-
-                if (split_horizontally) {
-                    var split_width = Random.float(0.2, 0.9) * r.width;
-                    new_rooms.push({
-                        x: r.x + split_width,
-                        y: r.y,
-                        width: r.width - split_width,
-                        height: r.height
-                    });
-                    r.width = split_width;
-                } else {
-                    var split_height = Random.float(0.2, 0.9) * r.height;
-                    new_rooms.push({
-                        x: r.x,
-                        y: r.y + split_height,
-                        width: r.width,
-                        height: r.height - split_height
-                    });
-                    r.height = split_height;
-                }
-            }
-        }
-
-        pre_rooms = pre_rooms.concat(new_rooms);
-
-        if (done) {
-            break;
-        }
-    }
-
-    for (r in pre_rooms) {
-        var old_width = r.width;
-        var old_height = r.height;
-        r.width = Random.float(r.width * 0.6, r.width * 0.9);
-        r.height = Random.float(r.height * 0.6, r.height * 0.9);
-        r.x = Random.float(r.x, r.x + old_width - r.width);
-        r.y = Random.float(r.y, r.y + old_height - r.height);
-        rooms.push({
-            x: Math.floor(r.x * world_width),
-            y: Math.floor(r.y * world_height),
-            width: Math.floor(r.width * world_width),
-            height: Math.floor(r.height * world_height)
-        });
-    }
-
-    return rooms;
 }
 
 function new() {}
