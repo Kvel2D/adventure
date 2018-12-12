@@ -17,11 +17,24 @@ enum UseType {
     UseType_Heal;
 }
 
+enum AggressionType {
+    AggressionType_Aggressive; // attack if player is close
+    AggressionType_Neutral; // attack only in response
+    AggressionType_Passive; // never attack
+}
+
+enum MoveType {
+    MoveType_Astar;
+    MoveType_Straight;
+    MoveType_Random;
+}
+
 typedef Combat = {
     var health: Int;
     var attack: Int;
     var message: String;
-    var can_attack: Bool;
+    var aggression: AggressionType;
+    var attacked_by_player: Bool;
 }
 
 typedef Use = {
@@ -43,6 +56,10 @@ typedef Armor = {
 typedef Weapon = {
     var type: WeaponType;
     var attack: Int;
+}
+
+typedef Ring = {
+    var flag: Bool;
 }
 
 typedef GiveCopper = {
@@ -71,8 +88,9 @@ typedef DrawChar = {
     var color: Int;
 }
 
-typedef ChasePlayer = {
-    var flag: Bool;
+typedef Move = {
+    var type: MoveType;
+    var cant_move: Bool;
 }
 
 @:publicFields
@@ -99,7 +117,8 @@ static var combat = new Map<Int, Combat>();
 static var drop_item = new Map<Int, DropItem>();
 static var talk = new Map<Int, String>();
 static var give_copper_on_death = new Map<Int, GiveCopper>();
-static var chase_player = new Map<Int, ChasePlayer>();
+static var move = new Map<Int, Move>();
+static var ring = new Map<Int, Ring>();
 
 static function make(): Int {
     var e = id_max;
@@ -128,7 +147,7 @@ static function remove(e: Int) {
     talk.remove(e);
     give_copper_on_death.remove(e);
 
-    chase_player.remove(e);
+    move.remove(e);
 }
 
 static function print(e: Int) {
@@ -148,7 +167,7 @@ static function print(e: Int) {
     trace('talk=${talk[e]}');
     trace('give_copper_on_death=${give_copper_on_death[e]}');
 
-    trace('chase_player=${chase_player[e]}');
+    trace('move=${move[e]}');
 }
 
 static function validate(e: Int) {
@@ -170,8 +189,8 @@ static function validate(e: Int) {
         trace('Missing *initial* dependency: Item needs Position on creation.');
         error = true;
     }
-    if (chase_player.exists(e) && !position.exists(e)) {
-        trace('Missing dependency: ChasePlayer needs Position.');
+    if (move.exists(e) && !position.exists(e)) {
+        trace('Missing dependency: Move needs Position.');
         error = true;
     }
 

@@ -27,7 +27,6 @@ static var previous_world_y = 20;
 static var draw_map = false;
 static inline var map_scale = 4;
 
-static var tiles = Data.create2darray(map_width, map_height, Tile.None);
 static var walls = Data.create2darray(map_width, map_height, false);
 
 static inline var player_base_attack = 1;
@@ -102,17 +101,14 @@ function init() {
         prev.push(arr);
     }
 
+    // Fil world with walls at the start
     for (x in 0...map_width) {
         for (y in 0...map_height) {
             walls[x][y] = true;
         }
     }
 
-    walls[2][4] = true;
-    walls[2][5] = true;
-    walls[2][6] = true;
-    walls[3][6] = true;
-
+    // Generate and connect rooms
     rooms = GenerateWorld.generate_via_digging();
     GenerateWorld.connect_rooms(rooms);
     for (r in rooms) {
@@ -120,7 +116,7 @@ function init() {
         r.height++;
     }
 
-    // Add funtown room
+    // Add Funtown room
     rooms.insert(0, {
         x: 1,
         y: 1,
@@ -129,7 +125,7 @@ function init() {
         is_connection: false
     });
 
-    // Clear walls for rooms
+    // Clear walls inside rooms
     for (r in rooms) {
         for (x in r.x...(r.x + r.width)) {
             for (y in r.y...(r.y + r.height)) {
@@ -138,8 +134,9 @@ function init() {
         }
     }
 
-    // GenerateWorld.fill_rooms_with_entities();
+    GenerateWorld.fill_rooms_with_entities();
 
+    // Set start position to first room
     previous_world_x = rooms[1].x;
     previous_world_y = rooms[1].y;
 
@@ -151,18 +148,17 @@ function init() {
         player_y = previous_world_y;
     }
 
-    for (x in 0...map_width) {
-        for (y in 0...map_height) {
-            if (walls[x][y]) {
-                tiles[x][y] = Tile.Wall;
-            } else {
-                tiles[x][y] = Tile.Ground;
-            }
-        }
-    }
-
     LOS.calculate_rays();
-    los = LOS.get_los();
+
+    //
+    // Funtown
+    //
+    walls[7][5] = true;
+    walls[8][5] = true;
+    walls[9][5] = true;
+    walls[10][5] = true;
+    walls[11][5] = true;
+    walls[12][5] = true;
 
 
     MakeEntity.snail(10, 3);
@@ -399,7 +395,7 @@ static var closed = Data.create2darray(room_size_max, room_size_max, false);
 static var open = Data.create2darray(room_size_max, room_size_max, false);
 static var g_score = Data.create2darray(room_size_max, room_size_max, 0);
 static var f_score = Data.create2darray(room_size_max, room_size_max, 0);
-static var dx_dys: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
+static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
 
 static function a_star(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
     inline function heuristic_score(x1:Int, y1:Int, x2:Int, y2:Int):Int {
@@ -425,8 +421,6 @@ static function a_star(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
         return x < 0 || y < 0 || x >= room.width || y >= room.height;
     }
 
-    trace(room.width);
-    
     x1 -= room.x;
     x2 -= room.x;
 
@@ -450,7 +444,6 @@ static function a_star(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
     }
     open[x1][y1] = true;
 
-    timer_start();
     var open_length = 1;
     for (x in 0...room.width) {
         for (y in 0...room.height) {
@@ -473,14 +466,6 @@ static function a_star(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
     }
     f_score[x1][y1] = heuristic_score(x1, y1, x2, y2);
 
-    trace(1);
-    timer_end();
-
-    timer_start();
-
-    trace('1 -$x1 $y1');
-    trace('2 =$x2 $y2');
-
     while (open_length != 0) {
         var current = function(): Vec2i {
             var lowest_score = infinity;
@@ -497,18 +482,14 @@ static function a_star(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
             return lowest_node;
         }();
 
-        trace(current);
-
         if (current.x == x2 && current.y == y2) {
-            trace(2);
-            timer_end();
             return path(prev, current.x, current.y);
         }
 
         open[current.x][current.y] = false;
         open_length--;
         closed[current.x][current.y] = true;
-        for (dx_dy in dx_dys) {
+        for (dx_dy in four_dxdy) {
             var neighbor_x = current.x + dx_dy.x;
             var neighbor_y = current.y + dx_dy.y;
             if (out_of_bounds(neighbor_x, neighbor_y) || !move_map[neighbor_x][neighbor_y]) {
@@ -536,34 +517,90 @@ static function a_star(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
 }
 
 
-static function entity_chase_player(e: Int) {
-    var chase_player = Entity.chase_player[e];
+static function entity_move(e: Int) {
+    var move = Entity.move[e];
+
+    if (move.cant_move) {
+        move.cant_move = false;
+        return;
+    }
+
     var pos = Entity.position[e];
 
     if (Math.dst2(pos.x, pos.y, player_x, player_y) > 2) {
-        var path = a_star(pos.x, pos.y, player_x, player_y);
-        trace(path);
 
-        if (path.length > 2) {
-            var room = rooms[player_room];
-            Entity.set_position(e, path[path.length - 2].x + room.x, path[path.length - 2].y + room.y);
+        switch (move.type) {
+            case MoveType_Astar: {
+                var path = a_star(pos.x, pos.y, player_x, player_y);
 
-            // If moved, then entity's turn is over and can't attack
-            if (Entity.combat.exists(e)) {
-                Entity.combat[e].can_attack = false;
+                if (path.length > 2) {
+                    var room = rooms[player_room];
+                    Entity.set_position(e, path[path.length - 2].x + room.x, path[path.length - 2].y + room.y);
+                }
+            }
+            case MoveType_Straight: {
+                var dx = player_x - pos.x;
+                var dy = player_y - pos.y;
+                var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
+
+                if (!free_map[1 + Math.sign(dx)][1]) {
+                    dx = 0;
+                }
+                if (!free_map[1][1 + Math.sign(dy)]) {
+                    dy = 0;
+                }
+
+                if (Math.abs(dx) >= Math.abs(dy)) {
+                    dy = 0;
+                } else {
+                    dx = 0;
+                }
+
+                if (dx != 0 || dy != 0) {
+                    Entity.set_position(e, pos.x + Math.sign(dx), pos.y + Math.sign(dy));
+                }
+            }
+            case MoveType_Random: {
+                var random_dxdy = Random.pick(four_dxdy);
+                var dx = random_dxdy.x;
+                var dy = random_dxdy.y;
+                var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
+
+                if (!free_map[1 + Math.sign(dx)][1]) {
+                    dx = 0;
+                }
+                if (!free_map[1][1 + Math.sign(dy)]) {
+                    dy = 0;
+                }
+
+                if (dx != 0 || dy != 0) {
+                    Entity.set_position(e, pos.x + Math.sign(dx), pos.y + Math.sign(dy));
+                }
             }
         }
     } else {
-        // trace('stop');
+        // Next to player
     }
 }
 
-static function entity_attack(e: Int) {
-    var entity_combat = Entity.combat[e];
-
-    if (!entity_combat.can_attack) {
-        return;
+static function entity_attack_player(e: Int) {
+    // If on map, must be next to player
+    if (Entity.position.exists(e)) {
+        var pos = Entity.position[e];
+        if (Math.dst2(player_x, player_y, pos.x, pos.y) > 2) {
+            return;
+        }
     }
+
+    var combat = Entity.combat[e];
+
+    var should_attack = switch (combat.aggression) {
+        case AggressionType_Aggressive: true;
+        case AggressionType_Neutral: combat.attacked_by_player;
+        case AggressionType_Passive: false;
+    }
+
+    combat.attacked_by_player = false;
 
     var defense_absorb_left = player_defense_absorb();
 
@@ -571,8 +608,8 @@ static function entity_attack(e: Int) {
     var damage_absorbed = 0;
 
     if (defense_absorb_left > 0) {
-        defense_absorb_left -= entity_combat.attack;
-        damage_absorbed += entity_combat.attack;
+        defense_absorb_left -= combat.attack;
+        damage_absorbed += combat.attack;
 
         if (defense_absorb_left < 0) {
             // Fix for negative absorb
@@ -581,8 +618,8 @@ static function entity_attack(e: Int) {
             damage_absorbed += defense_absorb_left;
         }
     } else {
-        player_health -= entity_combat.attack;
-        damage_taken += entity_combat.attack;
+        player_health -= combat.attack;
+        damage_taken += combat.attack;
     }
 
     var target_name = 'noname';
@@ -598,6 +635,56 @@ static function entity_attack(e: Int) {
     
     if (player_health <= 0) {
         add_message('You died.');
+    }
+
+    // Can't move and attack in same turn
+    if (Entity.move.exists(e)) {
+        var move = Entity.move[e];
+        move.cant_move = true;
+    }
+}
+
+static function player_attack_entity(e: Int) {
+    var combat = Entity.combat[e];
+
+    var damage_to_entity = player_attack();
+    combat.health -= damage_to_entity;
+    combat.attacked_by_player = true;
+
+    var target_name = 'noname';
+    if (Entity.name.exists(e)) {
+        target_name = Entity.name[e];
+    }
+    add_message('You attack $target_name for $damage_to_entity.');
+    add_message(combat.message);
+
+    if (combat.health <= 0) {
+        add_message('You slay $target_name.');
+
+        // Some entities drop copper
+        if (Entity.give_copper_on_death.exists(e)) {
+            var give_copper = Entity.give_copper_on_death[e];
+
+            if (Random.chance(give_copper.chance)) {
+                var drop_amount = Random.int(give_copper.min, give_copper.max);
+                copper_count += drop_amount;
+                add_message('$target_name drops $drop_amount copper.');
+            }
+        }
+    }
+
+    if (combat.health <= 0) {
+        if (Entity.drop_item.exists(e) && Entity.position.exists(e)) {
+            var drop_item = Entity.drop_item[e];
+            var pos = Entity.position[e];
+            if (Random.chance(drop_item.chance)) {
+                add_message('$target_name drops ${drop_item.type}.');
+                Entity.remove_position(e);
+                MakeEntity.item(pos.x, pos.y, drop_item.type);
+            }
+        }
+
+        Entity.remove(e);
     }
 }
 
@@ -635,33 +722,18 @@ static function end_turn() {
         player_room = get_room_index(player_x, player_y);
     }
     
-
     for (e in Entity.combat.keys()) {
-        // Can attack by default even if not on map
-        var combat = Entity.combat[e];
-        combat.can_attack = true;
-
-        // If on map, must be next to player
-        if (Entity.position.exists(e)) {
-            var pos = Entity.position[e];
-            if (Math.dst2(player_x, player_y, pos.x, pos.y) > 2) {
-                combat.can_attack = false;
-            }
-        }
+        entity_attack_player(e);
     }
 
     // Entities chase player only if they are in the same room
-    for (e in Entity.chase_player.keys()) {
+    for (e in Entity.move.keys()) {
         if (Entity.position.exists(e)) {
             var pos = Entity.position[e];
             if (pos.room == player_room) {
-                entity_chase_player(e);
+                entity_move(e);
             }
         }
-    }
-
-    for (e in Entity.combat.keys()) {
-        entity_attack(e);
     }
 
     player_acted = true;
@@ -781,48 +853,7 @@ function update() {
     // Attack on left click
     //
     if (Mouse.leftclick() && !player_acted && Entity.position.exists(hovered_map) && player_next_to(Entity.position[hovered_map]) && Entity.combat.exists(hovered_map)) {
-        var entity_combat = Entity.combat[hovered_map];
-
-        var damage_to_entity = player_attack();
-
-        entity_combat.health -= damage_to_entity;
-
-        var target_name = 'noname';
-        if (Entity.name.exists(hovered_map)) {
-            target_name = Entity.name[hovered_map];
-        }
-        add_message('You attack $target_name for $damage_to_entity.');
-        add_message(entity_combat.message);
-
-        if (entity_combat.health <= 0) {
-            add_message('You slay $target_name.');
-
-            // Some entities drop copper
-            if (Entity.give_copper_on_death.exists(hovered_map)) {
-                var give_copper = Entity.give_copper_on_death[hovered_map];
-
-                if (Random.chance(give_copper.chance)) {
-                    var drop_amount = Random.int(give_copper.min, give_copper.max);
-                    copper_count += drop_amount;
-                    add_message('$target_name drops $drop_amount copper.');
-                }
-            }
-        }
-
-        if (entity_combat.health <= 0) {
-            if (Entity.drop_item.exists(hovered_map) && Entity.position.exists(hovered_map)) {
-                var drop_item = Entity.drop_item[hovered_map];
-                var pos = Entity.position[hovered_map];
-                if (Random.chance(drop_item.chance)) {
-                    add_message('$target_name drops ${drop_item.type}.');
-                    Entity.remove_position(hovered_map);
-                    MakeEntity.item(pos.x, pos.y, drop_item.type);
-                }
-            }
-
-            Entity.remove(hovered_map);
-        }
-
+        player_attack_entity(hovered_map);
         end_turn();
     }
 

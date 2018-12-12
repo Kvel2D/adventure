@@ -1,7 +1,13 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-rings and amulets(regular item with max amount in inventory?)
+rings
+    check for how many other rings are in inventory
+    limit to 4
+
+don't forget to add new components to print and remove
+
+add more items to make it possible to win
 
 ---------------------------------------------------------------------------------------------
 BUGS
