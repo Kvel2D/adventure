@@ -1,6 +1,8 @@
 
 import haxegon.*;
 
+using MathExtensions;
+
 enum ArmorType {
     ArmorType_Head;
     ArmorType_Chest;
@@ -56,6 +58,7 @@ typedef Item = {
 typedef Position = {
     var x: Int;
     var y: Int;
+    var room: Int;
 }
 
 typedef DropItem = {
@@ -193,19 +196,34 @@ static function validate(e: Int) {
 static var position_map = Data.create2darray(Main.map_width, Main.map_height, Entity.NONE);
 
 static function set_position(e: Int, x: Int, y: Int) {
-    // Clear old position
+    var new_room = -1;
+
     if (position.exists(e)) {
+        // Clear old position
         var pos = position[e];
         position_map[pos.x][pos.y] = Entity.NONE;
+
+        // If didn't change rooms, can skip recalculating new room
+        var old_room = Main.rooms[pos.room];
+        if (Math.point_box_intersect(x, y, old_room.x, old_room.y, old_room.width + 1, old_room.height + 1)) {
+            new_room = pos.room;
+        }
+    }
+
+    // Need to recalculate room
+    if (new_room == -1) {
+        new_room = Main.get_room_index(x, y);
+    }
+
+    if (position_map[x][y] != Entity.NONE) {
+        trace('new position occupied');
     }
 
     // Write new position
-    if (position_map[x][y] != Entity.NONE) {
-        trace('position already occupied');
-    }
     position[e] = {
         x: x,
         y: y,
+        room: new_room,
     };
     position_map[x][y] = e;
 }

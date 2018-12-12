@@ -6,10 +6,10 @@ using MathExtensions;
 @:publicFields
 class LOS {
 
-    static var rays = new Array<Array<IntVector2>>();
+    static var rays = new Array<Array<Vec2i>>();
 
-    static function ray(x1: Int, y1: Int, x2: Int, y2: Int): Array<IntVector2> {
-        var points = new Array<IntVector2>();
+    static function ray(x1: Int, y1: Int, x2: Int, y2: Int): Array<Vec2i> {
+        var points = new Array<Vec2i>();
 
         var dst = 0.5;
         var x_min = Std.int(Math.min(x1, x2));
@@ -68,7 +68,7 @@ class LOS {
 
     static function get_los(): Array<Array<Bool>> {
         var los = Data.create2darray(Main.view_width, Main.view_height, false);
-        var free_map = Main.get_free_map(false, false);
+        var free_map = Main.get_free_map(0, 0, Main.map_width, Main.map_height, false, false);
 
         var start_x = Main.player_x - Math.floor(Main.view_width / 2);
         var start_y = Main.player_y - Math.floor(Main.view_height / 2);

@@ -1,20 +1,7 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-make connections be rooms as well
-
-for each entity, save it's current room in Position, update of set_position
-    only update entities that are in current player room
-    OR currently in view?
-
-make enemies move towards player
-    assign each entity to a room, remember which room entity is in
-    do a_star only for the room
-    need to figure out which room player is in
-        entities only chase while in same room
-    only process chase components for entities in current room
-    entities should avoid the positions around choke points to prevent cheesing
-
+rings and amulets(regular item with max amount in inventory?)
 
 ---------------------------------------------------------------------------------------------
 BUGS
@@ -26,8 +13,6 @@ DONE
 
 ---------------------------------------------------------------------------------------------
 IDEAS
-
-rings and amulets(regular item with max amount in inventory?)
 
 display spell effect in tooltip
     start as "unknown"
@@ -101,3 +86,11 @@ elements system
 
 make levels
     the world could be a tower
+
+elemental affinity
+    using an element, whether for attack/buff whatever else increases it's power
+    every N uses you get a message "your fire affinity increased, fire spells are now more powerful"
+    affinity level up improves one affinity but makes the opposite element worse
+    fire <-> lightning
+    shadow <-> light
+    could make it so that increase is bigger than decrease

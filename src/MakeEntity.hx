@@ -32,9 +32,9 @@ static function snail(x: Int, y: Int): Int {
         message: 'Snail silently defends itself.',
         can_attack: true,
     };
-    // Entity.chase_player[e] = {
-    //     flag: true,
-    // };
+    Entity.chase_player[e] = {
+        flag: true,
+    };
 
     Entity.validate(e);
 

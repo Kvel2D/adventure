@@ -16,7 +16,8 @@ typedef Room = {
     x: Int,
     y: Int,
     width: Int,
-    height: Int
+    height: Int,
+    is_connection: Bool
 }
 
 typedef Connection = {
@@ -39,13 +40,26 @@ class GenerateWorld {
 
 static var origin_x = Main.funtown_x + 1;
 static var origin_y = Main.funtown_y + 1;
-static var min = 10;
-static var max = 20;
+static inline var min = Main.room_size_min;
+static inline var max = Main.room_size_max;
 static var spacing = 3;
 static var iterations = 400;
 static var max_entities_per_biggest_room = 8;
 
-static function fill_rooms_with_entities(rooms: Array<Room>) {
+public static function shuffle<T>(array: Array<T>): Array<T> {
+    if (array != null) {
+        for (i in 0...array.length) {
+            var j = Random.int(0, array.length - 1);
+            var a = array[i];
+            var b = array[j];
+            array[i] = b;
+            array[j] = a;
+        }
+    }
+    return array;
+}
+
+static function fill_rooms_with_entities() {
 
     var spawns: Array<Spawn> = [
     {fun: MakeEntity.snail, chance: 10.0},
@@ -62,21 +76,27 @@ static function fill_rooms_with_entities(rooms: Array<Room>) {
     }
 
     // spawn only one entity in first room
-    for (i in 1...rooms.length) {
-        var r = rooms[i];
+    for (i in 1...Main.rooms.length) {
+        var r = Main.rooms[i];
+
+        // Don't generate entities in connections
+        if (r.is_connection) {
+            continue;
+        }
+
         var entities = new Array<Int>();
 
-        var positions = new Array<Position>();
-        for (x in r.x...(r.x + r.width)) {
-            for (y in r.y...(r.y + r.height)) {
+        var positions = new Array<Vec2i>();
+        for (x in r.x...(r.x + r.width + 1)) {
+            for (y in r.y...(r.y + r.height + 1)) {
                 positions.push({
                     x: x,
-                    y: y
+                    y: y,
                 });
             }
         }
         // TODO: randomize positions
-        // Random.shuffle(positions);
+        shuffle(positions);
 
         function random_entity(): Int {
             var k = Random.float(0, chance_total);
@@ -112,6 +132,7 @@ static function generate_via_digging(): Array<Room> {
             y: Random.int(origin_y, world_height - max - 1),
             width: Random.int(min, max),
             height: Random.int(min, max),
+            is_connection: false
         };
         var no_intersections = true;
         for (r in rooms) {
@@ -131,7 +152,7 @@ static function generate_via_digging(): Array<Room> {
 // Connect rooms that intersect with each other on an axis
 // Then remove connections that go across rooms or are too long
 // Avoid creating disconnected islands
-static function connect_rooms(rooms: Array<Room>): Array<Connection> {
+static function connect_rooms(rooms: Array<Room>) {
     var horizontals = new Array<Connection>();
     var verticals = new Array<Connection>();
 
@@ -323,7 +344,18 @@ static function connect_rooms(rooms: Array<Room>): Array<Connection> {
         connections.remove(c);
     }
 
-    return connections;
+    // Add connections as rooms
+    for (c in connections) {
+        var width = c.x2 - c.x1;
+        var height = c.y2 - c.y1;
+        rooms.push({
+            x: c.x1,
+            y: c.y1,
+            width: width,
+            height: height,
+            is_connection: true
+        });
+    }
 }
 
 function new() {}

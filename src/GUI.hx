@@ -44,7 +44,7 @@ class GUI {
 	}
 
 	static function auto_text_button(text: String, skips: Int = 0): Bool {
-		var text_height = Text.height(text);
+		var text_height = Text.height();
 		var button_height = text_height * 1.25;
 		y += (button_height + 2) * (skips);
 
@@ -57,7 +57,7 @@ class GUI {
 
 	static function text_button(button_x: Float, button_y: Float, text: String): Bool {
 		var text_width = Text.width(text);
-		var text_height = Text.height(text);
+		var text_height = Text.height();
 		var button_width = text_width * 1.1;
 		var button_height = text_height * 1.25;
 
@@ -77,7 +77,7 @@ class GUI {
 	static function auto_slider(text: String, set_function: Float->Void, current: Float, min: Float, max: Float, 
 		handle_width: Float, area_width: Float, skips: Int = 0) {
 		var text_width = Text.width(text);
-		var text_height = Text.height(text);
+		var text_height = Text.height();
 		var height = text_height * 1.25;
 		y += (height + 2) * (skips);
 
@@ -90,7 +90,7 @@ class GUI {
 	static function slider(slider_x: Float, slider_y: Float, text: String, set_function: Float->Void, current: Float,
 		min: Float, max: Float, handle_width: Float, area_width: Float, skips: Int = 0) {
 		var text_width = Text.width(text);
-		var text_height = Text.height(text);
+		var text_height = Text.height();
 		var height = text_height * 1.25;
 
 

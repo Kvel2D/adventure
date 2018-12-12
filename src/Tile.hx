@@ -8,6 +8,7 @@ class Tile {
 
     static inline var None = at(0, 1); // bugged tile
 
+    static inline var Black = at(7, 1);
     static inline var Player = at(0, 0);
     static inline var Wall = at(1, 0);
     static inline var Ground = at(2, 0);
