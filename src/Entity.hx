@@ -251,9 +251,6 @@ static function validate(e: Int) {
     }
 }
 
-//
-// Position stuff
-//
 static var position_map = Data.create2darray(Main.map_width, Main.map_height, Entity.NONE);
 
 static function set_position(e: Int, x: Int, y: Int) {

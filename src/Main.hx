@@ -26,18 +26,40 @@ static inline var map_height = 200;
 static inline var view_width = 31;
 static inline var view_height = 31;
 static inline var world_scale = 4;
-
 static inline var funtown_x = 15;
 static inline var funtown_y = 15;
-static var previous_world_x = 20;
-static var previous_world_y = 20;
-static var draw_map = false;
-static inline var map_scale = 4;
+static inline var minimap_scale = 4;
+static inline var room_size_min = 10;
+static inline var room_size_max = 20;
+static inline var turn_delimiter = '------------------------------';
+
+static inline var ui_x = tilesize * view_width * world_scale + 13;
+static inline var player_stats_y = 0;
+static inline var equipment_y = 120;
+static inline var equipment_amount = 4;
+static inline var inventory_y = 180;
+static inline var inventory_width = 4;
+static inline var inventory_height = 4;
+static inline var spells_list_y = 320;
+static inline var message_history_y = 600;
+static inline var message_history_length_max = 20;
+static inline var max_rings = 4;
 
 static var walls = Data.create2darray(map_width, map_height, false);
+static var tile_canvas_state = Data.create2darray(view_width, view_height, Tile.None);
+static var rooms: Array<Room>;
+static var los: Array<Array<Bool>>;
+static var damage_numbers = new Array<DamageNumber>();
+
+static var in_funtown = true;
+static var noclip = false;
+static var no_los = true;
+static var draw_minimap = false;
 
 static var player_x = 0;
 static var player_y = 0;
+static var player_previous_world_x = 0;
+static var player_previous_world_y = 0;
 static var player_health_max = 10;
 static var player_health = 10;
 static var copper_count = 0;
@@ -59,13 +81,6 @@ ElementType_Ice => 0,
 ElementType_Shadow => 0,
 ElementType_Light => 0,
 ];
-
-static var in_funtown = true;
-static var noclip = false;
-static var no_los = true;
-
-static inline var equipment_y = 120;
-static inline var equipment_width = 4;
 static var player_armor = [
 ArmorType_Head => Entity.NONE,
 ArmorType_Chest => Entity.NONE,
@@ -73,62 +88,30 @@ ArmorType_Legs => Entity.NONE,
 ];
 static var player_weapon = Entity.NONE;
 static var player_spells = new Array<Spell>();
-static var player_attack_target = Entity.NONE;
+static var inventory = Data.create2darray(inventory_width, inventory_height, Entity.NONE);
 
-static inline var message_history_y = 600;
-static inline var message_history_length_max = 20;
 static var message_history = [for (i in 0...message_history_length_max) turn_delimiter];
 static var added_message_this_turn = false;
 
-static inline var ui_x = tilesize * view_width * world_scale + 13;
-static inline var player_stats_y = 0;
-
-// Inventory
-static inline var inventory_y = 180;
-static inline var inventory_width = 4;
-static inline var inventory_height = 4;
-static inline var inventory_size = inventory_width * inventory_height;
-static var inventory = Data.create2darray(inventory_width, inventory_height, Entity.NONE);
-static inline var max_rings = 4;
-
-static inline var spells_y = 320;
-
+static var attack_target = Entity.NONE;
 static var interact_target = Entity.NONE;
 static var interact_target_x: Int;
 static var interact_target_y: Int;
 static var turn_is_over = false;
 
-static var canvas_dx = 0;
-static var canvas_dy = 0;
-static var tile_canvas_state = Data.create2darray(view_width, view_height, Tile.None);
+static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
 
-static var rooms: Array<Room>;
-
-static var los: Array<Array<Bool>>;
-
-static inline var turn_delimiter = '------------------------------';
-
-static var prev = new Array<Array<Vec2i>>();
-
-static inline var room_size_min = 10;
-static inline var room_size_max = 20;
-
-static var damage_numbers = new Array<DamageNumber>();
 
 function init() {
-    Core.showstats = true;
     Gfx.resizescreen(screen_width, screen_height, true);
+    Core.showstats = true;
     Text.font = 'pixelFJ8';
     Gfx.loadtiles('tiles', tilesize, tilesize);
     Gfx.createimage('tiles_canvas', tilesize * view_width, tilesize * view_height);
 
-    for (x in 0...room_size_max) {
-        var arr = new Array<Vec2i>();
-        for (y in 0...room_size_max) {
-            arr.push({x: -1, y: -1});
-        }
-        prev.push(arr);
-    }
+    //
+    // Generate world
+    //
 
     // Fil world with walls at the start
     for (x in 0...map_width) {
@@ -166,15 +149,15 @@ function init() {
     GenerateWorld.fill_rooms_with_entities();
 
     // Set start position to first room
-    previous_world_x = rooms[1].x;
-    previous_world_y = rooms[1].y;
+    player_previous_world_x = rooms[1].x;
+    player_previous_world_y = rooms[1].y;
 
     if (in_funtown) {
         player_x = funtown_x;
         player_y = funtown_y;
     } else {
-        player_x = previous_world_x;
-        player_y = previous_world_y;
+        player_x = player_previous_world_x;
+        player_y = player_previous_world_y;
     }
 
     LOS.calculate_rays();
@@ -188,7 +171,6 @@ function init() {
     walls[10][5] = true;
     walls[11][5] = true;
     walls[12][5] = true;
-
 
     MakeEntity.snail(10, 3);
     MakeEntity.ring(11, 3);
@@ -220,17 +202,93 @@ function init() {
         var y = 1;
         MakeEntity.health_potion(x + i, y);
     }
-
-    player_room = get_room_index(player_x, player_y);
-
-    for (e in Entity.position.keys()) {
-        if (Entity.position[e].room == -1) {
-            Entity.print(e);
-        }
-    }
 }
 
-// TODO: change to be able to grab free_map only for portion of map
+static var time_stamp = 0.0;
+static function timer_start() {
+    time_stamp = Timer.stamp();
+}
+
+static function timer_end() {
+    var new_stamp = Timer.stamp();
+    trace('${new_stamp - time_stamp}');
+    time_stamp = new_stamp;
+}
+
+static inline function screen_x(x) {
+    return unscaled_screen_x(x) * world_scale;
+}
+static inline function screen_y(y) {
+    return unscaled_screen_y(y) * world_scale;
+}
+static inline function unscaled_screen_x(x) {
+    return (x - player_x + Math.floor(view_width / 2)) * tilesize;
+}
+static inline function unscaled_screen_y(y) {
+    return (y - player_y + Math.floor(view_height / 2)) * tilesize;
+}
+
+static inline function out_of_map_bounds(x, y) {
+    return x < 0 || y < 0 || x >= map_width || y >= map_height;
+}
+
+static inline function out_of_view_bounds(x, y) {
+    return x < (player_x - Math.floor(view_width / 2)) || y < (player_y - Math.floor(view_height / 2)) || x > (player_x + Math.floor(view_width / 2)) || y > (player_y + Math.floor(view_height / 2));
+}
+
+static function player_next_to(pos: Position): Bool {
+    return Math.dst2(pos.x, pos.y, player_x, player_y) <= 2;
+}
+
+static function add_message(message: String) {
+    message_history.insert(0, message);
+    added_message_this_turn = true;
+}
+
+static function add_damage_number(value: Int) {
+    damage_numbers.push({
+        value: value,
+        x_offset: if (value > 0) {
+            Random.int(-15, -5);
+        } else {
+            Random.int(20, 30);
+        },
+        time: 0,
+        color: if (value > 0) {
+            Col.GREEN;
+        } else {
+            Col.RED;
+        },
+    });
+}
+
+static function player_defense(): Int {
+    // Armor is valid if it's an armor and it doesn't have a position(not on map)
+    var total = 0;
+    for (armor_type in Type.allEnums(ArmorType)) {
+        if (Entity.armor.exists(player_armor[armor_type]) && !Entity.position.exists(player_armor[armor_type])) {
+            var armor = Entity.armor[player_armor[armor_type]];
+            total += armor.defense;
+        }
+    }
+    return total;
+}
+
+static function player_defense_absorb(): Int {
+    // Each 10 points of defense absorbs 1 dmg per fight
+    return Math.floor(player_defense() / 10);
+}
+
+static function get_room_index(x: Int, y: Int): Int {
+    for (i in 0...rooms.length) {
+        var r = rooms[i];
+        if (Math.point_box_intersect(x, y, r.x, r.y, r.width, r.height)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 // NOTE: breaks if player is next to world border
 static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, include_player: Bool = true, include_entities: Bool = true): Array<Array<Bool>> {
     // Entities
@@ -260,30 +318,139 @@ static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, include_
     return free_map;
 }
 
-static inline function screen_x(x) {
-    return unscaled_screen_x(x) * world_scale;
-}
-static inline function screen_y(y) {
-    return unscaled_screen_y(y) * world_scale;
-}
-static inline function unscaled_screen_x(x) {
-    return (x - player_x + Math.floor(view_width / 2)) * tilesize;
-}
-static inline function unscaled_screen_y(y) {
-    return (y - player_y + Math.floor(view_height / 2)) * tilesize;
-}
+static var astar_closed = Data.create2darray(room_size_max, room_size_max, false);
+static var astar_open = Data.create2darray(room_size_max, room_size_max, false);
+static var g_score = Data.create2darray(room_size_max, room_size_max, 0);
+static var f_score = Data.create2darray(room_size_max, room_size_max, 0);
+static var astar_prev = new Array<Array<Vec2i>>();
 
-static inline function out_of_map_bounds(x, y) {
-    return x < 0 || y < 0 || x >= map_width || y >= map_height;
-}
+static function astar(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
+    inline function heuristic_score(x1:Int, y1:Int, x2:Int, y2:Int):Int {
+        return Std.int(Math.abs(x2 - x1) + Math.abs(y2 - y1));
+    }
 
-static inline function out_of_view_bounds(x, y) {
-    return x < (player_x - Math.floor(view_width / 2)) || y < (player_y - Math.floor(view_height / 2)) || x > (player_x + Math.floor(view_width / 2)) || y > (player_y + Math.floor(view_height / 2));
-}
+    var room = rooms[player_room];
 
-static function add_message(message: String) {
-    message_history.insert(0, message);
-    added_message_this_turn = true;
+    inline function out_of_bounds(x, y) {
+        return x < 0 || y < 0 || x >= room.width || y >= room.height;
+    }
+
+    x1 -= room.x;
+    x2 -= room.x;
+
+    y1 -= room.y;
+    y2 -= room.y;
+
+    var move_map = get_free_map(room.x, room.y, room.width, room.height);
+    move_map[x2][y2] = true; // destination cell needs to be "free" for the algorithm to find paths correctly
+    move_map[x1][y1] = true; 
+
+    var infinity = 10000000;
+    for (x in 0...room.width) {
+        for (y in 0...room.height) {
+            astar_closed[x][y] = false;
+        }
+    }
+    for (x in 0...room.width) {
+        for (y in 0...room.height) {
+            astar_open[x][y] = false;
+        }
+    }
+    astar_open[x1][y1] = true;
+    var astar_open_length = 1;
+
+    if (astar_prev.length == 0) {
+        for (x in 0...room_size_max) {
+            var arr = new Array<Vec2i>();
+            for (y in 0...room_size_max) {
+                arr.push({x: -1, y: -1});
+            }
+            astar_prev.push(arr);
+        }
+    } else {
+        for (x in 0...room.width) {
+            for (y in 0...room.height) {
+                astar_prev[x][y].x = -1;
+                astar_prev[x][y].y = -1;
+            }
+        }
+    }
+
+    for (x in 0...room.width) {
+        for (y in 0...room.height) {
+            g_score[x][y] = infinity;
+        }
+    }
+    g_score[x1][y1] = 0;
+
+    for (x in 0...room.width) {
+        for (y in 0...room.height) {
+            f_score[x][y] = infinity;
+        }
+    }
+    f_score[x1][y1] = heuristic_score(x1, y1, x2, y2);
+
+    while (astar_open_length != 0) {
+        var current = function(): Vec2i {
+            var lowest_score = infinity;
+            var lowest_node: Vec2i = {x: x1, y: y1};
+            for (x in 0...room.width) {
+                for (y in 0...room.height) {
+                    if (astar_open[x][y] && f_score[x][y] <= lowest_score) {
+                        lowest_node.x = x;
+                        lowest_node.y = y;
+                        lowest_score = f_score[x][y];
+                    }
+                }
+            }
+            return lowest_node;
+        }();
+
+        if (current.x == x2 && current.y == y2) {
+            var x = current.x;
+            var y = current.y;
+            var current = {x: x, y: y};
+            var temp = {x: x, y: y};
+            var path:Array<Vec2i> = [{x: current.x, y: current.y}];
+            while (astar_prev[current.x][current.y].x != -1) {
+                temp.x = current.x;
+                temp.y = current.y;
+                current.x = astar_prev[temp.x][temp.y].x;
+                current.y = astar_prev[temp.x][temp.y].y;
+                path.push({x: current.x, y: current.y});
+            }
+            return path;
+        }
+
+        astar_open[current.x][current.y] = false;
+        astar_open_length--;
+        astar_closed[current.x][current.y] = true;
+        for (dx_dy in four_dxdy) {
+            var neighbor_x = current.x + dx_dy.x;
+            var neighbor_y = current.y + dx_dy.y;
+            if (out_of_bounds(neighbor_x, neighbor_y) || !move_map[neighbor_x][neighbor_y]) {
+                continue;
+            }
+
+            if (astar_closed[neighbor_x][neighbor_y]) {
+                continue;
+            }
+            var tentative_g_score = g_score[current.x][current.y] + 1;
+            if (!astar_open[neighbor_x][neighbor_y]) {
+                astar_open[neighbor_x][neighbor_y] = true;
+                astar_open_length++;
+            } else if (tentative_g_score >= g_score[neighbor_x][neighbor_y]) {
+                continue;
+            }
+
+            astar_prev[neighbor_x][neighbor_y].x = current.x;
+            astar_prev[neighbor_x][neighbor_y].y = current.y;
+            g_score[neighbor_x][neighbor_y] = tentative_g_score;
+            f_score[neighbor_x][neighbor_y] = g_score[neighbor_x][neighbor_y] + heuristic_score(neighbor_x, neighbor_y, x2, y2);
+        }
+    }
+
+    return new Array<Vec2i>();
 }
 
 static function use_entity(e: Int) {
@@ -301,7 +468,16 @@ static function use_entity(e: Int) {
             } else {
                 'noname';
             }
-            player_spells.push(copy_spell(spell));
+            player_spells.push({
+                type: spell.type,
+                element: spell.element,
+                duration_type: spell.duration_type,
+                duration: spell.duration,
+                interval: spell.interval,
+                interval_current: spell.interval_current,
+                value: spell.value,
+                origin_name: spell.origin_name,
+            });
         }
     }
 
@@ -425,153 +601,6 @@ static function drop_entity(e: Int) {
     }
 }
 
-static function player_defense(): Int {
-    // Armor is valid if it's an armor and it doesn't have a position(not on map)
-    var total = 0;
-    for (armor_type in Type.allEnums(ArmorType)) {
-        if (Entity.armor.exists(player_armor[armor_type]) && !Entity.position.exists(player_armor[armor_type])) {
-            var armor = Entity.armor[player_armor[armor_type]];
-            total += armor.defense;
-        }
-    }
-    return total;
-}
-
-static function player_defense_absorb(): Int {
-    // Each 10 points of defense absorbs 1 dmg per fight
-    return Math.floor(player_defense() / 10);
-}
-
-static function player_next_to(pos: Position): Bool {
-    return Math.dst2(pos.x, pos.y, player_x, player_y) <= 2;
-}
-
-static var closed = Data.create2darray(room_size_max, room_size_max, false);
-static var open = Data.create2darray(room_size_max, room_size_max, false);
-static var g_score = Data.create2darray(room_size_max, room_size_max, 0);
-static var f_score = Data.create2darray(room_size_max, room_size_max, 0);
-static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
-
-static function a_star(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
-    inline function heuristic_score(x1:Int, y1:Int, x2:Int, y2:Int):Int {
-        return Std.int(Math.abs(x2 - x1) + Math.abs(y2 - y1));
-    }
-    function path(prev:Array<Array<Vec2i>>, x:Int, y:Int):Array<Vec2i> {
-        var current = {x: x, y: y};
-        var temp = {x: x, y: y};
-        var path:Array<Vec2i> = [{x: current.x, y: current.y}];
-        while (prev[current.x][current.y].x != -1) {
-            temp.x = current.x;
-            temp.y = current.y;
-            current.x = prev[temp.x][temp.y].x;
-            current.y = prev[temp.x][temp.y].y;
-            path.push({x: current.x, y: current.y});
-        }
-        return path;
-    }
-
-    var room = rooms[player_room];
-
-    inline function out_of_bounds(x, y) {
-        return x < 0 || y < 0 || x >= room.width || y >= room.height;
-    }
-
-    x1 -= room.x;
-    x2 -= room.x;
-
-    y1 -= room.y;
-    y2 -= room.y;
-
-    var move_map = get_free_map(room.x, room.y, room.width, room.height);
-    move_map[x2][y2] = true; // destination cell needs to be "free" for the algorithm to find paths correctly
-    move_map[x1][y1] = true; 
-
-    var infinity = 10000000;
-    for (x in 0...room.width) {
-        for (y in 0...room.height) {
-            closed[x][y] = false;
-        }
-    }
-    for (x in 0...room.width) {
-        for (y in 0...room.height) {
-            open[x][y] = false;
-        }
-    }
-    open[x1][y1] = true;
-
-    var open_length = 1;
-    for (x in 0...room.width) {
-        for (y in 0...room.height) {
-            prev[x][y].x = -1;
-            prev[x][y].y = -1;
-        }
-    }
-
-    for (x in 0...room.width) {
-        for (y in 0...room.height) {
-            g_score[x][y] = infinity;
-        }
-    }
-    g_score[x1][y1] = 0;
-
-    for (x in 0...room.width) {
-        for (y in 0...room.height) {
-            f_score[x][y] = infinity;
-        }
-    }
-    f_score[x1][y1] = heuristic_score(x1, y1, x2, y2);
-
-    while (open_length != 0) {
-        var current = function(): Vec2i {
-            var lowest_score = infinity;
-            var lowest_node: Vec2i = {x: x1, y: y1};
-            for (x in 0...room.width) {
-                for (y in 0...room.height) {
-                    if (open[x][y] && f_score[x][y] <= lowest_score) {
-                        lowest_node.x = x;
-                        lowest_node.y = y;
-                        lowest_score = f_score[x][y];
-                    }
-                }
-            }
-            return lowest_node;
-        }();
-
-        if (current.x == x2 && current.y == y2) {
-            return path(prev, current.x, current.y);
-        }
-
-        open[current.x][current.y] = false;
-        open_length--;
-        closed[current.x][current.y] = true;
-        for (dx_dy in four_dxdy) {
-            var neighbor_x = current.x + dx_dy.x;
-            var neighbor_y = current.y + dx_dy.y;
-            if (out_of_bounds(neighbor_x, neighbor_y) || !move_map[neighbor_x][neighbor_y]) {
-                continue;
-            }
-
-            if (closed[neighbor_x][neighbor_y]) {
-                continue;
-            }
-            var tentative_g_score = g_score[current.x][current.y] + 1;
-            if (!open[neighbor_x][neighbor_y]) {
-                open[neighbor_x][neighbor_y] = true;
-                open_length++;
-            } else if (tentative_g_score >= g_score[neighbor_x][neighbor_y]) {
-                continue;
-            }
-
-            prev[neighbor_x][neighbor_y].x = current.x;
-            prev[neighbor_x][neighbor_y].y = current.y;
-            g_score[neighbor_x][neighbor_y] = tentative_g_score;
-            f_score[neighbor_x][neighbor_y] = g_score[neighbor_x][neighbor_y] + heuristic_score(neighbor_x, neighbor_y, x2, y2);
-        }
-    }
-    return new Array<Vec2i>();
-}
-
-
 static function entity_move(e: Int) {
     var move = Entity.move[e];
 
@@ -586,7 +615,7 @@ static function entity_move(e: Int) {
 
         switch (move.type) {
             case MoveType_Astar: {
-                var path = a_star(pos.x, pos.y, player_x, player_y);
+                var path = astar(pos.x, pos.y, player_x, player_y);
 
                 if (path.length > 2) {
                     var room = rooms[player_room];
@@ -639,23 +668,6 @@ static function entity_move(e: Int) {
     } else {
         // Next to player
     }
-}
-
-static function add_damage_number(value: Int) {
-    damage_numbers.push({
-        value: value,
-        x_offset: if (value > 0) {
-            Random.int(-15, -5);
-        } else {
-            Random.int(20, 30);
-        },
-        time: 0,
-        color: if (value > 0) {
-            Col.GREEN;
-        } else {
-            Col.RED;
-        },
-    });
 }
 
 static function entity_attack_player(e: Int) {
@@ -768,16 +780,6 @@ static function player_attack_entity(e: Int) {
     }
 }
 
-static function get_room_index(x: Int, y: Int): Int {
-    for (i in 0...rooms.length) {
-        var r = rooms[i];
-        if (Math.point_box_intersect(x, y, r.x, r.y, r.width, r.height)) {
-            return i;
-        }
-    }
-    return -1;
-}
-
 static function player_attack_total(): Map<ElementType, Int> {
     // Calculate attack totals for each element which is a sum of natural attack plus spell mods plus weapon attack
     // Attack can't be negative
@@ -802,30 +804,6 @@ static function player_attack_total(): Map<ElementType, Int> {
     }
 
     return attack_total;
-}
-
-static var time_stamp = 0.0;
-static function timer_start() {
-    time_stamp = Timer.stamp();
-}
-
-static function timer_end() {
-    var new_stamp = Timer.stamp();
-    trace('${new_stamp - time_stamp}');
-    time_stamp = new_stamp;
-}
-
-static function copy_spell(s: Spell): Spell {
-    return {
-        type: s.type,
-        element: s.element,
-        duration_type: s.duration_type,
-        duration: s.duration,
-        interval: s.interval,
-        interval_current: s.interval_current,
-        value: s.value,
-        origin_name: s.origin_name,
-    };
 }
 
 static function do_spell(spell: Spell): Bool {
@@ -859,7 +837,7 @@ static function do_spell(spell: Spell): Bool {
         }
         case SpellDuration_EveryAttack: {
             // Every attack spells decrement duration only on turns with attacks
-            if (player_attack_target != Entity.NONE) {
+            if (attack_target != Entity.NONE) {
                 decrement_duration();
             } else {
                 active = true;
@@ -971,9 +949,9 @@ static function end_turn() {
     }
 
     // Player attacks entity
-    if (player_attack_target != Entity.NONE) {
-        player_attack_entity(player_attack_target);
-        player_attack_target = Entity.NONE;
+    if (attack_target != Entity.NONE) {
+        player_attack_entity(attack_target);
+        attack_target = Entity.NONE;
     }
 
     // Entities attack player
@@ -1041,8 +1019,6 @@ function update() {
 
         var free_map = get_free_map(player_x, player_y, 1, 1, false);
         if (free_map[0][0] || noclip) {
-            canvas_dx = player_dx;
-            canvas_dy = player_dy;
             need_to_update_los = true;
             end_turn();
         } else {
@@ -1104,7 +1080,7 @@ function update() {
             return x >= 0 && y >= 0 && x < inventory_width && y < inventory_height;
         }
         function hovering_equipment(x, y) {
-            return y == 0 && x >= 0 && x < equipment_width;
+            return y == 0 && x >= 0 && x < equipment_amount;
         }
 
         if (hovering_inventory(mouse_inventory_x, mouse_inventory_y)) {
@@ -1131,7 +1107,7 @@ function update() {
         var pos = Entity.position[hovered_map];
         // Attack if entity is on map, visible and has Combat
         if (player_next_to(Entity.position[hovered_map]) && !los[pos.x - view_x][pos.y - view_y] && Entity.combat.exists(hovered_map)) {
-            player_attack_target = hovered_map;
+            attack_target = hovered_map;
             end_turn();
         }
     }
@@ -1246,7 +1222,7 @@ function update() {
     // Equipment
     Text.display(ui_x, equipment_y - Text.height(), 'EQUIPMENT');
     var tile_screen_size = tilesize * world_scale;
-    for (i in 0...equipment_width) {
+    for (i in 0...equipment_amount) {
         Gfx.drawbox(ui_x + i * tile_screen_size, equipment_y, tile_screen_size, tile_screen_size, Col.WHITE);
     }
     Gfx.scale(world_scale, world_scale, 0, 0);
@@ -1294,14 +1270,14 @@ function update() {
     Text.size = 12;
 
     //
-    // Active spells
+    // Active spells list
     //
     var active_spells = 'SPELLS';
     for (s in player_spells) {
         active_spells += '\n${s.type}, duration type=${s.duration_type}, element=${s.element}, duration=${s.duration}, interval=${s.interval},value=${s.value}, origin=${s.origin_name}';
     }
     Text.wordwrap = 600;
-    Text.display(ui_x, spells_y, active_spells);
+    Text.display(ui_x, spells_list_y, active_spells);
     Text.wordwrap = 500;
 
     //
@@ -1424,16 +1400,16 @@ function update() {
     if (in_funtown) {
         if (GUI.auto_text_button('To world')) {
             in_funtown = false;
-            player_x = previous_world_x;
-            player_y = previous_world_y;
+            player_x = player_previous_world_x;
+            player_y = player_previous_world_y;
             need_to_update_los = true;
             end_turn();
         }
     } else {
         if (GUI.auto_text_button('To funtown')) {
             in_funtown = true;
-            previous_world_x = player_x;
-            previous_world_y = player_y;
+            player_previous_world_x = player_x;
+            player_previous_world_y = player_y;
             player_x = funtown_x;
             player_y = funtown_y;
             need_to_update_los = true;
@@ -1441,8 +1417,8 @@ function update() {
         }
     }
 
-    if (GUI.auto_text_button('Toggle map')) {
-        draw_map = !draw_map;
+    if (GUI.auto_text_button('Toggle minimap')) {
+        draw_minimap = !draw_minimap;
     }
     if (GUI.auto_text_button('Toggle noclip')) {
         noclip = !noclip;
@@ -1451,12 +1427,12 @@ function update() {
         no_los = !no_los;
     }
     
-    if (draw_map) {
+    if (draw_minimap) {
         for (r in rooms) {
-            Gfx.drawbox(r.x * map_scale, r.y * map_scale, (r.width) * map_scale, (r.height) * map_scale, Col.WHITE);
+            Gfx.drawbox(r.x * minimap_scale, r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
         }
 
-        Gfx.drawbox(player_x * map_scale, player_y * map_scale, map_scale, map_scale, Col.RED);
+        Gfx.drawbox(player_x * minimap_scale, player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
     }
 
     if (Input.justpressed(Key.SPACE)) {
