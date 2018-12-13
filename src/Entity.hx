@@ -13,6 +13,11 @@ enum WeaponType {
     WeaponType_Sword;
 }
 
+enum ItemType {
+    ItemType_Normal;
+    ItemType_Ring;
+}
+
 enum UseType {
     UseType_Heal;
 }
@@ -29,6 +34,37 @@ enum MoveType {
     MoveType_Random;
 }
 
+enum ElementType {
+    ElementType_Physical;
+    ElementType_Fire;
+    ElementType_Ice;
+    ElementType_Shadow;
+    ElementType_Light;
+}
+
+enum SpellType {
+    SpellType_ModHealth;
+    SpellType_ModHealthMax;
+    SpellType_ModAttack;
+}
+
+enum SpellDuration {
+    SpellDuration_Permanent;
+    SpellDuration_EveryTurn;
+    SpellDuration_EveryAttack;
+}
+
+typedef Spell = {
+    var type: SpellType;
+    var element: ElementType;
+    var duration_type: SpellDuration;
+    var duration: Int;
+    var interval: Int;
+    var interval_current: Int;
+    var value: Int;
+    var origin_name: String;
+}
+
 typedef Combat = {
     var health: Int;
     var attack: Int;
@@ -38,8 +74,7 @@ typedef Combat = {
 }
 
 typedef Use = {
-    var type: UseType;
-    var value: Int;
+    var spells: Array<Spell>;
     var charges: Int;
     var consumable: Bool;
 }
@@ -56,10 +91,7 @@ typedef Armor = {
 typedef Weapon = {
     var type: WeaponType;
     var attack: Int;
-}
-
-typedef Ring = {
-    var flag: Bool;
+    var element: ElementType;
 }
 
 typedef GiveCopper = {
@@ -70,6 +102,8 @@ typedef GiveCopper = {
 
 typedef Item = {
     var name: String;
+    var type: ItemType;
+    var spells: Array<Spell>;
 }
 
 typedef Position = {
@@ -102,6 +136,7 @@ static var id_max: Int = 0;
 // NOTE: only use NONE for initializing and clearing entity references
 // don't "==/!= NONE", check for component existence instead
 static inline var NONE = -1;
+static inline var INFINITE = -1;
 
 static var position = new Map<Int, Position>();
 static var name = new Map<Int, String>();
@@ -118,7 +153,6 @@ static var drop_item = new Map<Int, DropItem>();
 static var talk = new Map<Int, String>();
 static var give_copper_on_death = new Map<Int, GiveCopper>();
 static var move = new Map<Int, Move>();
-static var ring = new Map<Int, Ring>();
 
 static function make(): Int {
     var e = id_max;
@@ -132,7 +166,7 @@ static function make(): Int {
 static function remove(e: Int) {
     all.remove(e);
 
-    position.remove(e);
+    remove_position(e);
     name.remove(e);
     description.remove(e);
     draw_tile.remove(e);
@@ -146,11 +180,13 @@ static function remove(e: Int) {
     drop_item.remove(e);
     talk.remove(e);
     give_copper_on_death.remove(e);
+    move.remove(e);
 
     move.remove(e);
 }
 
 static function print(e: Int) {
+    trace('----------------------------');
     trace('id=$e');
     trace('position=${position[e]}');
     trace('name=${name[e]}');
@@ -166,7 +202,6 @@ static function print(e: Int) {
     trace('drop_item=${drop_item[e]}');
     trace('talk=${talk[e]}');
     trace('give_copper_on_death=${give_copper_on_death[e]}');
-
     trace('move=${move[e]}');
 }
 
@@ -204,8 +239,15 @@ static function validate(e: Int) {
         error = true;
     }
 
+    // Other
+    if (position.exists(e) && Entity.position[e].room == -1) {
+        trace('Error: Position.room = -1.');
+        error = true;
+    }
+
     if (error) {
-        trace('For entity [$e]');
+        trace('For entity:');
+        print(e);
     }
 }
 

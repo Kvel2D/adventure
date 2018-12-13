@@ -64,7 +64,7 @@ static function fill_rooms_with_entities() {
     var spawns: Array<Spawn> = [
     {fun: MakeEntity.snail, chance: 10.0},
     {fun: MakeEntity.bear, chance: 10.0},
-    {fun: MakeEntity.potion, chance: 1.0},
+    {fun: MakeEntity.health_potion, chance: 1.0},
     {fun: MakeEntity.fountain, chance: 3.0},
     ];
     var chance_total = 0.0;
@@ -87,8 +87,8 @@ static function fill_rooms_with_entities() {
         var entities = new Array<Int>();
 
         var positions = new Array<Vec2i>();
-        for (x in r.x...(r.x + r.width + 1)) {
-            for (y in r.y...(r.y + r.height + 1)) {
+        for (x in r.x...(r.x + r.width)) {
+            for (y in r.y...(r.y + r.height)) {
                 positions.push({
                     x: x,
                     y: y,

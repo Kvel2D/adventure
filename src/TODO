@@ -1,38 +1,25 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-rings
-    check for how many other rings are in inventory
-    limit to 4
+generate helpful potions randomly
+    for attack mods, make it last a long time and have a few of them instead of having to chug a thousand attack mod potions that affect one attack
 
-don't forget to add new components to print and remove
+generate mobs randomly
 
-add more items to make it possible to win
+start working on weighing the cost/benefit of mobs/items to make balanced dungeons
+
 
 ---------------------------------------------------------------------------------------------
 BUGS
 
-
-
----------------------------------------------------------------------------------------------
-DONE
+one time a* pathfinding stopped when player is in front of hallway and entity was at same y and 2 cells away
 
 ---------------------------------------------------------------------------------------------
 IDEAS
 
-display spell effect in tooltip
-    start as "unknown"
-    after one use, it will say what it actually is
-
 portals
 
-spell scrolls
-    increase attack for next N fights
-    absorb X damage for next N fights
-    increase movement speed(double?)
-
-aura system
-    buffs/poison/interact object effects translate into auras that affect the player, auras have time which ticks down, displayed in a list under stats
+display spell effect in tooltip for use and auto spells
 
 cells with effects
     poison - works like bloodborne, but full damage instantly at completion of meter, meter invisible, in effect allows for constant accumulation of poison in realtime which periodically "ticks"
@@ -45,16 +32,10 @@ doors opened with buttons
 merchant block entrance to shop storage which contains a chest
     could attack merchant to open the way and get the chest but merchant is deadly
 
-boots that make you immune to lava
-
 crab-hand
     crabs can be attacked but also can be used to gain +X to dmg for a limited time while taking damage periodically
     this is an aura
     crab disappears on end
-
-swap hp spell
-    swap your and mob's hp
-    the only real way to "level up" hp, bought for a ton of money or a rare
 
 pushable blocks ala sokoban
     use blocks to push a button to open a door
@@ -62,7 +43,7 @@ pushable blocks ala sokoban
     pushed by moving next to block
     can grab block for undoing purposes by holding G
 
-rival component - contains it's own "faction" and an enemy "faction", they attack each other instead of player if they are close
+rivalry - contains it's own "faction" and an enemy "faction", they attack each other instead of player if they are close
 
 locked chests that need keys
 locked doors that need keys(key spawned randomly in world a bit far away from door)
@@ -70,20 +51,11 @@ locked doors that need keys(key spawned randomly in world a bit far away from do
 long-range attack for entities
     attacks player if no LOS(i.e. player can see it)
 
-dmg numbers above player that float up
-    makes it more obvious when you are hit
-
-default actions on left-click
-    enemies = attack
-    usable = use
-    enemies and use => no action
-        then need attack option in context menu
-
 elements system
     fire, lightning, shadow(maybe something else too)
     each dmg bonus and stuff is one of those
     regular dmg is melee
-    mobs can be immune to some elements, including melee
+    mobs can be resistant to some elements, including melee
         ex: a mob that can only be defeated with shadow
     dmg bonus spells for same element don't stack
         +2fire dmg followed by +4fire dmg = +4fire dmg
@@ -100,3 +72,40 @@ elemental affinity
     fire <-> lightning
     shadow <-> light
     could make it so that increase is bigger than decrease
+
+see everything spell
+    turn off los
+
+noclip "Ghostly Remainder" spell
+    makes you be able to noclip for N turns
+    death if inside wall at the end of the duration
+        need to prevent player from going to boundary of world(some things break if that happens)
+
+no pure immunity, only high resistance
+
+think about whether to stack bonuses or not
+    currently the highest bonus gets applied
+
+spell that buffs entities
+    increase random entity's health and attack
+    increase all entity's health but also drop amount
+
+increase effect of school in general
+    increase light = higher light dmg, higher light heal amount, etc.(higher light dmg taken?)
+    decrease light = lower light dmg, lower light heal, lower light dmg taken
+
+special effects
+turn off los
+turn off collision
+increase movespeed
+increase copper droprate
+increase item droprate
+resistant to elements/ailments
+invisibility, enemies can't chase you
+increase armor by a factor
+cure poison
+extra life, restore full hp once when dying
+swap stats with enemy
+armor scale mod
+armor flat mod
+absorb mod

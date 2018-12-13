@@ -34,7 +34,7 @@ static function snail(x: Int, y: Int): Int {
         attacked_by_player: false,
     };
     Entity.move[e] = {
-        type: MoveType_Astar,
+        type: MoveType_Straight,
         cant_move: false
     };
 
@@ -129,7 +129,8 @@ static function sword(x: Int, y: Int): Int {
     };
     Entity.weapon[e] = {
         type: weapon_type, 
-        attack: Main.player_base_attack + level
+        attack: level,
+        element: ElementType_Physical
     };
     Entity.draw_tile[e] = weapon_tile[weapon_type][level - 1];
 
@@ -143,12 +144,12 @@ static function fountain(x: Int, y: Int): Int {
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Fountain';
-    Entity.use[e] = {
-        type: UseType_Heal,
-        value: 2, 
-        charges: 1,
-        consumable: false,
-    };
+    // Entity.use[e] = {
+    //     type: UseType_Heal,
+    //     value: 2, 
+    //     charges: 1,
+    //     consumable: false,
+    // };
     Entity.draw_char[e] = {
         char: 'F',
         color: Col.WHITE
@@ -160,17 +161,83 @@ static function fountain(x: Int, y: Int): Int {
     return e;
 }
 
-static function potion(x: Int, y: Int): Int {
+static function health_instant(): Spell {
+    return {
+        type: SpellType_ModHealth,
+        element: ElementType_Light,
+        duration_type: SpellDuration_Permanent,
+        duration: 10,
+        interval: 0,
+        interval_current: 0,
+        value: 2,
+        origin_name: "noname",
+    }
+}
+
+static function heal_overtime(): Spell {
+    return {
+        type: SpellType_ModHealth,
+        element: ElementType_Light,
+        duration_type: SpellDuration_EveryTurn,
+        duration: 4,
+        interval: 1,
+        interval_current: 0,
+        value: 1,
+        origin_name: "noname",
+    }
+}
+
+static function heal_overattack(): Spell {
+    return {
+        type: SpellType_ModHealth,
+        element: ElementType_Light,
+        duration_type: SpellDuration_EveryAttack,
+        duration: 4,
+        interval: 1,
+        interval_current: 0,
+        value: 1,
+        origin_name: "noname",
+    }
+}
+
+static function increase_healthmax_forever(): Spell {
+    return {
+        type: SpellType_ModHealthMax,
+        element: ElementType_Light,
+        duration_type: SpellDuration_Permanent,
+        duration: 0,
+        interval: 0,
+        interval_current: 0,
+        value: 5,
+        origin_name: "noname",
+    }
+}
+
+static function increase_healthmax_everyturn(): Spell {
+    return {
+        type: SpellType_ModHealthMax,
+        element: ElementType_Light,
+        duration_type: SpellDuration_EveryTurn,
+        duration: Entity.INFINITE,
+        interval: 1,
+        interval_current: 0,
+        value: 6,
+        origin_name: "noname",
+    }
+}
+
+static function health_potion(x: Int, y: Int): Int {
     var e = Entity.make();
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Potion';
     Entity.item[e] = {
-        name: "Healing potion"
+        name: "Healing potion",
+        type: ItemType_Normal,
+        spells: [],
     };
     Entity.use[e] = {
-        type: UseType_Heal,
-        value: 2,
+        spells: [health_instant()],
         charges: 1,
         consumable: true,
     };
@@ -181,13 +248,36 @@ static function potion(x: Int, y: Int): Int {
     return e;
 }
 
+static function ring(x: Int, y: Int) {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Ring';
+    Entity.item[e] = {
+        name: "Big Ring",
+        type: ItemType_Ring,
+        spells: [increase_healthmax_everyturn()],
+    };
+    Entity.use[e] = {
+        spells: [health_instant()],
+        charges: 1,
+        consumable: true,
+    };
+    Entity.draw_char[e] = {
+        char: 'R',
+        color: Col.YELLOW
+    };
+
+    Entity.validate(e);
+}
+
 static function item(x: Int, y: Int, item_type: String) {
     if (item_type == 'armor') {
         armor(x, y, ArmorType_Head);
     } else if (item_type == 'weapon') {
         sword(x, y);
     } else if (item_type == 'potion') {
-        potion(x, y);
+        health_potion(x, y);
     }
 }
 
@@ -215,4 +305,53 @@ static function chest(x: Int, y: Int): Int {
 
     return e;
 }
+
+static function poison_spell(): Spell {
+    return {
+        type: SpellType_ModHealth,
+        element: ElementType_Physical,
+        duration_type: SpellDuration_EveryTurn,
+        duration: 40,
+        interval: 4,
+        interval_current: 0,
+        value: 1,
+        origin_name: "noname",
+    }
+}
+
+static function test_spell(): Spell {
+    return {
+        type: SpellType_ModAttack,
+        element: ElementType_Physical,
+        duration_type: SpellDuration_EveryAttack,
+        duration: 1,
+        interval: 1,
+        interval_current: 0,
+        value: 1,
+        origin_name: "noname",
+    }
+}
+
+static function test_potion(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Potion';
+    Entity.item[e] = {
+        name: "Test potion",
+        type: ItemType_Normal,
+        spells: [],
+    };
+    Entity.use[e] = {
+        spells: [test_spell()],
+        charges: 1,
+        consumable: true,
+    };
+    Entity.draw_tile[e] = Tile.Potion;
+
+    Entity.validate(e);
+
+    return e;
+}
+
 }
