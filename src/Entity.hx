@@ -3,14 +3,11 @@ import haxegon.*;
 
 using MathExtensions;
 
-enum ArmorType {
-    ArmorType_Head;
-    ArmorType_Chest;
-    ArmorType_Legs;
-}
-
-enum WeaponType {
-    WeaponType_Sword;
+enum EquipmentType {
+    EquipmentType_Weapon;
+    EquipmentType_Head;
+    EquipmentType_Chest;
+    EquipmentType_Legs;
 }
 
 enum ItemType {
@@ -46,6 +43,7 @@ enum SpellType {
     SpellType_ModHealth;
     SpellType_ModHealthMax;
     SpellType_ModAttack;
+    SpellType_ModDefense;
 }
 
 enum SpellDuration {
@@ -67,7 +65,8 @@ typedef Spell = {
 
 typedef Combat = {
     var health: Int;
-    var attack: Int;
+    var attack: Map<ElementType, Int>;
+    var absorb: Map<ElementType, Int>;
     var message: String;
     var aggression: AggressionType;
     var attacked_by_player: Bool;
@@ -81,17 +80,8 @@ typedef Use = {
 
 typedef Equipment = {
     var name: String;
-}
-
-typedef Armor = {
-    var type: ArmorType;
-    var defense: Int;
-}
-
-typedef Weapon = {
-    var type: WeaponType;
-    var attack: Int;
-    var element: ElementType;
+    var type: EquipmentType;
+    var spells: Array<Spell>;
 }
 
 typedef GiveCopper = {
@@ -137,6 +127,7 @@ static var id_max: Int = 0;
 // don't "==/!= NONE", check for component existence instead
 static inline var NONE = -1;
 static inline var INFINITE = -1;
+static inline var random_move_chance = 50;
 
 static var position = new Map<Int, Position>();
 static var name = new Map<Int, String>();
@@ -144,8 +135,6 @@ static var description = new Map<Int, String>();
 static var draw_tile = new Map<Int, Int>();
 static var draw_char = new Map<Int, DrawChar>();
 static var equipment = new Map<Int, Equipment>();
-static var armor = new Map<Int, Armor>();
-static var weapon = new Map<Int, Weapon>();
 static var item = new Map<Int, Item>();
 static var use = new Map<Int, Use>();
 static var combat = new Map<Int, Combat>();
@@ -172,8 +161,6 @@ static function remove(e: Int) {
     draw_tile.remove(e);
     draw_char.remove(e);
     equipment.remove(e);
-    armor.remove(e);
-    weapon.remove(e);
     item.remove(e);
     use.remove(e);
     combat.remove(e);
@@ -194,8 +181,6 @@ static function print(e: Int) {
     trace('draw_tile=${draw_tile[e]}');
     trace('draw_char=${draw_char[e]}');
     trace('equipment=${equipment[e]}');
-    trace('armor=${armor[e]}');
-    trace('weapon=${weapon[e]}');
     trace('item=${item[e]}');
     trace('use=${use[e]}');
     trace('combat=${combat[e]}');
@@ -208,10 +193,6 @@ static function print(e: Int) {
 static function validate(e: Int) {
     var error = false;
     // Dependencies
-    if (equipment.exists(e) && !weapon.exists(e) && !armor.exists(e)) {
-        trace('Missing dependency: Equipment needs Weapon or Armor.');
-        error = true;
-    }
     if (use.exists(e) && !name.exists(e) && !item.exists(e)) {
         trace('Missing dependency: Use needs Name or Item.');
         error = true;
@@ -230,10 +211,6 @@ static function validate(e: Int) {
     }
 
     // Conflicts
-    if (armor.exists(e) && weapon.exists(e)) {
-        trace('Conflict: Armor and Weapon.');
-        error = true;
-    }
     if (item.exists(e) && equipment.exists(e)) {
         trace('Conflict: Item and Equipment.');
         error = true;

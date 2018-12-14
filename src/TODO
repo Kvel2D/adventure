@@ -8,7 +8,6 @@ generate mobs randomly
 
 start working on weighing the cost/benefit of mobs/items to make balanced dungeons
 
-
 ---------------------------------------------------------------------------------------------
 BUGS
 
@@ -109,3 +108,81 @@ swap stats with enemy
 armor scale mod
 armor flat mod
 absorb mod
+
+spell notes
+    combat related bonuses should either be everyattack or everyturn but last long enough
+    attack bonus that lasts 1 turn is useless
+    temporary max health mod should have one tick only which lasts for N turns/attacks
+
+make a markov chain name generator
+    not sure if it will work well, need to test
+    use animal names for corpus
+
+entity editor in-game
+    edit/add/remove all components
+
+too many large rooms
+    should scale rarity based on area
+
+
+haxegon.geom has mathextensions functions
+
+defense can be negative
+
+instead of swapping weapon with enemy, swap attacks for all elements
+
+mod equipment stat
+    mod attack doesn't cover all options, it modifies natural attack only
+    mod attack of weapon would only modify the weapon which presents an interesting choice of whether to enchant weapon now to get power now or save it for later to enchant a more powerful item
+
+    mod attack should affect a specific element
+    ex: enchant weapon with ice -> +1 ice attack
+
+    could make it general: enchant equipment's ice power:
+    increases attack or defense
+
+    enchanting works like this:
+        use the enchant item => set enchant flag
+        if enchant flag => add "enchant" option in interact
+
+    enchanting items/rings?
+        could be fun
+
+    two types of enchant:
+        one that adds element power even if it's 0
+        other that only increases existing element
+            so enchanting ice on a sword with 1 phys dmg will do nothing 
+
+
+make defense translate to absorb like this:
+    82 defense = absorb 8 dmg always, 20% chance to absorb 9 dmg
+
+
+can defense be negative?
+    keep positive for now but should consider
+    could work as a penalty for specializing too much into one element
+        though on the other hand this might penalize it too hard
+
+ranged attacks
+    entities can attack if 2-3-4 away from player
+
+other move types
+    keep distance
+        entity does nothing but when player to entity distance is lower than X it tries to get away
+    chase and keep distance
+        for entities with ranged attacks, they will chase player until reaching attack distance then try to keep distance
+
+vary room geometry
+    cut off walls around edges(keep connections)
+    add walls inside rooms
+
+dropping/equipping decrements spell counters
+    not sure if good but i think i still do want item interactions to take a turn
+
+make spell_effect_text() for what to print
+    make a distinction between positive and negative values
+    modhealth+1 = heal for 1
+    modhealth-1 = damage by 1(damage? idk something else)
+
+mob that heals itself over time
+    new kind of spell ModEntityHealth?

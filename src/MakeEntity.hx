@@ -6,6 +6,34 @@ import Entity;
 class MakeEntity {
 // NOTE: force unindent
 
+static var generated_names = new Array<String>();
+static var vowels = ['a', 'e', 'i', 'o', 'u'];
+static var consonants = ['y', 'q', 'w', 'r', 't', 'p', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'z', 'x', 'c', 'v', 'b', 'n', 'm'];
+
+static function generate_name(): String {
+    var name = '';
+    while (generated_names.indexOf(name) != -1 || name == '') {
+        var consonant_first = Random.bool();
+        if (consonant_first) {
+            name += consonants[Random.int(0, consonants.length - 1)];
+            name += vowels[Random.int(0, vowels.length - 1)];
+        } else {
+            name += vowels[Random.int(0, vowels.length - 1)];
+            name += consonants[Random.int(0, consonants.length - 1)];
+        }
+        consonant_first = Random.bool();
+        if (consonant_first) {
+            name += consonants[Random.int(0, consonants.length - 1)];
+            name += vowels[Random.int(0, vowels.length - 1)];
+        } else {
+            name += vowels[Random.int(0, vowels.length - 1)];
+            name += consonants[Random.int(0, consonants.length - 1)];
+        }
+        name = name.toUpperCase();
+    }
+    return name;
+}
+
 static function snail(x: Int, y: Int): Int {
     var e = Entity.make();
 
@@ -28,7 +56,13 @@ static function snail(x: Int, y: Int): Int {
     };
     Entity.combat[e] = {
         health: 2, 
-        attack: 1, 
+        attack: [
+        ElementType_Physical => 1,
+        ], 
+        absorb: [
+        ElementType_Physical => 0,
+        ElementType_Ice => 2,
+        ], 
         message: 'Snail silently defends itself.',
         aggression: AggressionType_Aggressive,
         attacked_by_player: false,
@@ -61,7 +95,13 @@ static function bear(x: Int, y: Int): Int {
     };
     Entity.combat[e] = {
         health: 2, 
-        attack: 2, 
+        attack: [
+        ElementType_Physical => 2,
+        ],
+        absorb: [
+        ElementType_Physical => 0,
+        ElementType_Ice => 2,
+        ], 
         message: 'Bear roars angrily at you.',
         aggression: AggressionType_Aggressive,
         attacked_by_player: false,
@@ -76,30 +116,28 @@ static function bear(x: Int, y: Int): Int {
     return e;
 }
 
-static function armor(x: Int, y: Int, armor_type: ArmorType): Int {
+static function armor(x: Int, y: Int, armor_type: EquipmentType): Int {
     var e = Entity.make();
 
     Entity.set_position(e, x, y);
     var level = Random.int(1, 3);
 
     var armor_name = [
-    ArmorType_Head => ['leather helmet', 'copper helmet', 'iron helmet', 'obsidian helmet'],
-    ArmorType_Chest => ['leather chestplate', 'copper chestplate', 'iron chestplate', 'obsidian chestplate'],
-    ArmorType_Legs => ['leather pants', 'copper pants', 'iron pants', 'obsidian pants'],
+    EquipmentType_Head => ['leather helmet', 'copper helmet', 'iron helmet', 'obsidian helmet'],
+    EquipmentType_Chest => ['leather chestplate', 'copper chestplate', 'iron chestplate', 'obsidian chestplate'],
+    EquipmentType_Legs => ['leather pants', 'copper pants', 'iron pants', 'obsidian pants'],
     ];
     var armor_tile = [
-    ArmorType_Head => [Tile.Head1, Tile.Head2, Tile.Head3, Tile.Head4],
-    ArmorType_Chest => [Tile.Chest1, Tile.Chest2, Tile.Chest3, Tile.Chest4],
-    ArmorType_Legs => [Tile.Legs1, Tile.Legs2, Tile.Legs3, Tile.Legs4],
+    EquipmentType_Head => [Tile.Head1, Tile.Head2, Tile.Head3, Tile.Head4],
+    EquipmentType_Chest => [Tile.Chest1, Tile.Chest2, Tile.Chest3, Tile.Chest4],
+    EquipmentType_Legs => [Tile.Legs1, Tile.Legs2, Tile.Legs3, Tile.Legs4],
     ];
 
     Entity.name[e] = 'Armor';
     Entity.equipment[e] = {
         name: armor_name[armor_type][level - 1],
-    };
-    Entity.armor[e] = {
-        type: armor_type, 
-        defense: level * 4
+        type: armor_type,
+        spells: [buff_phys_def_spell(4 * level)],
     };
     Entity.draw_tile[e] = armor_tile[armor_type][level - 1];
 
@@ -114,23 +152,20 @@ static function sword(x: Int, y: Int): Int {
     Entity.set_position(e, x, y);
     var level = Random.int(1, 3);
 
-    var weapon_type = WeaponType_Sword;
+    var weapon_type = EquipmentType_Weapon;
 
     var weapon_name = [
-    WeaponType_Sword => ['copper sword', 'iron sword', 'obsidian sword'],
+    EquipmentType_Weapon => ['copper sword', 'iron sword', 'obsidian sword'],
     ];
     var weapon_tile = [
-    WeaponType_Sword => [Tile.Sword2, Tile.Sword3, Tile.Sword4],
+    EquipmentType_Weapon => [Tile.Sword2, Tile.Sword3, Tile.Sword4],
     ];
 
     Entity.name[e] = 'Weapon';
     Entity.equipment[e] = {
         name: weapon_name[weapon_type][level - 1],
-    };
-    Entity.weapon[e] = {
-        type: weapon_type, 
-        attack: level,
-        element: ElementType_Physical
+        type: EquipmentType_Weapon,
+        spells: [increase_attack_everyturn()],
     };
     Entity.draw_tile[e] = weapon_tile[weapon_type][level - 1];
 
@@ -159,6 +194,32 @@ static function fountain(x: Int, y: Int): Int {
     Entity.validate(e);
 
     return e;
+}
+
+static function random_spell(): Spell {
+    return {
+        type: Random.pick(Type.allEnums(SpellType)),
+        element: Random.pick(Type.allEnums(ElementType)),
+        duration_type: Random.pick(Type.allEnums(SpellDuration)),
+        duration: Random.int(1, 10),
+        interval: 1,
+        interval_current: 0,
+        value: Random.int(1, 5),
+        origin_name: "noname",
+    }
+}
+
+static function increase_attack_everyturn(): Spell {
+    return {
+        type: SpellType_ModAttack,
+        element: ElementType_Ice,
+        duration_type: SpellDuration_EveryTurn,
+        duration: Entity.INFINITE,
+        interval: 1,
+        interval_current: 0,
+        value: 2,
+        origin_name: "noname",
+    }
 }
 
 static function health_instant(): Spell {
@@ -256,7 +317,7 @@ static function ring(x: Int, y: Int) {
     Entity.item[e] = {
         name: "Big Ring",
         type: ItemType_Ring,
-        spells: [increase_healthmax_everyturn()],
+        spells: [test_spell()],
     };
     Entity.use[e] = {
         spells: [health_instant()],
@@ -273,7 +334,7 @@ static function ring(x: Int, y: Int) {
 
 static function item(x: Int, y: Int, item_type: String) {
     if (item_type == 'armor') {
-        armor(x, y, ArmorType_Head);
+        armor(x, y, EquipmentType_Head);
     } else if (item_type == 'weapon') {
         sword(x, y);
     } else if (item_type == 'potion') {
@@ -297,7 +358,12 @@ static function chest(x: Int, y: Int): Int {
     Entity.description[e] = 'An unlocked chest.';
     Entity.combat[e] = {
         health: 1, 
-        attack: 0, 
+        attack: [
+        ElementType_Physical => 0
+        ], 
+        absorb: [
+        ElementType_Physical => 0
+        ], 
         message: 'Chest opens with a creak.',
         aggression: AggressionType_Passive,
         attacked_by_player: false,
@@ -319,13 +385,26 @@ static function poison_spell(): Spell {
     }
 }
 
+static function buff_phys_def_spell(value: Int): Spell {
+    return {
+        type: SpellType_ModDefense,
+        element: ElementType_Physical,
+        duration_type: SpellDuration_EveryTurn,
+        duration: Entity.INFINITE,
+        interval: 1,
+        interval_current: 0,
+        value: value,
+        origin_name: "noname",
+    };
+}
+
 static function test_spell(): Spell {
     return {
-        type: SpellType_ModAttack,
+        type: SpellType_ModHealth,
         element: ElementType_Physical,
-        duration_type: SpellDuration_EveryAttack,
-        duration: 1,
-        interval: 1,
+        duration_type: SpellDuration_EveryTurn,
+        duration: 5,
+        interval: 5,
         interval_current: 0,
         value: 1,
         origin_name: "noname",

@@ -44,7 +44,7 @@ static inline var min = Main.room_size_min;
 static inline var max = Main.room_size_max;
 static var spacing = 3;
 static var iterations = 400;
-static var max_entities_per_biggest_room = 8;
+static var max_entities_per_biggest_room = 5;
 
 public static function shuffle<T>(array: Array<T>): Array<T> {
     if (array != null) {
