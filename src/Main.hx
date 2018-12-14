@@ -255,33 +255,32 @@ static function add_message(message: String) {
     added_message_this_turn = true;
 }
 
-    // TODO: display absorb amount
-    static function add_damage_number(value: Int) {
-        damage_numbers.push({
-            value: value,
-            x_offset: if (value > 0) {
-                Random.int(-15, -5);
-            } else {
-                Random.int(20, 30);
-            },
-            time: 0,
-            color: if (value > 0) {
-                Col.GREEN;
-            } else {
-                Col.RED;
-            },
-        });
-    }
+static function add_damage_number(value: Int) {
+    damage_numbers.push({
+        value: value,
+        x_offset: if (value > 0) {
+            Random.int(-15, -5);
+        } else {
+            Random.int(20, 30);
+        },
+        time: 0,
+        color: if (value > 0) {
+            Col.GREEN;
+        } else {
+            Col.RED;
+        },
+    });
+}
 
-    static function get_room_index(x: Int, y: Int): Int {
-        for (i in 0...rooms.length) {
-            var r = rooms[i];
-            if (Math.point_box_intersect(x, y, r.x, r.y, r.width, r.height)) {
-                return i;
-            }
+static function get_room_index(x: Int, y: Int): Int {
+    for (i in 0...rooms.length) {
+        var r = rooms[i];
+        if (Math.point_box_intersect(x, y, r.x, r.y, r.width, r.height)) {
+            return i;
         }
-        return -1;
     }
+    return -1;
+}
 
 // TODO: need to think about wording
 // the interval thing is only for heal over time/dmg over time
