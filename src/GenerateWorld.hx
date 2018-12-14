@@ -1,7 +1,7 @@
 
 import haxegon.*;
 import Entity;
-import MakeEntity;
+import Entities;
 
 using MathExtensions;
 
@@ -61,61 +61,46 @@ public static function shuffle<T>(array: Array<T>): Array<T> {
 
 static function fill_rooms_with_entities() {
 
-    var spawns: Array<Spawn> = [
-    {fun: MakeEntity.snail, chance: 10.0},
-    {fun: MakeEntity.bear, chance: 10.0},
-    {fun: MakeEntity.health_potion, chance: 1.0},
-    {fun: MakeEntity.fountain, chance: 3.0},
-    ];
-    var chance_total = 0.0;
-    for (s in spawns) {
-        chance_total += s.chance;
-    }
-    for (i in 1...spawns.length) {
-        spawns[i].chance += spawns[i - 1].chance;
-    }
+    // NOTE: first room is empty
+    // for (i in 1...Main.rooms.length) {
+    //     var r = Main.rooms[i];
 
-    // spawn only one entity in first room
-    for (i in 1...Main.rooms.length) {
-        var r = Main.rooms[i];
+    //     // Don't generate entities in connections
+    //     if (r.is_connection) {
+    //         continue;
+    //     }
 
-        // Don't generate entities in connections
-        if (r.is_connection) {
-            continue;
-        }
+    //     var entities = new Array<Int>();
 
-        var entities = new Array<Int>();
+    //     var positions = new Array<Vec2i>();
+    //     for (x in r.x...(r.x + r.width)) {
+    //         for (y in r.y...(r.y + r.height)) {
+    //             positions.push({
+    //                 x: x,
+    //                 y: y,
+    //             });
+    //         }
+    //     }
+    //     shuffle(positions);
 
-        var positions = new Array<Vec2i>();
-        for (x in r.x...(r.x + r.width)) {
-            for (y in r.y...(r.y + r.height)) {
-                positions.push({
-                    x: x,
-                    y: y,
-                });
-            }
-        }
-        // TODO: randomize positions
-        shuffle(positions);
+    //     function random_entity(): Int {
+    //         var k = Random.float(0, chance_total);
 
-        function random_entity(): Int {
-            var k = Random.float(0, chance_total);
+    //         var pos = positions.pop();
+    //         for (s in spawns) {
+    //             if (k <= s.chance) {
+    //                 return s.fun(pos.x, pos.y);
+    //             }
+    //         }
 
-            var pos = positions.pop();
-            for (s in spawns) {
-                if (k <= s.chance) {
-                    return s.fun(pos.x, pos.y);
-                }
-            }
+    //         return Entity.NONE;
+    //     }
 
-            return Entity.NONE;
-        }
-
-        var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * max_entities_per_biggest_room));
-        for (i in 0...amount) {
-            entities.push(random_entity());
-        }
-    }
+    //     var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * max_entities_per_biggest_room));
+    //     for (i in 0...amount) {
+    //         entities.push(random_entity());
+    //     }
+    // }
 }
 
 // Randomly place rooms that don't intersect with other rooms

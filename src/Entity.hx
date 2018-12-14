@@ -52,6 +52,10 @@ enum SpellDuration {
     SpellDuration_EveryAttack;
 }
 
+enum DropTable {
+    DropTable_Default;
+}
+
 typedef Spell = {
     var type: SpellType;
     var element: ElementType;
@@ -102,8 +106,8 @@ typedef Position = {
     var room: Int;
 }
 
-typedef DropItem = {
-    var type: String;
+typedef DropEntity = {
+    var table: DropTable;
     var chance: Int;
 }
 
@@ -117,6 +121,21 @@ typedef Move = {
     var cant_move: Bool;
 }
 
+typedef EntityType = {
+    var name: String;
+    var description: String;
+    var draw_tile: Int;
+    var draw_char: DrawChar;
+    var equipment: Equipment;
+    var item: Item;
+    var use: Use;
+    var combat: Combat;
+    var drop_entity: DropEntity;
+    var talk: String;
+    var give_copper_on_death: GiveCopper;
+    var move: Move;
+}
+
 @:publicFields
 class Entity {
 // NOTE: force unindent
@@ -127,7 +146,10 @@ static var id_max: Int = 0;
 // don't "==/!= NONE", check for component existence instead
 static inline var NONE = -1;
 static inline var INFINITE = -1;
+static inline var NULL_INT = -1;
+static inline var NULL_STRING = 'null';
 static inline var random_move_chance = 50;
+
 
 static var position = new Map<Int, Position>();
 static var name = new Map<Int, String>();
@@ -138,7 +160,7 @@ static var equipment = new Map<Int, Equipment>();
 static var item = new Map<Int, Item>();
 static var use = new Map<Int, Use>();
 static var combat = new Map<Int, Combat>();
-static var drop_item = new Map<Int, DropItem>();
+static var drop_entity = new Map<Int, DropEntity>();
 static var talk = new Map<Int, String>();
 static var give_copper_on_death = new Map<Int, GiveCopper>();
 static var move = new Map<Int, Move>();
@@ -164,7 +186,7 @@ static function remove(e: Int) {
     item.remove(e);
     use.remove(e);
     combat.remove(e);
-    drop_item.remove(e);
+    drop_entity.remove(e);
     talk.remove(e);
     give_copper_on_death.remove(e);
     move.remove(e);
@@ -184,7 +206,7 @@ static function print(e: Int) {
     trace('item=${item[e]}');
     trace('use=${use[e]}');
     trace('combat=${combat[e]}');
-    trace('drop_item=${drop_item[e]}');
+    trace('drop_entity=${drop_entity[e]}');
     trace('talk=${talk[e]}');
     trace('give_copper_on_death=${give_copper_on_death[e]}');
     trace('move=${move[e]}');

@@ -1,9 +1,11 @@
 
 import haxegon.*;
 import Entity;
+import Spells;
+import Chance;
 
 @:publicFields
-class MakeEntity {
+class Entities {
 // NOTE: force unindent
 
 static var generated_names = new Array<String>();
@@ -39,8 +41,8 @@ static function snail(x: Int, y: Int): Int {
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Snail';
-    Entity.drop_item[e] = {
-        type: 'potion', 
+    Entity.drop_entity[e] = {
+        table: DropTable_Default,
         chance: 20
     };
     Entity.draw_char[e] = {
@@ -106,9 +108,9 @@ static function bear(x: Int, y: Int): Int {
         aggression: AggressionType_Aggressive,
         attacked_by_player: false,
     };
-    Entity.drop_item[e] = {
-        type: 'potion', 
-        chance: 20
+    Entity.drop_entity[e] = {
+        table: DropTable_Default,
+        chance: 20,
     };
 
     Entity.validate(e);
@@ -137,7 +139,7 @@ static function armor(x: Int, y: Int, armor_type: EquipmentType): Int {
     Entity.equipment[e] = {
         name: armor_name[armor_type][level - 1],
         type: armor_type,
-        spells: [buff_phys_def_spell(4 * level)],
+        spells: [Spells.buff_phys_def(4 * level)],
     };
     Entity.draw_tile[e] = armor_tile[armor_type][level - 1];
 
@@ -165,7 +167,7 @@ static function sword(x: Int, y: Int): Int {
     Entity.equipment[e] = {
         name: weapon_name[weapon_type][level - 1],
         type: EquipmentType_Weapon,
-        spells: [increase_attack_everyturn()],
+        spells: [Spells.increase_attack_everyturn()],
     };
     Entity.draw_tile[e] = weapon_tile[weapon_type][level - 1];
 
@@ -196,97 +198,6 @@ static function fountain(x: Int, y: Int): Int {
     return e;
 }
 
-static function random_spell(): Spell {
-    return {
-        type: Random.pick(Type.allEnums(SpellType)),
-        element: Random.pick(Type.allEnums(ElementType)),
-        duration_type: Random.pick(Type.allEnums(SpellDuration)),
-        duration: Random.int(1, 10),
-        interval: 1,
-        interval_current: 0,
-        value: Random.int(1, 5),
-        origin_name: "noname",
-    }
-}
-
-static function increase_attack_everyturn(): Spell {
-    return {
-        type: SpellType_ModAttack,
-        element: ElementType_Ice,
-        duration_type: SpellDuration_EveryTurn,
-        duration: Entity.INFINITE,
-        interval: 1,
-        interval_current: 0,
-        value: 2,
-        origin_name: "noname",
-    }
-}
-
-static function health_instant(): Spell {
-    return {
-        type: SpellType_ModHealth,
-        element: ElementType_Light,
-        duration_type: SpellDuration_Permanent,
-        duration: 10,
-        interval: 0,
-        interval_current: 0,
-        value: 2,
-        origin_name: "noname",
-    }
-}
-
-static function heal_overtime(): Spell {
-    return {
-        type: SpellType_ModHealth,
-        element: ElementType_Light,
-        duration_type: SpellDuration_EveryTurn,
-        duration: 4,
-        interval: 1,
-        interval_current: 0,
-        value: 1,
-        origin_name: "noname",
-    }
-}
-
-static function heal_overattack(): Spell {
-    return {
-        type: SpellType_ModHealth,
-        element: ElementType_Light,
-        duration_type: SpellDuration_EveryAttack,
-        duration: 4,
-        interval: 1,
-        interval_current: 0,
-        value: 1,
-        origin_name: "noname",
-    }
-}
-
-static function increase_healthmax_forever(): Spell {
-    return {
-        type: SpellType_ModHealthMax,
-        element: ElementType_Light,
-        duration_type: SpellDuration_Permanent,
-        duration: 0,
-        interval: 0,
-        interval_current: 0,
-        value: 5,
-        origin_name: "noname",
-    }
-}
-
-static function increase_healthmax_everyturn(): Spell {
-    return {
-        type: SpellType_ModHealthMax,
-        element: ElementType_Light,
-        duration_type: SpellDuration_EveryTurn,
-        duration: Entity.INFINITE,
-        interval: 1,
-        interval_current: 0,
-        value: 6,
-        origin_name: "noname",
-    }
-}
-
 static function health_potion(x: Int, y: Int): Int {
     var e = Entity.make();
 
@@ -298,7 +209,7 @@ static function health_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [health_instant()],
+        spells: [Spells.health_instant()],
         charges: 1,
         consumable: true,
     };
@@ -317,10 +228,10 @@ static function ring(x: Int, y: Int) {
     Entity.item[e] = {
         name: "Big Ring",
         type: ItemType_Ring,
-        spells: [test_spell()],
+        spells: [Spells.test()],
     };
     Entity.use[e] = {
-        spells: [health_instant()],
+        spells: [Spells.health_instant()],
         charges: 1,
         consumable: true,
     };
@@ -349,20 +260,20 @@ static function chest(x: Int, y: Int): Int {
     Entity.name[e] = 'Chest';
     Entity.draw_char[e] = {
         char: 'C',
-        color: Col.YELLOW
+        color: Col.YELLOW,
     };
-    Entity.drop_item[e] = {
-        type: 'weapon', 
-        chance: 100
+    Entity.drop_entity[e] = {
+        table: DropTable_Default,
+        chance: 100,
     };
     Entity.description[e] = 'An unlocked chest.';
     Entity.combat[e] = {
         health: 1, 
         attack: [
-        ElementType_Physical => 0
+        ElementType_Physical => 0,
         ], 
         absorb: [
-        ElementType_Physical => 0
+        ElementType_Physical => 0,
         ], 
         message: 'Chest opens with a creak.',
         aggression: AggressionType_Passive,
@@ -370,45 +281,6 @@ static function chest(x: Int, y: Int): Int {
     };
 
     return e;
-}
-
-static function poison_spell(): Spell {
-    return {
-        type: SpellType_ModHealth,
-        element: ElementType_Physical,
-        duration_type: SpellDuration_EveryTurn,
-        duration: 40,
-        interval: 4,
-        interval_current: 0,
-        value: 1,
-        origin_name: "noname",
-    }
-}
-
-static function buff_phys_def_spell(value: Int): Spell {
-    return {
-        type: SpellType_ModDefense,
-        element: ElementType_Physical,
-        duration_type: SpellDuration_EveryTurn,
-        duration: Entity.INFINITE,
-        interval: 1,
-        interval_current: 0,
-        value: value,
-        origin_name: "noname",
-    };
-}
-
-static function test_spell(): Spell {
-    return {
-        type: SpellType_ModHealth,
-        element: ElementType_Physical,
-        duration_type: SpellDuration_EveryTurn,
-        duration: 5,
-        interval: 5,
-        interval_current: 0,
-        value: 1,
-        origin_name: "noname",
-    }
 }
 
 static function test_potion(x: Int, y: Int): Int {
@@ -422,11 +294,191 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [test_spell()],
+        spells: [Spells.test()],
         charges: 1,
         consumable: true,
     };
     Entity.draw_tile[e] = Tile.Potion;
+
+    Entity.validate(e);
+
+    return e;
+}
+
+static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
+    switch (droptable) {
+        case DropTable_Default: {
+            return (Chance.pick([
+            {v: sword, c: 1.0},
+            {v: health_potion, c: 1.0},
+            {v: ring, c: 1.0},
+            ])(x, y));
+        }
+    };
+}
+
+static function entity_from_type(x: Int, y: Int, type: EntityType): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    if (type.description != Entity.NULL_STRING) {
+        Entity.description[e] = type.description;
+    }
+    if (type.draw_tile != Entity.NULL_INT) {
+        Entity.draw_tile[e] = type.draw_tile;
+    }
+    if (type.draw_char != null) {
+        Entity.draw_char[e] = {
+            char: type.draw_char.char,
+            color: type.draw_char.color,
+        };
+    }
+    if (type.equipment != null) {
+        Entity.equipment[e] = {
+            name: type.equipment.name,
+            type: type.equipment.type,
+            spells: [for (spell in type.equipment.spells) Spells.copy(spell)],
+        };
+    }
+    if (type.item != null) {
+        Entity.item[e] = {
+            name: type.item.name,
+            type: type.item.type,
+            spells: [for (spell in type.item.spells) Spells.copy(spell)],
+        };
+    }
+    if (type.use != null) {
+        Entity.use[e] = {
+            spells: [for (spell in type.use.spells) Spells.copy(spell)],
+            charges: type.use.charges,
+            consumable: type.use.consumable,
+        };
+    }
+    if (type.combat != null) {
+        Entity.combat[e] = {
+            health: type.combat.health,
+            attack: [ for (key in type.combat.attack.keys()) key => type.combat.attack[key]],
+            absorb: [ for (key in type.combat.absorb.keys()) key => type.combat.absorb[key]],
+            message: type.combat.message,
+            aggression: type.combat.aggression,
+            attacked_by_player: type.combat.attacked_by_player,
+        };
+    }
+    if (type.drop_entity != null) {
+        Entity.drop_entity[e] = {
+            table: type.drop_entity.table,
+            chance: type.drop_entity.chance,
+        };
+    }
+    if (type.talk != Entity.NULL_STRING) {
+        Entity.talk[e] = type.talk;
+    }
+    if (type.give_copper_on_death != null) {
+        Entity.give_copper_on_death[e] = {
+            chance: type.give_copper_on_death.chance,
+            min: type.give_copper_on_death.min,
+            max: type.give_copper_on_death.max,
+        };
+    }
+    if (type.move != null) {
+        Entity.move[e] = {
+            type: type.move.type,
+            cant_move: type.move.cant_move,
+        };
+    }
+
+    Entity.validate(e);
+
+    return e;
+}
+
+static function random_enemy_type(): EntityType {
+    var name = generate_name();
+
+    return {
+        name: name,
+        description: 'It\'s a $name.',
+        draw_tile: Entity.NULL_INT,
+        draw_char: {
+            char: name.charAt(0),
+            color: Col.RED,
+        },
+        equipment: null,
+        item: null,
+        use: null,
+        combat: {
+            health: Random.int(3, 6), 
+            attack: [
+            ElementType_Physical => Random.int(1, 2),
+            ], 
+            absorb: [
+            ElementType_Physical => 0,
+            ], 
+            message: '$name defense itself.',
+            aggression: Chance.pick([
+                {v: AggressionType_Aggressive, c: 6.0},
+                {v: AggressionType_Neutral, c: 3.0},
+                {v: AggressionType_Passive, c: 1.0},
+                ]),
+            attacked_by_player: false,
+        },
+        drop_entity: {
+            table: DropTable_Default, 
+            chance: 10,
+        },
+        talk: Entity.NULL_STRING,
+        give_copper_on_death: {
+            chance: 50, 
+            min: 1, 
+            max: 1,
+        },
+        move: {
+            type: Random.pick(Type.allEnums(MoveType)),
+            cant_move: false,
+        },
+    };
+} 
+
+static function random_enemy(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = generate_name();
+    Entity.draw_char[e] = {
+        char: Entity.name[e].charAt(0),
+        color: Col.RED
+    };
+    Entity.description[e] = 'Random enemy';
+    // TODO: scale copper drop amount to level
+    Entity.give_copper_on_death[e] = {
+        chance: 50, 
+        min: 1, 
+        max: 1
+    };
+    Entity.move[e] = {
+        type: Random.pick(Type.allEnums(MoveType)),
+        cant_move: false,
+    };
+    Entity.combat[e] = {
+        health: Random.int(3, 6), 
+        attack: [
+        ElementType_Physical => Random.int(0, 1),
+        ], 
+        absorb: [
+        ElementType_Physical => 0,
+        ], 
+        message: 'Enemy defense itself.',
+        aggression: Chance.pick([
+            {v: AggressionType_Aggressive, c: 6.0},
+            {v: AggressionType_Neutral, c: 3.0},
+            {v: AggressionType_Passive, c: 1.0},
+            ]),
+        attacked_by_player: false,
+    };
+    Entity.drop_entity[e] = {
+        table: DropTable_Default, 
+        chance: 100,
+    };
 
     Entity.validate(e);
 
