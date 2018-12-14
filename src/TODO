@@ -188,3 +188,8 @@ mob that heals itself over time
 make entities have defense instead of absorb because right now it's inconsistent with what the player sees, better for it to be same to be more easily understandble
 
 attacking always takes prio, might need to disable attack while interact menu is up
+
+html5 target draws text at incorrect locations
+    might be related to the "pixel perfect" setting that's passed to haxegon
+
+browsers need hardware acceleration apparently, need to put a note on game site
