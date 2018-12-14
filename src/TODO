@@ -1,46 +1,20 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-need to be able to generate N types and then replicate them
-
-ENEMIES
-generate 4 mob types for level
-at least one aggressive
-
-random_helpful_entity()
-    common - potions/scrolls/use entities
-    rare   - armor/weapon
-
-spawn a couple helpful entities in world
+too many max health rings, annoying
 
 spawn some chests
     chests always contain items
 
-enemies drop items
-    start with 20% drop
-
-need to balance power of help items and droprate
-    the amount of items per level shouldn't be too high, around ~10
-    the power * amount should be enough to clear most of the mobs
-
 needs to be a good balance of offensive/deffensive items
 
-defensive items should be significant
-    at least 50% healing for heal items
-    stat mods should last a long time, enough for 1-2 rooms
 
-
-generate helpful potions randomly
-    for attack mods, make it last a long time and have a few of them instead of having to chug a thousand attack mod potions that affect one attack
-
-generate mobs randomly
-
-start working on weighing the cost/benefit of mobs/items to make balanced dungeons
+draw minimap of visited rooms
 
 ---------------------------------------------------------------------------------------------
 BUGS
 
-one time a* pathfinding stopped when player is in front of hallway and entity was at same y and 2 cells away
+saw a mob move onto another mob
 
 ---------------------------------------------------------------------------------------------
 IDEAS
@@ -231,3 +205,22 @@ figure out copper drop amount
 
 entities should sometimes drop locked chests
     other entities drop the key once chest is down
+
+weapons buffs   
+    base attack buffs
+    physical or physical + element or only element(rare)
+    single element weapons have "of Element" in name
+    or all elements("of Radiance")
+    +
+    extra buffs for higher level weapons
+    or even use
+
+potion that has two spells
+    one helpful that's better than usual
+    one unhelpful to offset
+
+discover map spell
+    changes map to draw all rooms
+
+mark connections for current room visited as well
+    otherwise have to come back just to check if got all connections

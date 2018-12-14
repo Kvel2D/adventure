@@ -47,13 +47,14 @@ static inline var turn_delimiter = '------------------------------';
 static inline var hovered_tooltip_wordwrap = 400;
 static inline var ui_wordwrap = 600;
 static inline var entity_char_size = 32;
-static inline var ui_text_size = 16;
+static inline var ui_text_size = 14;
 static inline var player_hud_text_size = 8;
 
 static inline var max_rings = 4;
 
 static var walls = Data.create2darray(map_width, map_height, false);
 static var rooms: Array<Room>;
+static var visited_room = new Array<Bool>();
 var tile_canvas_state = Data.create2darray(view_width, view_height, Tile.None);
 var los: Array<Array<Bool>>;
 var damage_numbers = new Array<DamageNumber>();
@@ -61,7 +62,7 @@ var damage_numbers = new Array<DamageNumber>();
 var in_funtown = true;
 var noclip = false;
 var no_los = false;
-var draw_minimap = false;
+var draw_minimap = true;
 var draw_invisible_entities = true;
 
 static var player_x = 0;
@@ -145,6 +146,8 @@ function init() {
     // Generate and connect rooms
     rooms = GenerateWorld.generate_via_digging();
     GenerateWorld.connect_rooms(rooms);
+    // NOTE: need to increment room dimensions because connections have
+    // one dimension of 0 and rooms are really one bigger as well
     for (r in rooms) {
         r.width++;
         r.height++;
@@ -158,6 +161,10 @@ function init() {
         height: funtown_y + 1,
         is_connection: false
     });
+
+    for (r in rooms) {
+        visited_room.push(false);
+    }
 
     // Clear walls inside rooms
     for (r in rooms) {
@@ -187,31 +194,31 @@ function init() {
     //
     // Funtown
     //
-    walls[7][5] = true;
-    walls[8][5] = true;
-    walls[9][5] = true;
-    walls[10][5] = true;
-    walls[11][5] = true;
-    walls[12][5] = true;
+    // walls[7][5] = true;
+    // walls[8][5] = true;
+    // walls[9][5] = true;
+    // walls[10][5] = true;
+    // walls[11][5] = true;
+    // walls[12][5] = true;
 
-    Entities.snail(10, 3);
-    Entities.ring(11, 3);
-    Entities.ring(12, 3);
-    Entities.ring(13, 3);
-    Entities.ring(14, 3);
-    Entities.ring(15, 3);
+    // Entities.snail(10, 3);
+    // Entities.ring(11, 3);
+    // Entities.ring(12, 3);
+    // Entities.ring(13, 3);
+    // Entities.ring(14, 3);
+    // Entities.ring(15, 3);
     // Entities.snail(10, 4);
     // Entities.snail(10, 5);
     // Entities.bear(8, 8);
 
     // Entities.fountain(8, 10);
 
-    var enemy_type = Entities.random_enemy_type();
-    for (i in 0...5) {
-        var x = i;
-        var y = 2;
-        Entities.entity_from_type(x, y, enemy_type);
-    }
+    // var enemy_type = Entities.random_enemy_type();
+    // for (i in 0...5) {
+    //     var x = i;
+    //     var y = 2;
+    //     Entity.make_type(x, y, enemy_type);
+    // }
 
     // for (i in 0...2) {
     //     var x = 7;
@@ -221,8 +228,8 @@ function init() {
     //     Entities.armor(x + 2, y + i, ArmorType_Legs);
     // }
 
-    Entities.sword(6, 7);
-    Entities.test_potion(6, 8);
+    // Entities.sword(6, 7);
+    // Entities.test_potion(6, 8);
 
     // Entities.chest(2, 15);
 }
@@ -293,56 +300,6 @@ static function get_room_index(x: Int, y: Int): Int {
         }
     }
     return -1;
-}
-
-// TODO: need to think about wording
-// the interval thing is only for heal over time/dmg over time
-// attack bonuses/ health max bonuses are applied every turn
-function spell_description(spell: Spell): String {
-    var string = '';
-    var type = switch (spell.type) {
-        case SpellType_ModHealth: 'change health';
-        case SpellType_ModHealthMax: 'change max health';
-        case SpellType_ModAttack: 'change attack';
-        case SpellType_ModDefense: 'change defense';
-    }
-    var element = switch (spell.element) {
-        case ElementType_Physical: 'physical';
-        case ElementType_Fire: 'fire';
-        case ElementType_Ice: 'ice';
-        case ElementType_Shadow: 'shadow';
-        case ElementType_Light: 'light';
-    }
-
-    var duration = if (spell.duration_type == SpellDuration_Permanent) {
-        '';
-    } else {
-        var interval_name = if (spell.duration_type == SpellDuration_EveryTurn) {
-            'turn';
-        } else {
-            'attack';
-        }
-
-        if (spell.duration == Entity.INFINITE) {
-            if (spell.interval == 1) {
-                'applied every ${interval_name}';
-            } else {
-                'applied every ${spell.interval} ${interval_name}s';
-            }
-        } else if (spell.interval == 1) {
-            'for ${spell.duration * spell.interval} ${interval_name}s';
-        } else {
-            if (spell.interval == 1) {
-                'for ${spell.duration} ${interval_name}s, applied every ${interval_name}';
-            } else {
-                'for ${spell.duration} ${interval_name}s, applied every ${spell.interval} ${interval_name}s';
-            }
-        }
-    }
-
-    // physical change attack 2 for 10 attacks
-    // physical change attack 2 every 3 attacks for 9 attacks total
-    return '$element $type ${spell.value} $duration (${spell.interval - spell.interval_current})';
 }
 
 function player_attack_total(): Map<ElementType, Int> {
@@ -1260,7 +1217,7 @@ function update() {
     Text.size = ui_text_size;
     var active_spells = 'SPELLS';
     for (s in player_spells) {
-        active_spells += '\n' + spell_description(s);
+        active_spells += '\n' + Spells.description(s);
     }
     Text.wordwrap = ui_wordwrap;
     Text.display(ui_x, spells_list_y, active_spells);
@@ -1290,7 +1247,7 @@ function update() {
         if (equipment.spells.length > 0) {
             entity_tooltip += '\nSpells applied while equipped:';
             for (s in equipment.spells) {
-                entity_tooltip += '\n-' + spell_description(s);
+                entity_tooltip += '\n-' + Spells.description(s);
             }
         }
     }
@@ -1298,14 +1255,14 @@ function update() {
         var use = Entity.use[hovered_anywhere];
         entity_tooltip += '\nSpells applied on use:';
         for (s in use.spells) {
-            entity_tooltip += '\n-' + spell_description(s);
+            entity_tooltip += '\n-' + Spells.description(s);
         }
     }
     if (Entity.item.exists(hovered_anywhere) && Entity.item[hovered_anywhere].spells.length > 0) {
         var item = Entity.item[hovered_anywhere];
         entity_tooltip += '\nSpells applied while carrying:';
         for (s in item.spells) {
-            entity_tooltip += '\n-' + spell_description(s);
+            entity_tooltip += '\n-' + Spells.description(s);
         }
     }
     if (interact_target == Entity.NONE) {
@@ -1430,10 +1387,13 @@ function update() {
     if (GUI.auto_text_button('Toggle los')) {
         no_los = !no_los;
     }
-    
+
     if (draw_minimap) {
-        for (r in rooms) {
-            Gfx.drawbox(r.x * minimap_scale, r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
+        for (i in 0...rooms.length) {
+            if (visited_room[i]) {
+                var r = rooms[i];
+                Gfx.drawbox(r.x * minimap_scale, r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
+            }
         }
 
         Gfx.drawbox(player_x * minimap_scale, player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
@@ -1455,6 +1415,7 @@ function update() {
         } else {
             player_room = get_room_index(player_x, player_y);
         }
+        visited_room[player_room] = true;
 
         // Clear temporary spell effects
         player_health_max_mod = 0;

@@ -46,6 +46,9 @@ static var spacing = 3;
 static var iterations = 400;
 static var max_entities_per_biggest_room = 5;
 
+static var enemy_types_per_level = 4;
+static var empty_room_chance = 20;
+
 public static function shuffle<T>(array: Array<T>): Array<T> {
     if (array != null) {
         for (i in 0...array.length) {
@@ -61,46 +64,62 @@ public static function shuffle<T>(array: Array<T>): Array<T> {
 
 static function fill_rooms_with_entities() {
 
-    // NOTE: first room is empty
-    // for (i in 1...Main.rooms.length) {
-    //     var r = Main.rooms[i];
+    var enemy_types = [for (i in 0...enemy_types_per_level) Entities.random_enemy_type()];
 
-    //     // Don't generate entities in connections
-    //     if (r.is_connection) {
-    //         continue;
-    //     }
+    // Make sure that at least one enemy type is aggressive
+    var at_least_one_enemy_type_is_aggressive = false;
+    for (type in enemy_types) {
+        if (type.combat.aggression == AggressionType_Aggressive) {
+            at_least_one_enemy_type_is_aggressive = true;
+            break;
+        }
+    }
+    if (!at_least_one_enemy_type_is_aggressive) {
+        enemy_types[0].combat.aggression = AggressionType_Aggressive;
+    }
 
-    //     var entities = new Array<Int>();
+    function random_enemy(x: Int, y: Int): Int {
+        return Entity.make_type(x, y, Random.pick(enemy_types));
+    }
 
-    //     var positions = new Array<Vec2i>();
-    //     for (x in r.x...(r.x + r.width)) {
-    //         for (y in r.y...(r.y + r.height)) {
-    //             positions.push({
-    //                 x: x,
-    //                 y: y,
-    //             });
-    //         }
-    //     }
-    //     shuffle(positions);
+    // NOTE: start filling from 3rd room, 0th = funtown, 1st = start room
+    for (i in 2...Main.rooms.length) {
+        var r = Main.rooms[i];
 
-    //     function random_entity(): Int {
-    //         var k = Random.float(0, chance_total);
+        // Don't generate entities in connections
+        if (r.is_connection) {
+            continue;
+        }
 
-    //         var pos = positions.pop();
-    //         for (s in spawns) {
-    //             if (k <= s.chance) {
-    //                 return s.fun(pos.x, pos.y);
-    //             }
-    //         }
+        if (Random.chance(empty_room_chance)) {
+            continue;
+        }
 
-    //         return Entity.NONE;
-    //     }
+        var entities = new Array<Int>();
 
-    //     var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * max_entities_per_biggest_room));
-    //     for (i in 0...amount) {
-    //         entities.push(random_entity());
-    //     }
-    // }
+        var positions = new Array<Vec2i>();
+        for (x in r.x...(r.x + r.width)) {
+            for (y in r.y...(r.y + r.height)) {
+                positions.push({
+                    x: x,
+                    y: y,
+                });
+            }
+        }
+        shuffle(positions);
+
+        var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * max_entities_per_biggest_room));
+        for (i in 0...amount) {
+            var pos = positions.pop();
+            entities.push(Pick.value([
+                {v: random_enemy, c: 40.0},
+                {v: Entities.random_weapon, c: 1.0},
+                {v: Entities.random_armor, c: 3.0},
+                {v: Entities.random_potion, c: 6.0},
+                {v: Entities.random_ring, c: 2.0},
+                ])(pos.x, pos.y));
+        }
+    }
 }
 
 // Randomly place rooms that don't intersect with other rooms
@@ -115,8 +134,9 @@ static function generate_via_digging(): Array<Room> {
         var new_room = {
             x: Random.int(origin_x, world_width - max - 1),
             y: Random.int(origin_y, world_height - max - 1),
-            width: Random.int(min, max),
-            height: Random.int(min, max),
+            // NOTE: have to decrement max dimensions here because they are incremented by one later
+            width: Random.int(min, max - 1),
+            height: Random.int(min, max - 1),
             is_connection: false
         };
         var no_intersections = true;

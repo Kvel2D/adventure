@@ -1,16 +1,16 @@
 
 import haxegon.*;
 
-typedef ValChancePair = {
+typedef ValPickPair = {
     v: Dynamic, // value
     c: Float    // chance that value is picked
 };
 
 @:publicFields
-class Chance {
+class Pick {
 // NOTE: force unindent
 
-static function pick(pairs: Array<ValChancePair>): Dynamic {
+static function value(pairs: Array<ValPickPair>): Dynamic {
     var total = 0.0;
     for (e in pairs) {
         total += e.c;
@@ -27,7 +27,7 @@ static function pick(pairs: Array<ValChancePair>): Dynamic {
         }
     }
 
-    trace('pick() failed');
+    trace('value() failed');
     return pairs[0].v;
 }
 

@@ -1,11 +1,61 @@
 
 import haxegon.*;
 import Entity;
-import Chance;
+import Pick;
 
 @:publicFields
 class Spells {
 // NOTE: force unindent
+
+// TODO: need to think about wording
+// the interval thing is only for heal over time/dmg over time
+// attack bonuses/ health max bonuses are applied every turn
+static function description(spell: Spell): String {
+    var string = '';
+    var type = switch (spell.type) {
+        case SpellType_ModHealth: 'change health';
+        case SpellType_ModHealthMax: 'change max health';
+        case SpellType_ModAttack: 'change attack';
+        case SpellType_ModDefense: 'change defense';
+    }
+    var element = switch (spell.element) {
+        case ElementType_Physical: 'physical';
+        case ElementType_Fire: 'fire';
+        case ElementType_Ice: 'ice';
+        case ElementType_Shadow: 'shadow';
+        case ElementType_Light: 'light';
+    }
+
+    var duration = if (spell.duration_type == SpellDuration_Permanent) {
+        'permanent';
+    } else {
+        var interval_name = if (spell.duration_type == SpellDuration_EveryTurn) {
+            'turn';
+        } else {
+            'attack';
+        }
+
+        if (spell.duration == Entity.INFINITE) {
+            if (spell.interval == 1) {
+                'applied every ${interval_name}';
+            } else {
+                'applied every ${spell.interval} ${interval_name}s';
+            }
+        } else if (spell.interval == 1) {
+            'for ${spell.duration * spell.interval} ${interval_name}s';
+        } else {
+            if (spell.interval == 1) {
+                'for ${spell.duration} ${interval_name}s, applied every ${interval_name}';
+            } else {
+                'for ${spell.duration} ${interval_name}s, applied every ${spell.interval} ${interval_name}s';
+            }
+        }
+    }
+
+    // physical change attack 2 for 10 attacks
+    // physical change attack 2 every 3 attacks for 9 attacks total
+    return '$element $type ${spell.value} $duration (${spell.interval - spell.interval_current})';
+}
 
 static function copy(spell: Spell): Spell {
     return {
@@ -33,15 +83,15 @@ static function randoml(): Spell {
     }
 }
 
-static function increase_attack_everyturn(): Spell {
+static function attack_buff(element: ElementType, value: Int): Spell {
     return {
         type: SpellType_ModAttack,
-        element: ElementType_Ice,
+        element: element,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE,
         interval: 1,
         interval_current: 0,
-        value: 2,
+        value: value,
         origin_name: "noname",
     }
 }
@@ -124,10 +174,10 @@ static function poison(): Spell {
     }
 }
 
-static function buff_phys_def(value: Int): Spell {
+static function buff_phys_def(element: ElementType, value: Int): Spell {
     return {
         type: SpellType_ModDefense,
-        element: ElementType_Physical,
+        element: element,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE,
         interval: 1,
@@ -146,6 +196,98 @@ static function test(): Spell {
         interval: 5,
         interval_current: 0,
         value: 1,
+        origin_name: "noname",
+    }
+}
+
+static function random_potion_spell(): Spell {
+    // Health potion is most common, other modifiers are more rare
+    var type = Pick.value([
+        {v: SpellType_ModHealth, c: 10.0},
+        {v: SpellType_ModHealthMax, c: 1.0},
+        {v: SpellType_ModAttack, c: 1.0},
+        {v: SpellType_ModDefense, c: 1.0},
+        ]);
+
+    var duration = switch (type) {
+        case SpellType_ModHealth: SpellDuration_Permanent;
+        case SpellType_ModHealthMax: Pick.value([
+            {v: SpellDuration_Permanent, c: 1.0},
+            {v: SpellDuration_EveryTurn, c: 2.0},
+            ]);
+        case SpellType_ModAttack: Pick.value([
+            {v: SpellDuration_Permanent, c: 1.0},
+            {v: SpellDuration_EveryTurn, c: 10.0},
+            ]);
+        case SpellType_ModDefense: Pick.value([
+            {v: SpellDuration_Permanent, c: 1.0},
+            {v: SpellDuration_EveryTurn, c: 10.0},
+            ]);
+    }
+
+    var value = 0;
+    var value = switch (type) {
+        case SpellType_ModHealth: Random.int(5, 8);
+        case SpellType_ModHealthMax: {
+            switch (duration) {
+                case SpellDuration_Permanent: Random.int(1, 2);
+                case SpellDuration_EveryTurn: Random.int(4, 8);
+                default: 0;
+            };
+        }
+        case SpellType_ModAttack: {
+            switch (duration) {
+                case SpellDuration_Permanent: 1;
+                case SpellDuration_EveryTurn: Random.int(1, 2);
+                default: 0;
+            };
+        }
+        case SpellType_ModDefense: {
+            switch (duration) {
+                case SpellDuration_Permanent: Random.int(1, 2);
+                case SpellDuration_EveryTurn: Random.int(2, 4);
+                default: 0;
+            };
+        }
+        default: 0;
+    }
+
+    return {
+        type: type,
+        element: ElementType_Physical,
+        duration_type: duration,
+        duration: 1,
+        interval: 1,
+        interval_current: 0,
+        value: value,
+        origin_name: "noname",
+    }
+}
+
+static function random_ring_spell(): Spell {
+    var type = Pick.value([
+        {v: SpellType_ModHealthMax, c: 2.0},
+        {v: SpellType_ModAttack, c: 1.0},
+        {v: SpellType_ModDefense, c: 2.0},
+        ]);
+
+    var duration = SpellDuration_EveryTurn;
+
+    var value = switch (type) {
+        case SpellType_ModHealthMax: Random.int(4, 7);
+        case SpellType_ModAttack: 1;
+        case SpellType_ModDefense: Random.int(1, 2);
+        default: 0;
+    }
+
+    return {
+        type: type,
+        element: ElementType_Physical,
+        duration_type: duration,
+        duration: Entity.INFINITE,
+        interval: 1,
+        interval_current: 0,
+        value: value,
         origin_name: "noname",
     }
 }

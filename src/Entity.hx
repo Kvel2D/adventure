@@ -1,5 +1,6 @@
 
 import haxegon.*;
+import Spells;
 
 using MathExtensions;
 
@@ -13,10 +14,6 @@ enum EquipmentType {
 enum ItemType {
     ItemType_Normal;
     ItemType_Ring;
-}
-
-enum UseType {
-    UseType_Heal;
 }
 
 enum AggressionType {
@@ -174,6 +171,84 @@ static function make(): Int {
     return e;
 }
 
+static function make_type(x: Int, y: Int, type: EntityType): Int {
+    var e = make();
+
+    set_position(e, x, y);
+    if (type.name != NULL_STRING) {
+        name[e] = type.name;
+    }
+    if (type.description != NULL_STRING) {
+        description[e] = type.description;
+    }
+    if (type.draw_tile != NULL_INT) {
+        draw_tile[e] = type.draw_tile;
+    }
+    if (type.draw_char != null) {
+        draw_char[e] = {
+            char: type.draw_char.char,
+            color: type.draw_char.color,
+        };
+    }
+    if (type.equipment != null) {
+        equipment[e] = {
+            name: type.equipment.name,
+            type: type.equipment.type,
+            spells: [for (spell in type.equipment.spells) Spells.copy(spell)],
+        };
+    }
+    if (type.item != null) {
+        item[e] = {
+            name: type.item.name,
+            type: type.item.type,
+            spells: [for (spell in type.item.spells) Spells.copy(spell)],
+        };
+    }
+    if (type.use != null) {
+        use[e] = {
+            spells: [for (spell in type.use.spells) Spells.copy(spell)],
+            charges: type.use.charges,
+            consumable: type.use.consumable,
+        };
+    }
+    if (type.combat != null) {
+        combat[e] = {
+            health: type.combat.health,
+            attack: [ for (key in type.combat.attack.keys()) key => type.combat.attack[key]],
+            absorb: [ for (key in type.combat.absorb.keys()) key => type.combat.absorb[key]],
+            message: type.combat.message,
+            aggression: type.combat.aggression,
+            attacked_by_player: type.combat.attacked_by_player,
+        };
+    }
+    if (type.drop_entity != null) {
+        drop_entity[e] = {
+            table: type.drop_entity.table,
+            chance: type.drop_entity.chance,
+        };
+    }
+    if (type.talk != NULL_STRING) {
+        talk[e] = type.talk;
+    }
+    if (type.give_copper_on_death != null) {
+        give_copper_on_death[e] = {
+            chance: type.give_copper_on_death.chance,
+            min: type.give_copper_on_death.min,
+            max: type.give_copper_on_death.max,
+        };
+    }
+    if (type.move != null) {
+        move[e] = {
+            type: type.move.type,
+            cant_move: type.move.cant_move,
+        };
+    }
+
+    validate(e);
+
+    return e;
+}
+
 static function remove(e: Int) {
     all.remove(e);
 
@@ -239,7 +314,7 @@ static function validate(e: Int) {
     }
 
     // Other
-    if (position.exists(e) && Entity.position[e].room == -1) {
+    if (position.exists(e) && position[e].room == -1) {
         trace('Error: Position.room = -1.');
         error = true;
     }
