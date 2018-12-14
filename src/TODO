@@ -18,8 +18,6 @@ IDEAS
 
 portals
 
-display spell effect in tooltip for use and auto spells
-
 cells with effects
     poison - works like bloodborne, but full damage instantly at completion of meter, meter invisible, in effect allows for constant accumulation of poison in realtime which periodically "ticks"
     straight damage when stepping on for the first time (lava)
@@ -186,3 +184,7 @@ make spell_effect_text() for what to print
 
 mob that heals itself over time
     new kind of spell ModEntityHealth?
+
+make entities have defense instead of absorb because right now it's inconsistent with what the player sees, better for it to be same to be more easily understandble
+
+attacking always takes prio, might need to disable attack while interact menu is up

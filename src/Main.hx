@@ -110,7 +110,6 @@ static var attack_target = Entity.NONE;
 static var interact_target = Entity.NONE;
 static var interact_target_x: Int;
 static var interact_target_y: Int;
-static var turn_is_over = false;
 static var need_to_update_los = true;
 
 static var message_history = [for (i in 0...message_history_length_max) turn_delimiter];
@@ -213,12 +212,6 @@ function init() {
     MakeEntity.test_potion(6, 8);
 
     // MakeEntity.chest(2, 15);
-
-    for (i in 0...10) {
-        var x = 1;
-        var y = 1;
-        MakeEntity.test_potion(x + i, y);
-    }
 }
 
 static var time_stamp = 0.0;
@@ -262,32 +255,33 @@ static function add_message(message: String) {
     added_message_this_turn = true;
 }
 
-static function add_damage_number(value: Int) {
-    damage_numbers.push({
-        value: value,
-        x_offset: if (value > 0) {
-            Random.int(-15, -5);
-        } else {
-            Random.int(20, 30);
-        },
-        time: 0,
-        color: if (value > 0) {
-            Col.GREEN;
-        } else {
-            Col.RED;
-        },
-    });
-}
-
-static function get_room_index(x: Int, y: Int): Int {
-    for (i in 0...rooms.length) {
-        var r = rooms[i];
-        if (Math.point_box_intersect(x, y, r.x, r.y, r.width, r.height)) {
-            return i;
-        }
+    // TODO: display absorb amount
+    static function add_damage_number(value: Int) {
+        damage_numbers.push({
+            value: value,
+            x_offset: if (value > 0) {
+                Random.int(-15, -5);
+            } else {
+                Random.int(20, 30);
+            },
+            time: 0,
+            color: if (value > 0) {
+                Col.GREEN;
+            } else {
+                Col.RED;
+            },
+        });
     }
-    return -1;
-}
+
+    static function get_room_index(x: Int, y: Int): Int {
+        for (i in 0...rooms.length) {
+            var r = rooms[i];
+            if (Math.point_box_intersect(x, y, r.x, r.y, r.width, r.height)) {
+                return i;
+            }
+        }
+        return -1;
+    }
 
 // TODO: need to think about wording
 // the interval thing is only for heal over time/dmg over time
@@ -337,6 +331,36 @@ static function spell_description(spell: Spell): String {
     // physical change attack 2 for 10 attacks
     // physical change attack 2 every 3 attacks for 9 attacks total
     return '$element $type ${spell.value} $duration (${spell.interval - spell.interval_current})';
+}
+
+static function player_attack_total(): Map<ElementType, Int> {
+    // Calculate attack totals for each element which is a sum of natural attack plus spell mods from spells(which can come from buffs, items, equipment)
+    // Attack can't be negative
+
+    // Natural attack + mod
+    var attack_total = new Map<ElementType, Int>();
+    for (element in Type.allEnums(ElementType)) {
+        attack_total[element] = player_attack[element] + player_attack_mod[element];
+
+        if (attack_total[element] < 0) {
+            attack_total[element] = 0;
+        }
+    }
+
+    return attack_total;
+}
+
+static function player_defense_total(): Map<ElementType, Int> {
+    var defense_total = new Map<ElementType, Int>();
+    for (element in Type.allEnums(ElementType)) {
+        defense_total[element] = player_defense[element] + player_defense_mod[element];
+
+        if (defense_total[element] < 0) {
+            defense_total[element] = 0;
+        }
+    }
+
+    return defense_total;
 }
 
 // NOTE: breaks if player is next to world border
@@ -760,11 +784,12 @@ static function entity_attack_player(e: Int) {
     }
     if (damage_total != 0) {
         add_message('You take ${damage_total} damage from $target_name.');
-        add_damage_number(-damage_total);
-    }
-    if (absorb_total != 0) {
-        add_message('Your armor absorbs ${absorb_total} damage.');
-    }
+    // TODO: display absorb amount
+    add_damage_number(-damage_total);
+}
+if (absorb_total != 0) {
+    add_message('Your armor absorbs ${absorb_total} damage.');
+}
 
     // Can't move and attack in same turn
     if (Entity.move.exists(e)) {
@@ -828,36 +853,6 @@ static function player_attack_entity(e: Int) {
 
         Entity.remove(e);
     }
-}
-
-static function player_attack_total(): Map<ElementType, Int> {
-    // Calculate attack totals for each element which is a sum of natural attack plus spell mods from spells(which can come from buffs, items, equipment)
-    // Attack can't be negative
-
-    // Natural attack + mod
-    var attack_total = new Map<ElementType, Int>();
-    for (element in Type.allEnums(ElementType)) {
-        attack_total[element] = player_attack[element] + player_attack_mod[element];
-
-        if (attack_total[element] < 0) {
-            attack_total[element] = 0;
-        }
-    }
-
-    return attack_total;
-}
-
-static function player_defense_total(): Map<ElementType, Int> {
-    var defense_total = new Map<ElementType, Int>();
-    for (element in Type.allEnums(ElementType)) {
-        defense_total[element] = player_defense[element] + player_defense_mod[element];
-
-        if (defense_total[element] < 0) {
-            defense_total[element] = 0;
-        }
-    }
-
-    return defense_total;
 }
 
 static function do_spell(spell: Spell): Bool {
@@ -956,135 +951,8 @@ static function do_spell(spell: Spell): Bool {
     return spell_over;
 }
 
-static function end_turn() {
-    // NOTE: do mob stuff here
-
-    // Recalculate player room if room changed
-    if (player_room != -1) {
-        var old_room = rooms[player_room];
-        if (!Math.point_box_intersect(player_x, player_y, old_room.x, old_room.y, old_room.width, old_room.height)) {
-            player_room = get_room_index(player_x, player_y);
-        }
-    } else {
-        player_room = get_room_index(player_x, player_y);
-    }
-
-    // Clear temporary spell effects
-    player_health_max_mod = 0;
-    for (element in Type.allEnums(ElementType)) {
-        player_attack_mod[element] = 0;
-        player_defense_mod[element] = 0;
-    }
-
-    // Cast inventory items' spells
-    for (x in 0...inventory_width) {
-        for (y in 0...inventory_height) {
-            var e = inventory[x][y];
-
-            if (Entity.item.exists(e) && !Entity.position.exists(e) && Entity.item[e].spells.length > 0) {
-                var item = Entity.item[e];
-                var removed_spells = new Array<Spell>();
-                for (spell in item.spells) {
-                    var spell_over = do_spell(spell);
-
-                    if (spell_over) {
-                        removed_spells.push(spell);
-                    }
-                }
-                for (spell in removed_spells) {
-                    if (spell.duration_type != SpellDuration_Permanent) {
-                        add_message('Spell ${spell.type} wore off.');
-                    }
-                    player_spells.remove(spell);
-                }
-            }
-        }
-    }
-
-    // Cast equipment spells
-    for (equipment_type in Type.allEnums(EquipmentType)) {
-        var e = player_equipment[equipment_type];
-
-        if (Entity.equipment.exists(e) && !Entity.position.exists(e) && Entity.equipment[e].spells.length > 0) {
-            var equipment = Entity.equipment[e];
-            var removed_spells = new Array<Spell>();
-            for (spell in equipment.spells) {
-                var spell_over = do_spell(spell);
-
-                if (spell_over) {
-                    removed_spells.push(spell);
-                }
-            }
-            for (spell in removed_spells) {
-                if (spell.duration_type != SpellDuration_Permanent) {
-                    add_message('Spell ${spell.type} wore off.');
-                }
-                player_spells.remove(spell);
-            }
-        }
-    }
-
-    // Cast player spells
-    var removed_spells = new Array<Spell>();
-    for (spell in player_spells) {
-        var spell_over = do_spell(spell);
-
-        if (spell_over) {
-            removed_spells.push(spell);
-        }
-    }
-    for (spell in removed_spells) {
-        if (spell.duration_type != SpellDuration_Permanent) {
-            add_message('Spell ${spell.type} wore off.');
-        }
-        player_spells.remove(spell);
-    }
-
-    // Limit health
-    if (player_health > player_health_max + player_health_max_mod) {
-        player_health = player_health_max + player_health_max_mod;
-    }
-
-    // Player attacks entity
-    if (attack_target != Entity.NONE) {
-        player_attack_entity(attack_target);
-        attack_target = Entity.NONE;
-    }
-
-    // Entities attack player
-    for (e in Entity.combat.keys()) {
-        entity_attack_player(e);
-    }
-
-    // NOTE: can die from entity attacks OR from health_max going negative from mods
-    if (player_health <= 0) {
-        add_message('You died.');
-    }
-
-    // Entities chase player only if they are in the same room
-    for (e in Entity.move.keys()) {
-        if (Entity.position.exists(e)) {
-            var pos = Entity.position[e];
-            if (pos.room == player_room) {
-                move_entity(e);
-            }
-        }
-    }
-
-    turn_is_over = true;
-
-    // Mark the end of turn
-    if (added_message_this_turn) {
-        add_message(turn_delimiter);
-        added_message_this_turn = false;
-    }
-}
-
 function update() {
-    //
-    // Update
-    //
-    turn_is_over = false;
+    var player_acted = false;
 
     // 
     // Player movement
@@ -1117,7 +985,7 @@ function update() {
         var free_map = get_free_map(player_x, player_y, 1, 1, false);
         if (free_map[0][0] || noclip) {
             need_to_update_los = true;
-            end_turn();
+            player_acted = true;
         } else {
             player_x -= player_dx;
             player_y -= player_dy;
@@ -1186,12 +1054,12 @@ function update() {
     //
     // Attack on left click
     //
-    if (Mouse.leftclick() && !turn_is_over && Entity.position.exists(hovered_map)) {
+    if (!player_acted && Mouse.leftclick() && Entity.position.exists(hovered_map)) {
         var pos = Entity.position[hovered_map];
         // Attack if entity is on map, visible and has Combat
         if (player_next_to(Entity.position[hovered_map]) && !los[pos.x - view_x][pos.y - view_y] && Entity.combat.exists(hovered_map)) {
             attack_target = hovered_map;
-            end_turn();
+            player_acted = true;
         }
     }
 
@@ -1277,7 +1145,7 @@ function update() {
     Gfx.scale(1, 1, 0, 0);
     Text.size = 10;
 
-    // Health
+    // Health above player
     Text.display(screen_x(player_x), screen_y(player_y) - 15, '${player_health}/${player_health_max + player_health_max_mod}');
 
     // Damage numbers
@@ -1292,6 +1160,14 @@ function update() {
     }
     for (n in removed_damage_numbers) {
         damage_numbers.remove(n);
+    }
+
+    // DEAD indicator
+    // TODO: need a real transition
+    if (player_health <= 0) {
+        Text.size = 80;
+        Text.display(100, 100, 'DEAD', Col.RED);
+        Text.size = 12;
     }
 
     //
@@ -1309,7 +1185,7 @@ function update() {
     player_stats += '\nAttack: P:${attack_total[ElementType_Physical]} F:${attack_total[ElementType_Fire]} I:${attack_total[ElementType_Ice]} S:${attack_total[ElementType_Shadow]} L:${attack_total[ElementType_Light]}';
     var defense_total = player_defense_total();
     player_stats += '\nDefense: P:${defense_total[ElementType_Physical]} F:${defense_total[ElementType_Fire]} I:${defense_total[ElementType_Ice]} S:${defense_total[ElementType_Shadow]} L:${defense_total[ElementType_Light]}';
-    // TODO: display absorb amount
+    // TODO: display absorb amount(or not?)
     player_stats += '\nCopper: ${copper_count}';
     Text.display(ui_x, player_stats_y, player_stats);
 
@@ -1422,7 +1298,7 @@ function update() {
     // Interact menu
     //
     // Set interact target on right click
-    if (Mouse.rightclick() && !turn_is_over) {
+    if (!player_acted && Mouse.rightclick()) {
         interact_target = hovered_anywhere;
         interact_target_x = hovered_anywhere_x;
         interact_target_y = hovered_anywhere_y;
@@ -1437,7 +1313,7 @@ function update() {
     }
 
     // Interaction buttons
-    if (!turn_is_over) {
+    if (!player_acted) {
         var done_interaction = false;
         GUI.x = interact_target_x + tilesize * world_scale;
         GUI.y = interact_target_y;
@@ -1482,16 +1358,11 @@ function update() {
 
         if (done_interaction) {
             interact_target = Entity.NONE;
-            end_turn();
+            player_acted = true;
         } else if (Mouse.leftclick()) {
             // Clicked out of context menu
             interact_target = Entity.NONE;
         }
-    }
-
-    // Clear interact target if done something
-    if (turn_is_over) {
-        interact_target = Entity.NONE;
     }
 
     //
@@ -1514,7 +1385,7 @@ function update() {
             player_x = player_previous_world_x;
             player_y = player_previous_world_y;
             need_to_update_los = true;
-            end_turn();
+            player_acted = true;
         }
     } else {
         if (GUI.auto_text_button('To funtown')) {
@@ -1524,7 +1395,7 @@ function update() {
             player_x = funtown_x;
             player_y = funtown_y;
             need_to_update_los = true;
-            end_turn();
+            player_acted = true;
         }
     }
 
@@ -1546,14 +1417,114 @@ function update() {
         Gfx.drawbox(player_x * minimap_scale, player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
     }
 
+    // Space key skips turn
     if (Input.justpressed(Key.SPACE)) {
-        end_turn();
+        player_acted = true;
     }
 
-    if (player_health <= 0) {
-        Text.size = 80;
-        Text.display(100, 100, 'DEAD', Col.RED);
-        Text.size = 12;
+    //
+    // End of turn
+    //
+    if (player_acted) {
+        // Clear interact target if done something
+        interact_target = Entity.NONE;
+
+        // Recalculate player room if room changed
+        if (player_room != -1) {
+            var old_room = rooms[player_room];
+            if (!Math.point_box_intersect(player_x, player_y, old_room.x, old_room.y, old_room.width, old_room.height)) {
+                player_room = get_room_index(player_x, player_y);
+            }
+        } else {
+            player_room = get_room_index(player_x, player_y);
+        }
+
+        // Clear temporary spell effects
+        player_health_max_mod = 0;
+        for (element in Type.allEnums(ElementType)) {
+            player_attack_mod[element] = 0;
+            player_defense_mod[element] = 0;
+        }
+
+        //
+        // Process spells
+        //
+        function process_spell_list(list: Array<Spell>) {
+            var expired_spells = new Array<Spell>();
+            for (spell in list) {
+                var spell_over = do_spell(spell);
+
+                if (spell_over) {
+                    expired_spells.push(spell);
+                }
+            }
+            for (spell in expired_spells) {
+                if (spell.duration_type != SpellDuration_Permanent) {
+                    add_message('Spell ${spell.type} wore off.');
+                }
+                list.remove(spell);
+            }
+        }
+
+        // Inventory spells
+        for (x in 0...inventory_width) {
+            for (y in 0...inventory_height) {
+                var e = inventory[x][y];
+
+                if (Entity.item.exists(e) && !Entity.position.exists(e) && Entity.item[e].spells.length > 0) {
+                    process_spell_list(Entity.item[e].spells);
+                }
+            }
+        }
+
+        // Equipment spells
+        for (equipment_type in Type.allEnums(EquipmentType)) {
+            var e = player_equipment[equipment_type];
+
+            if (Entity.equipment.exists(e) && !Entity.position.exists(e) && Entity.equipment[e].spells.length > 0) {
+                process_spell_list(Entity.equipment[e].spells);
+            }
+        }
+
+        // Player spells
+        process_spell_list(player_spells);
+
+        // Limit health to health_max
+        if (player_health > player_health_max + player_health_max_mod) {
+            player_health = player_health_max + player_health_max_mod;
+        }
+
+        // Player attacks entity
+        if (attack_target != Entity.NONE) {
+            player_attack_entity(attack_target);
+            attack_target = Entity.NONE;
+        }
+
+        // Entities attack player
+        for (e in Entity.combat.keys()) {
+            entity_attack_player(e);
+        }
+
+        // NOTE: can die from entity attacks OR from health_max going negative from mods
+        if (player_health <= 0) {
+            add_message('You died.');
+        }
+
+        // Entities chase player if they are in the same room
+        for (e in Entity.move.keys()) {
+            if (Entity.position.exists(e)) {
+                var pos = Entity.position[e];
+                if (pos.room == player_room) {
+                    move_entity(e);
+                }
+            }
+        }
+
+        // Mark the end of turn
+        if (added_message_this_turn) {
+            add_message(turn_delimiter);
+            added_message_this_turn = false;
+        }
     }
 }
 }
