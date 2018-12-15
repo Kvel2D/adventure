@@ -8,6 +8,8 @@ import Pick;
 class Entities {
 // NOTE: force unindent
 
+static var locked_colors = [Col.RED, Col.ORANGE, Col.GREEN, Col.BLUE];
+
 static var generated_names = new Array<String>();
 static var vowels = ['a', 'e', 'i', 'o', 'u'];
 static var consonants = ['y', 'q', 'w', 'r', 't', 'p', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'z', 'x', 'c', 'v', 'b', 'n', 'm'];
@@ -185,7 +187,37 @@ static function health_potion(x: Int, y: Int): Int {
         charges: 1,
         consumable: true,
     };
-    Entity.draw_tile[e] = Tile.Potion;
+    Entity.draw_tile[e] = Tile.PotionPhysical;
+
+    Entity.validate(e);
+
+    return e;
+}
+
+static function key(x: Int, y: Int, color: Int): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Key';
+    Entity.item[e] = {
+        name: "Key",
+        type: ItemType_Normal,
+        spells: [],
+    };
+    Entity.draw_tile[e] = if (color == Col.RED) {
+        Tile.KeyRed;
+    } else if (color == Col.ORANGE) {
+        Tile.KeyOrange;
+    } else if (color == Col.GREEN) {
+        Tile.KeyGreen;
+    } else if (color == Col.BLUE) {
+        Tile.KeyBlue;
+    } else {
+        Tile.None;
+    }
+    Entity.unlocker[e] = {
+        color: color,
+    };
 
     Entity.validate(e);
 
@@ -197,27 +229,41 @@ static function chest(x: Int, y: Int): Int {
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Chest';
-    Entity.draw_char[e] = {
-        char: 'C',
-        color: Col.YELLOW,
-    };
     Entity.drop_entity[e] = {
         table: DropTable_Default,
         chance: 100,
     };
-    Entity.description[e] = 'An unlocked chest.';
-    Entity.combat[e] = {
-        health: 1, 
-        attack: [
-        ElementType_Physical => 0,
-        ], 
-        absorb: [
-        ElementType_Physical => 0,
-        ], 
-        message: 'Chest opens with a creak.',
-        aggression: AggressionType_Passive,
-        attacked_by_player: false,
-    };
+
+    var chest_is_locked = Random.chance(50);
+    if (chest_is_locked) {
+        var color = Random.pick(locked_colors);
+        Entity.description[e] = 'A locked chest.';
+        Entity.draw_char[e] = {
+            char: 'C',
+            color: color,
+        };
+        Entity.locked[e] = {
+            color: color,
+        };
+    } else {
+        Entity.description[e] = 'Unlocked chest.';
+        Entity.draw_char[e] = {
+            char: 'C',
+            color: Col.GRAY,
+        };
+        Entity.combat[e] = {
+            health: 1, 
+            attack: [
+            ElementType_Physical => 0,
+            ], 
+            absorb: [
+            ElementType_Physical => 0,
+            ], 
+            message: 'Chest opens with a creak.',
+            aggression: AggressionType_Passive,
+            attacked_by_player: false,
+        };
+    }
 
     return e;
 }
@@ -233,11 +279,20 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [Spells.test()],
+        spells: [{
+            type: SpellType_UncoverMap,
+            element: ElementType_Physical,
+            duration_type: SpellDuration_Permanent,
+            duration: Entity.INFINITE_DURATION,
+            interval: 1,
+            interval_current: 0,
+            value: 0,
+            origin_name: "noname",
+        }],
         charges: 1,
         consumable: true,
     };
-    Entity.draw_tile[e] = Tile.Potion;
+    Entity.draw_tile[e] = Tile.PotionPhysical;
 
     Entity.validate(e);
 
@@ -349,7 +404,15 @@ static function random_potion(x: Int, y: Int): Int {
         charges: 1,
         consumable: true,
     };
-    Entity.draw_tile[e] = Tile.Potion;
+
+    // TODO: figure out what tile to pick for potions with multiple spells that potentially have different elements
+    Entity.draw_tile[e] = switch(Entity.use[e].spells[0].element) {
+        case ElementType_Physical: Tile.PotionPhysical;
+        case ElementType_Shadow: Tile.PotionShadow;
+        case ElementType_Light: Tile.PotionLight;
+        case ElementType_Fire: Tile.PotionFire;
+        case ElementType_Ice: Tile.PotionIce;
+    }
 
     Entity.validate(e);
 
@@ -401,6 +464,8 @@ static function random_enemy_type(): EntityType {
             type: Random.pick(Type.allEnums(MoveType)),
             cant_move: false,
         },
+        locked: null,
+        unlocker: null,
     };
 } 
 

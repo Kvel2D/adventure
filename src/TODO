@@ -1,25 +1,18 @@
 ---------------------------------------------------------------------------------------------
 TODO
 
-too many max health rings, annoying
-
-spawn some chests
-    chests always contain items
-
-needs to be a good balance of offensive/deffensive items
-
-
-draw minimap of visited rooms
+implement different elements for EVERYTHING
 
 ---------------------------------------------------------------------------------------------
 BUGS
 
-saw a mob move onto another mob
+saw a mob move onto another mob(or was it that i killed the other one and the alive one moved on top of it in the same turn?)
 
 ---------------------------------------------------------------------------------------------
 IDEAS
 
 portals
+teleport to random room spell
 
 cells with effects
     poison - works like bloodborne, but full damage instantly at completion of meter, meter invisible, in effect allows for constant accumulation of poison in realtime which periodically "ticks"
@@ -81,16 +74,11 @@ noclip "Ghostly Remainder" spell
     death if inside wall at the end of the duration
         need to prevent player from going to boundary of world(some things break if that happens)
 
-no pure immunity, only high resistance
-
-think about whether to stack bonuses or not
-    currently the highest bonus gets applied
-
 spell that buffs entities
     increase random entity's health and attack
     increase all entity's health but also drop amount
 
-increase effect of school in general
+increase effect of element in general
     increase light = higher light dmg, higher light heal amount, etc.(higher light dmg taken?)
     decrease light = lower light dmg, lower light heal, lower light dmg taken
 
@@ -106,6 +94,7 @@ increase armor by a factor
 cure poison
 extra life, restore full hp once when dying
 swap stats with enemy
+    health, attacks, defenses
 armor scale mod
 armor flat mod
 absorb mod
@@ -121,16 +110,6 @@ make a markov chain name generator
 
 entity editor in-game
     edit/add/remove all components
-
-too many large rooms
-    should scale rarity based on area
-
-
-haxegon.geom has mathextensions functions
-
-defense can be negative
-
-instead of swapping weapon with enemy, swap attacks for all elements
 
 mod equipment stat
     mod attack doesn't cover all options, it modifies natural attack only
@@ -219,8 +198,30 @@ potion that has two spells
     one helpful that's better than usual
     one unhelpful to offset
 
-discover map spell
-    changes map to draw all rooms
+boss mobs
+    guaranteed powerful item drop
+    big health pool
 
-mark connections for current room visited as well
-    otherwise have to come back just to check if got all connections
+SPELL identify
+    probably only for specific items/buffs
+    potions should not need to be identified
+    special scrolls with complicated spell effects might be a good candidate
+    or armor's use non-standard spells  
+        +defense/attack is fine
+        extra stuff can require identification
+    identified with a spell from a scroll or in-world entity
+
+SPELL decrease stat of everything on level
+    includes all entities, items, equipment, in world or carried
+    also all future items dropped/spawned on this level
+    something like -1 to light attack might be good
+        imagine you get to a level with a bunch of light mobs
+        then you can use this spell to make it easier to clear
+        but this will also decrease usefulness of your light weapon for example
+    increase is fun too
+        increase all attack makes item drops more valuable but everything also hits harder
+
+scroll items
+    contain mostly special effects
+
+enemy chest

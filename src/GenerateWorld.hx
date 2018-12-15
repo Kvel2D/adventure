@@ -17,7 +17,8 @@ typedef Room = {
     y: Int,
     width: Int,
     height: Int,
-    is_connection: Bool
+    is_connection: Bool,
+    adjacent_rooms: Array<Int>
 }
 
 typedef Connection = {
@@ -82,8 +83,10 @@ static function fill_rooms_with_entities() {
         return Entity.make_type(x, y, Random.pick(enemy_types));
     }
 
-    // NOTE: start filling from 3rd room, 0th = funtown, 1st = start room
-    for (i in 2...Main.rooms.length) {
+    var locked_colors = new Array<Int>();
+
+    // NOTE: leave start room(0th) empty
+    for (i in 1...Main.rooms.length) {
         var r = Main.rooms[i];
 
         // Don't generate entities in connections
@@ -117,7 +120,42 @@ static function fill_rooms_with_entities() {
                 {v: Entities.random_armor, c: 3.0},
                 {v: Entities.random_potion, c: 6.0},
                 {v: Entities.random_ring, c: 2.0},
+                {v: Entities.chest, c: 1.0},
                 ])(pos.x, pos.y));
+        }
+
+        // Remember locked entity colors for later when spawning matching keys
+        for (e in entities) {
+            if (Entity.locked.exists(e)) {
+                locked_colors.push(Entity.locked[e].color);
+            }
+        }
+    }
+
+    // Spawn matching keys for each locked entity, duplicates possible, keys in same room as locked entity also possible, avoid spawning in connection rooms
+    for (color in locked_colors) {
+        var r = Random.pick(Main.rooms);
+        while (r.is_connection) {
+            r = Random.pick(Main.rooms);
+        }
+        var free_map = Main.get_free_map(r.x, r.y, r.x + r.width, r.y + r.height);
+        
+        var positions = new Array<Vec2i>();
+        for (x in r.x...(r.x + r.width)) {
+            for (y in r.y...(r.y + r.height)) {
+                positions.push({
+                    x: x,
+                    y: y,
+                });
+            }
+        }
+        shuffle(positions);
+
+        for (p in positions) {
+            if (free_map[p.x][p.y]) {
+                Entities.key(p.x, p.y, color);
+                break;
+            }
         }
     }
 }
@@ -137,7 +175,8 @@ static function generate_via_digging(): Array<Room> {
             // NOTE: have to decrement max dimensions here because they are incremented by one later
             width: Random.int(min, max - 1),
             height: Random.int(min, max - 1),
-            is_connection: false
+            is_connection: false,
+            adjacent_rooms: [],
         };
         var no_intersections = true;
         for (r in rooms) {
@@ -196,10 +235,11 @@ static function connect_rooms(rooms: Array<Room>) {
                 var y_min = Std.int(Math.max(r.y, other.y));
                 var y_max = Std.int(Math.min(r.y + r.height, other.y + other.height));
                 var y = Random.int(y_min, y_max);
+                // Off by one so that connection doesn't go inside rooms
                 horizontals.push({
                     x1: x1 + 1, 
                     y1: y, 
-                    x2: x2, 
+                    x2: x2 - 1, 
                     y2: y,
                     i: i,
                     j: j
@@ -224,11 +264,12 @@ static function connect_rooms(rooms: Array<Room>) {
                 var x_min = Std.int(Math.max(r.x, other.x));
                 var x_max = Std.int(Math.min(r.x + r.width, other.x + other.width));
                 var x = Random.int(x_min, x_max);
+                // Off by one so that connection doesn't go inside rooms
                 verticals.push({
                     x1: x, 
                     y1: y1 + 1, 
                     x2: x, 
-                    y2: y2,
+                    y2: y2 - 1,
                     i: i,
                     j: j
                 });
@@ -353,12 +394,19 @@ static function connect_rooms(rooms: Array<Room>) {
     for (c in connections) {
         var width = c.x2 - c.x1;
         var height = c.y2 - c.y1;
+
+        // Push connection room into the adjacent_rooms list of connected rooms
+        // Index of connection room is rooms.length because it will be inserted at the end of rooms list
+        rooms[c.i].adjacent_rooms.push(rooms.length);
+        rooms[c.j].adjacent_rooms.push(rooms.length);
+
         rooms.push({
             x: c.x1,
             y: c.y1,
             width: width,
             height: height,
-            is_connection: true
+            is_connection: true,
+            adjacent_rooms: [c.i, c.j],
         });
     }
 }

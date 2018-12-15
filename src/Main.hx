@@ -29,7 +29,9 @@ static inline var view_height = 31;
 static inline var world_scale = 4;
 static inline var funtown_x = 15;
 static inline var funtown_y = 15;
-static inline var minimap_scale = 4;
+static inline var minimap_scale = 2;
+static inline var minimap_x = 0;
+static inline var minimap_y = 100;
 static inline var room_size_min = 10;
 static inline var room_size_max = 20;
 
@@ -56,14 +58,17 @@ static var walls = Data.create2darray(map_width, map_height, false);
 static var rooms: Array<Room>;
 static var visited_room = new Array<Bool>();
 var tile_canvas_state = Data.create2darray(view_width, view_height, Tile.None);
-var los: Array<Array<Bool>>;
+var los = Data.create2darray(view_width, view_height, false);
+
 var damage_numbers = new Array<DamageNumber>();
 
+var show_dev_buttons = true;
 var in_funtown = true;
 var noclip = false;
 var no_los = false;
 var draw_minimap = true;
 var draw_invisible_entities = true;
+var frametime_graph = false;
 
 static var player_x = 0;
 static var player_y = 0;
@@ -131,6 +136,8 @@ function init() {
     Text.font = 'pixelfj8';
     Gfx.loadtiles('tiles', tilesize, tilesize);
     Gfx.createimage('tiles_canvas', tilesize * view_width, tilesize * view_height);
+    Gfx.createimage('frametime_canvas', 100, 50);
+    Gfx.createimage('frametime_canvas2', 100, 50);
 
     //
     // Generate world
@@ -153,15 +160,6 @@ function init() {
         r.height++;
     }
 
-    // Add Funtown room
-    rooms.insert(0, {
-        x: 0,
-        y: 0,
-        width: funtown_x + 1,
-        height: funtown_y + 1,
-        is_connection: false
-    });
-
     for (r in rooms) {
         visited_room.push(false);
     }
@@ -172,6 +170,13 @@ function init() {
             for (y in r.y...(r.y + r.height)) {
                 walls[x][y] = false;
             }
+        }
+    }
+
+    // Clear funtown
+    for (x in 0...funtown_x + 1) {
+        for (y in 0...funtown_y + 1) {
+            walls[x][y] = false;
         }
     }
 
@@ -229,7 +234,7 @@ function init() {
     // }
 
     // Entities.sword(6, 7);
-    // Entities.test_potion(6, 8);
+    Entities.test_potion(6, 8);
 
     // Entities.chest(2, 15);
 }
@@ -493,6 +498,55 @@ function astar(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
     }
 
     return new Array<Vec2i>();
+}
+
+function drop_entity_from_entity(e: Int, dropping_entity_name: String) {
+    var drop_entity = Entity.drop_entity[e];
+    var pos = Entity.position[e];
+
+    if (Random.chance(drop_entity.chance)) {
+        Entity.remove_position(e);
+        var drop = Entities.entity_from_table(pos.x, pos.y, drop_entity.table);
+        var drop_name = if (Entity.equipment.exists(drop)) {
+            Entity.equipment[drop].name;
+        } else if (Entity.item.exists(drop)) {
+            Entity.item[drop].name;
+        } else {
+            'unnamed_drop';
+        }
+
+        add_message('$dropping_entity_name drops $drop_name.');
+    }
+}
+
+function try_unlock_entity(e: Int) {
+    // Look for same color unlocker in inventory
+    var locked = Entity.locked[e];
+
+    var locked_name = if (Entity.name.exists(e)) {
+        Entity.name[e];
+    } else {
+        'unnamed_locked';
+    }
+
+    for (y in 0...inventory_height) {
+        for (x in 0...inventory_width) {
+            if (Entity.unlocker.exists(inventory[x][y]) && !Entity.position.exists(inventory[x][y]) && Entity.unlocker[inventory[x][y]].color == locked.color) {
+                // Found unlocker, remove unlocker and unlock locked entity
+                add_message('You unlock $locked_name.');
+                Entity.remove(inventory[x][y]);
+
+                if (Entity.drop_entity.exists(e) && Entity.position.exists(e)) {
+                    drop_entity_from_entity(e, locked_name);
+                    Entity.remove(e);
+                }
+
+                return;
+            }
+        }
+    }
+
+    add_message('Need matching key to unlock $locked_name.');
 }
 
 function use_entity(e: Int) {
@@ -777,9 +831,10 @@ function player_attack_entity(e: Int) {
     combat.health -= damage_to_entity;
     combat.attacked_by_player = true;
 
-    var target_name = 'unnamed_target';
-    if (Entity.name.exists(e)) {
-        target_name = Entity.name[e];
+    var target_name = if (Entity.name.exists(e)) {
+        Entity.name[e];
+    } else {
+        'unnamed_target';
     }
     add_message('You attack $target_name for $damage_to_entity.');
     add_message(combat.message);
@@ -802,23 +857,7 @@ function player_attack_entity(e: Int) {
     if (combat.health <= 0) {
         // Drop entities if can and entity is on map
         if (Entity.drop_entity.exists(e) && Entity.position.exists(e)) {
-            var drop_entity = Entity.drop_entity[e];
-            var pos = Entity.position[e];
-
-            if (Random.chance(drop_entity.chance)) {
-                trace(1);
-                Entity.remove_position(e);
-                var drop = Entities.entity_from_table(pos.x, pos.y, drop_entity.table);
-                var drop_name = if (Entity.equipment.exists(drop)) {
-                    Entity.equipment[drop].name;
-                } else if (Entity.item.exists(drop)) {
-                    Entity.item[drop].name;
-                } else {
-                    'unnamed_drop';
-                }
-
-                add_message('$target_name drops $drop_name.');
-            }
+            drop_entity_from_entity(e, target_name);
         }
 
         Entity.remove(e);
@@ -850,7 +889,7 @@ function do_spell(spell: Spell): Bool {
             spell.interval_current = 0;
             active = true;
 
-            if (spell.duration != Entity.INFINITE) {
+            if (spell.duration != Entity.INFINITE_DURATION) {
                 spell.duration--;
                 if (spell.duration == 0) {
                     spell_over = true;
@@ -898,7 +937,7 @@ function do_spell(spell: Spell): Bool {
                 }
 
                 
-                if (spell.duration != Entity.INFINITE) {
+                if (spell.duration != Entity.INFINITE_DURATION) {
                     add_message('${spell.origin_name} increases your max health by ${spell.value}.');
                 }
             }
@@ -914,7 +953,7 @@ function do_spell(spell: Spell): Bool {
                     player_attack_mod[spell.element] += spell.value;
                 }
 
-                if (spell.duration != Entity.INFINITE) {
+                if (spell.duration != Entity.INFINITE_DURATION) {
                     add_message('${spell.origin_name} increases your ${spell.element} attack by ${spell.value}.');
                 }
             }
@@ -925,9 +964,16 @@ function do_spell(spell: Spell): Bool {
                     player_defense_mod[spell.element] += spell.value;
                 }
 
-                if (spell.duration != Entity.INFINITE) {
+                if (spell.duration != Entity.INFINITE_DURATION) {
                     add_message('${spell.origin_name} increases your ${spell.element} defense by ${spell.value}.');
                 }
+            }
+            case SpellType_UncoverMap: {
+                for (i in 0...visited_room.length) {
+                    visited_room[i] = true;
+                }
+
+                add_message('${spell.origin_name} uncovers the map.');
             }
         }
     }
@@ -936,6 +982,8 @@ function do_spell(spell: Spell): Bool {
 }
 
 function update() {
+    var update_start = Timer.stamp();
+
     var player_acted = false;
 
     // Space key skips turn
@@ -984,7 +1032,7 @@ function update() {
     if (need_to_update_los) {
         need_to_update_los = false;
 
-        los = LOS.get_los();
+        LOS.update_los(los);
     }
 
     //
@@ -1333,6 +1381,13 @@ function update() {
                 }
             }
         }
+        if (Entity.locked.exists(interact_target)) {
+            if (GUI.auto_text_button('Unlock')) {
+                try_unlock_entity(interact_target);
+
+                done_interaction = true;
+            }
+        }
 
         if (done_interaction) {
             interact_target = Entity.NONE;
@@ -1356,47 +1411,57 @@ function update() {
     Text.wordwrap = ui_wordwrap;
     Text.display(ui_x, message_history_y + 50, messages);
 
+    //
+    // Developer options
+    //
     GUI.x = ui_x - 200;
     GUI.y = 0;
-    if (in_funtown) {
-        if (GUI.auto_text_button('To world')) {
-            in_funtown = false;
-            player_x = player_previous_world_x;
-            player_y = player_previous_world_y;
-            need_to_update_los = true;
-            player_acted = true;
+    if (GUI.auto_text_button('Toggle dev')) {
+        show_dev_buttons = !show_dev_buttons;
+    }
+    if (show_dev_buttons) {
+        if (in_funtown) {
+            if (GUI.auto_text_button('To world')) {
+                in_funtown = false;
+                player_x = player_previous_world_x;
+                player_y = player_previous_world_y;
+                need_to_update_los = true;
+                player_acted = true;
+            }
+        } else {
+            if (GUI.auto_text_button('To funtown')) {
+                in_funtown = true;
+                player_previous_world_x = player_x;
+                player_previous_world_y = player_y;
+                player_x = funtown_x;
+                player_y = funtown_y;
+                need_to_update_los = true;
+                player_acted = true;
+            }
         }
-    } else {
-        if (GUI.auto_text_button('To funtown')) {
-            in_funtown = true;
-            player_previous_world_x = player_x;
-            player_previous_world_y = player_y;
-            player_x = funtown_x;
-            player_y = funtown_y;
-            need_to_update_los = true;
-            player_acted = true;
+        if (GUI.auto_text_button('Toggle minimap')) {
+            draw_minimap = !draw_minimap;
         }
-    }
-
-    if (GUI.auto_text_button('Toggle minimap')) {
-        draw_minimap = !draw_minimap;
-    }
-    if (GUI.auto_text_button('Toggle noclip')) {
-        noclip = !noclip;
-    }
-    if (GUI.auto_text_button('Toggle los')) {
-        no_los = !no_los;
+        if (GUI.auto_text_button('Toggle noclip')) {
+            noclip = !noclip;
+        }
+        if (GUI.auto_text_button('Toggle los')) {
+            no_los = !no_los;
+        }
+        if (GUI.auto_text_button('Toggle frametime graph')) {
+            frametime_graph = !frametime_graph;
+        }
     }
 
     if (draw_minimap) {
         for (i in 0...rooms.length) {
             if (visited_room[i]) {
                 var r = rooms[i];
-                Gfx.drawbox(r.x * minimap_scale, r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
+                Gfx.drawbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
             }
         }
 
-        Gfx.drawbox(player_x * minimap_scale, player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
+        Gfx.drawbox(minimap_x + player_x * minimap_scale, minimap_y + player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
     }
 
     //
@@ -1412,10 +1477,15 @@ function update() {
             if (!Math.point_box_intersect(player_x, player_y, old_room.x, old_room.y, old_room.width, old_room.height)) {
                 player_room = get_room_index(player_x, player_y);
             }
+
+            // Mark current room and adjacent rooms as visited
+            visited_room[player_room] = true;
+            for (i in rooms[player_room].adjacent_rooms) {
+                visited_room[i] = true;
+            }
         } else {
             player_room = get_room_index(player_x, player_y);
         }
-        visited_room[player_room] = true;
 
         // Clear temporary spell effects
         player_health_max_mod = 0;
@@ -1503,6 +1573,19 @@ function update() {
             add_message(turn_delimiter);
             added_message_this_turn = false;
         }
+    }
+
+    if (frametime_graph) {
+        var frame_time = Math.max(1 / 60.0, Timer.stamp() - update_start);
+
+        Gfx.drawtoimage('frametime_canvas2');
+        Gfx.drawimage(-1, 0, 'frametime_canvas');
+        Gfx.drawtoimage('frametime_canvas');
+        Gfx.drawimage(0, 0, 'frametime_canvas2');
+        Gfx.fillbox(99, 0, 1, 50, Col.BLUE);
+        Gfx.fillbox(99, 50 * (1 - frame_time / (1 / 30.0)), 1, 1, Col.WHITE);
+        Gfx.drawtoscreen();
+        Gfx.drawimage(400, 100, 'frametime_canvas');
     }
 }
 }

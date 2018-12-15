@@ -17,6 +17,7 @@ static function description(spell: Spell): String {
         case SpellType_ModHealthMax: 'change max health';
         case SpellType_ModAttack: 'change attack';
         case SpellType_ModDefense: 'change defense';
+        case SpellType_UncoverMap: 'uncover map';
     }
     var element = switch (spell.element) {
         case ElementType_Physical: 'physical';
@@ -35,7 +36,7 @@ static function description(spell: Spell): String {
             'attack';
         }
 
-        if (spell.duration == Entity.INFINITE) {
+        if (spell.duration == Entity.INFINITE_DURATION) {
             if (spell.interval == 1) {
                 'applied every ${interval_name}';
             } else {
@@ -88,7 +89,7 @@ static function attack_buff(element: ElementType, value: Int): Spell {
         type: SpellType_ModAttack,
         element: element,
         duration_type: SpellDuration_EveryTurn,
-        duration: Entity.INFINITE,
+        duration: Entity.INFINITE_DURATION,
         interval: 1,
         interval_current: 0,
         value: value,
@@ -153,7 +154,7 @@ static function increase_healthmax_everyturn(): Spell {
         type: SpellType_ModHealthMax,
         element: ElementType_Light,
         duration_type: SpellDuration_EveryTurn,
-        duration: Entity.INFINITE,
+        duration: Entity.INFINITE_DURATION,
         interval: 1,
         interval_current: 0,
         value: 6,
@@ -179,7 +180,7 @@ static function buff_phys_def(element: ElementType, value: Int): Spell {
         type: SpellType_ModDefense,
         element: element,
         duration_type: SpellDuration_EveryTurn,
-        duration: Entity.INFINITE,
+        duration: Entity.INFINITE_DURATION,
         interval: 1,
         interval_current: 0,
         value: value,
@@ -203,13 +204,15 @@ static function test(): Spell {
 static function random_potion_spell(): Spell {
     // Health potion is most common, other modifiers are more rare
     var type = Pick.value([
-        {v: SpellType_ModHealth, c: 10.0},
+        {v: SpellType_ModHealth, c: 2.0},
         {v: SpellType_ModHealthMax, c: 1.0},
         {v: SpellType_ModAttack, c: 1.0},
         {v: SpellType_ModDefense, c: 1.0},
+
+        {v: SpellType_UncoverMap, c: 0.1},
         ]);
 
-    var duration = switch (type) {
+    var duration_type = switch (type) {
         case SpellType_ModHealth: SpellDuration_Permanent;
         case SpellType_ModHealthMax: Pick.value([
             {v: SpellDuration_Permanent, c: 1.0},
@@ -217,33 +220,44 @@ static function random_potion_spell(): Spell {
             ]);
         case SpellType_ModAttack: Pick.value([
             {v: SpellDuration_Permanent, c: 1.0},
-            {v: SpellDuration_EveryTurn, c: 10.0},
+            {v: SpellDuration_EveryTurn, c: 40.0},
             ]);
         case SpellType_ModDefense: Pick.value([
             {v: SpellDuration_Permanent, c: 1.0},
-            {v: SpellDuration_EveryTurn, c: 10.0},
+            {v: SpellDuration_EveryTurn, c: 20.0},
             ]);
+        case SpellType_UncoverMap: SpellDuration_Permanent;
     }
 
-    var value = 0;
+    var duration = if (duration_type == SpellDuration_Permanent) {
+        0;
+    } else {
+        switch (type) {
+        case SpellType_ModHealthMax: Random.int(20, 30);
+        case SpellType_ModAttack: Random.int(20, 30);
+        case SpellType_ModDefense: Random.int(20, 30);
+        default: 0;
+    }
+    }
+
     var value = switch (type) {
         case SpellType_ModHealth: Random.int(5, 8);
         case SpellType_ModHealthMax: {
-            switch (duration) {
+            switch (duration_type) {
                 case SpellDuration_Permanent: Random.int(1, 2);
                 case SpellDuration_EveryTurn: Random.int(4, 8);
                 default: 0;
             };
         }
         case SpellType_ModAttack: {
-            switch (duration) {
+            switch (duration_type) {
                 case SpellDuration_Permanent: 1;
                 case SpellDuration_EveryTurn: Random.int(1, 2);
                 default: 0;
             };
         }
         case SpellType_ModDefense: {
-            switch (duration) {
+            switch (duration_type) {
                 case SpellDuration_Permanent: Random.int(1, 2);
                 case SpellDuration_EveryTurn: Random.int(2, 4);
                 default: 0;
@@ -252,11 +266,20 @@ static function random_potion_spell(): Spell {
         default: 0;
     }
 
+    var element = switch (type) {
+        case SpellType_ModHealth: ElementType_Light;
+        case SpellType_ModHealthMax: ElementType_Shadow;
+        case SpellType_ModAttack: ElementType_Physical;
+        case SpellType_ModDefense: ElementType_Physical;
+        case SpellType_UncoverMap: ElementType_Light;
+        default: ElementType_Physical;
+    }
+
     return {
         type: type,
-        element: ElementType_Physical,
-        duration_type: duration,
-        duration: 1,
+        element: element,
+        duration_type: duration_type,
+        duration: duration,
         interval: 1,
         interval_current: 0,
         value: value,
@@ -266,9 +289,9 @@ static function random_potion_spell(): Spell {
 
 static function random_ring_spell(): Spell {
     var type = Pick.value([
-        {v: SpellType_ModHealthMax, c: 2.0},
         {v: SpellType_ModAttack, c: 1.0},
-        {v: SpellType_ModDefense, c: 2.0},
+        {v: SpellType_ModHealthMax, c: 5.0},
+        {v: SpellType_ModDefense, c: 10.0},
         ]);
 
     var duration = SpellDuration_EveryTurn;
@@ -284,7 +307,7 @@ static function random_ring_spell(): Spell {
         type: type,
         element: ElementType_Physical,
         duration_type: duration,
-        duration: Entity.INFINITE,
+        duration: Entity.INFINITE_DURATION,
         interval: 1,
         interval_current: 0,
         value: value,

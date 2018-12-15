@@ -41,6 +41,7 @@ enum SpellType {
     SpellType_ModHealthMax;
     SpellType_ModAttack;
     SpellType_ModDefense;
+    SpellType_UncoverMap;
 }
 
 enum SpellDuration {
@@ -118,6 +119,14 @@ typedef Move = {
     var cant_move: Bool;
 }
 
+typedef Locked = {
+    var color: Int;
+}
+
+typedef Unlocker = {
+    var color: Int;
+}
+
 typedef EntityType = {
     var name: String;
     var description: String;
@@ -131,6 +140,8 @@ typedef EntityType = {
     var talk: String;
     var give_copper_on_death: GiveCopper;
     var move: Move;
+    var locked: Locked;
+    var unlocker: Unlocker;
 }
 
 @:publicFields
@@ -142,7 +153,7 @@ static var id_max: Int = 0;
 // NOTE: only use NONE for initializing and clearing entity references
 // don't "==/!= NONE", check for component existence instead
 static inline var NONE = -1;
-static inline var INFINITE = -1;
+static inline var INFINITE_DURATION = -1;
 static inline var NULL_INT = -1;
 static inline var NULL_STRING = 'null';
 static inline var random_move_chance = 50;
@@ -161,6 +172,8 @@ static var drop_entity = new Map<Int, DropEntity>();
 static var talk = new Map<Int, String>();
 static var give_copper_on_death = new Map<Int, GiveCopper>();
 static var move = new Map<Int, Move>();
+static var locked = new Map<Int, Locked>();
+static var unlocker = new Map<Int, Unlocker>();
 
 static function make(): Int {
     var e = id_max;
@@ -243,6 +256,16 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
             cant_move: type.move.cant_move,
         };
     }
+    if (type.locked != null) {
+        locked[e] = {
+            color: type.locked.color,
+        };
+    }
+    if (type.unlocker != null) {
+        unlocker[e] = {
+            color: type.unlocker.color,
+        };
+    }
 
     validate(e);
 
@@ -265,8 +288,8 @@ static function remove(e: Int) {
     talk.remove(e);
     give_copper_on_death.remove(e);
     move.remove(e);
-
-    move.remove(e);
+    locked.remove(e);
+    unlocker.remove(e);
 }
 
 static function print(e: Int) {
@@ -285,6 +308,8 @@ static function print(e: Int) {
     trace('talk=${talk[e]}');
     trace('give_copper_on_death=${give_copper_on_death[e]}');
     trace('move=${move[e]}');
+    trace('locked=${locked[e]}');
+    trace('unlocker=${unlocker[e]}');
 }
 
 static function validate(e: Int) {
@@ -310,6 +335,18 @@ static function validate(e: Int) {
     // Conflicts
     if (item.exists(e) && equipment.exists(e)) {
         trace('Conflict: Item and Equipment.');
+        error = true;
+    }
+    if (locked.exists(e) && unlocker.exists(e)) {
+        trace('Conflict: Locked and Unlocker.');
+        error = true;
+    }
+    if (locked.exists(e) && item.exists(e)) {
+        trace('Conflict: Locked and Item.');
+        error = true;
+    }
+    if (locked.exists(e) && equipment.exists(e)) {
+        trace('Conflict: Locked and Equipment.');
         error = true;
     }
 

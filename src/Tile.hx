@@ -6,18 +6,22 @@ class Tile {
         return y * tileset_width + x;
     }
 
-    static inline var None = at(0, 1); // bugged tile
-
-    static inline var Black = at(7, 1);
-    static inline var Player = at(0, 0);
-    static inline var Wall = at(1, 0);
+    static inline var None = at(0, 0); // for bugged/invisible things
+    static inline var Black = at(1, 0);
     static inline var Ground = at(2, 0);
-    static inline var DarkerWall = at(5, 1);
-    static inline var DarkerGround = at(6, 1);
-    static inline var Gnome = at(3, 0);
-    static inline var Bananas = at(4, 0);
-    static inline var Tree = at(5, 0);
-    static inline var Gnome2 = at(6, 0);
+    static inline var DarkerGround = at(3, 0);
+
+    static inline var PotionPhysical = at(0, 1);
+    static inline var PotionShadow = at(1, 1);
+    static inline var PotionLight = at(2, 1);
+    static inline var PotionFire = at(3, 1);
+    static inline var PotionIce = at(4, 1);
+
+    static inline var ScrollPhysical = at(0, 7);
+    static inline var ScrollShadow = at(1, 7);
+    static inline var ScrollLight = at(2, 7);
+    static inline var ScrollFire = at(3, 7);
+    static inline var ScrollIce = at(4, 7);
 
     static inline var Head0 = at(0, 2);
     static inline var Head1 = at(1, 2);
@@ -49,5 +53,9 @@ class Tile {
     static inline var Sword4 = at(4, 5);
     static inline var Sword5 = at(5, 5);
 
-    static inline var Potion = at(1, 1);
+    static inline var KeyRed = at(0, 8);
+    static inline var KeyOrange = at(1, 8);
+    static inline var KeyGreen = at(2, 8);
+    static inline var KeyBlue = at(3, 8);
+
 }
