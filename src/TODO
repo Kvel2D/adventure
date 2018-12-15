@@ -1,18 +1,23 @@
----------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------
 TODO
 
-implement different elements for EVERYTHING
+implement different elements for
+    generated entities should have elements
+    same for spells
 
----------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------
+DONE
+
+--------------------------------------------------------------------------
 BUGS
 
-saw a mob move onto another mob(or was it that i killed the other one and the alive one moved on top of it in the same turn?)
+saw a mob move ontop of another mob
+    possible that the other died and the alive one moved on top of it in the same turn?
 
----------------------------------------------------------------------------------------------
+light potion had shadow icon
+
+--------------------------------------------------------------------------
 IDEAS
-
-portals
-teleport to random room spell
 
 cells with effects
     poison - works like bloodborne, but full damage instantly at completion of meter, meter invisible, in effect allows for constant accumulation of poison in realtime which periodically "ticks"
@@ -38,7 +43,6 @@ pushable blocks ala sokoban
 
 rivalry - contains it's own "faction" and an enemy "faction", they attack each other instead of player if they are close
 
-locked chests that need keys
 locked doors that need keys(key spawned randomly in world a bit far away from door)
 
 long-range attack for entities
@@ -66,14 +70,6 @@ elemental affinity
     shadow <-> light
     could make it so that increase is bigger than decrease
 
-see everything spell
-    turn off los
-
-noclip "Ghostly Remainder" spell
-    makes you be able to noclip for N turns
-    death if inside wall at the end of the duration
-        need to prevent player from going to boundary of world(some things break if that happens)
-
 spell that buffs entities
     increase random entity's health and attack
     increase all entity's health but also drop amount
@@ -83,8 +79,6 @@ increase effect of element in general
     decrease light = lower light dmg, lower light heal, lower light dmg taken
 
 special effects
-turn off los
-turn off collision
 increase movespeed
 increase copper droprate
 increase item droprate
@@ -225,3 +219,38 @@ scroll items
     contain mostly special effects
 
 enemy chest
+    just a regular enemy with 100% droprate
+
+color enemies according to their strongest element
+
+spell to show locked things on map
+    and/or keys?
+
+different attack pattern weapons
+    spear = damage everything 2-3 in front of you
+    axe = damage everything around you
+    whip = cleave, jumps from one entity to another(no branches)
+    offset by less dmg on single target
+
+start with 5 charge heal potion?
+    be able to select starting item
+
+picking up and dropping friendly enemy is like pokemon
+    pick up an enemy like that and drop it and let it fight other enemies for you
+
+summon friendly enemy spell
+
+portals
+    two-way, connected to specific locations
+    port via interact menu?
+
+locked doors
+    need to spawn them and matching keys such that it's possible to unlock
+    (don't lock the key behind the door)
+
+aoe damage spell
+    radius around player
+    or the whole room
+
+modhealth everyattack
+    something like leech

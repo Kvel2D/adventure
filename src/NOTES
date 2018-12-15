@@ -1,0 +1,47 @@
+
+
+--------------------------------------------------------------------------
+SPELLS
+
+spellname
+
+ModHealth
+    potions             permanent
+    in-world entities   permanent
+    rings               use
+
+ModHealthMax
+    potions             everyturn
+    scrolls             permanent 
+    rings/equipment     everyturn buff OR use
+
+ModAttack
+    potions             everyturn
+    scrolls             permanent OR everyturn but strong
+    rings/equipment     everyturn buff OR use
+
+ModDefense
+    potions             everyturn
+    scrolls             permanent OR everyturn but strong
+    rings/equipment     everyturn buff OR use
+
+UncoverMap
+    scrolls             everyturn
+    rings               use
+
+RandomTeleport
+    scrolls             everyturn
+    rings               use
+
+Nolos
+    scrolls             everyturn
+    rings               use
+
+Noclip
+    scrolls             everyturn
+    rings/equipment     use
+    rare equipment      buff
+
+
+
+

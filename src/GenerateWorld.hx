@@ -65,7 +65,7 @@ public static function shuffle<T>(array: Array<T>): Array<T> {
 
 static function fill_rooms_with_entities() {
 
-    var enemy_types = [for (i in 0...enemy_types_per_level) Entities.random_enemy_type()];
+    var enemy_types = [for (i in 0...enemy_types_per_level) Entities.random_enemy_type(ElementType_Physical)];
 
     // Make sure that at least one enemy type is aggressive
     var at_least_one_enemy_type_is_aggressive = false;
@@ -119,8 +119,10 @@ static function fill_rooms_with_entities() {
                 {v: Entities.random_weapon, c: 1.0},
                 {v: Entities.random_armor, c: 3.0},
                 {v: Entities.random_potion, c: 6.0},
+                {v: Entities.random_scroll, c: 3.0},
                 {v: Entities.random_ring, c: 2.0},
-                {v: Entities.chest, c: 1.0},
+                {v: Entities.chest, c: 0.25},
+                {v: Entities.locked_chest, c: 0.75},
                 ])(pos.x, pos.y));
         }
 

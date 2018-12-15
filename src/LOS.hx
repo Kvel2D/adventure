@@ -66,11 +66,12 @@ class LOS {
         }
     }
 
+    static var free_map = Data.create2darray(Main.view_width, Main.view_height, false);
     static function update_los(los: Array<Array<Bool>>) {
-        var free_map = Main.get_free_map(0, 0, Main.map_width, Main.map_height, false, false);
-
         var start_x = Main.player_x - Math.floor(Main.view_width / 2);
         var start_y = Main.player_y - Math.floor(Main.view_height / 2);
+
+        Main.get_free_map(start_x, start_y, Main.view_width, Main.view_height, false, false, free_map);
 
         for (ray in rays) {
             var obstruction = false;
@@ -79,10 +80,7 @@ class LOS {
                 if (obstruction) {
                     los[p.x][p.y] = true;
                 } else {
-                    var map_x = start_x + p.x;
-                    var map_y = start_y + p.y;
-
-                    if (!Main.out_of_map_bounds(map_x, map_y) && !free_map[map_x][map_y]) {
+                    if (!Main.out_of_map_bounds(start_x + p.x, start_y + p.y) && !free_map[p.x][p.y]) {
                         los[p.x][p.y] = true;
                         obstruction = true;
                     } else {

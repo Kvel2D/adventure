@@ -36,33 +36,9 @@ enum ElementType {
     ElementType_Light;
 }
 
-enum SpellType {
-    SpellType_ModHealth;
-    SpellType_ModHealthMax;
-    SpellType_ModAttack;
-    SpellType_ModDefense;
-    SpellType_UncoverMap;
-}
-
-enum SpellDuration {
-    SpellDuration_Permanent;
-    SpellDuration_EveryTurn;
-    SpellDuration_EveryAttack;
-}
-
 enum DropTable {
     DropTable_Default;
-}
-
-typedef Spell = {
-    var type: SpellType;
-    var element: ElementType;
-    var duration_type: SpellDuration;
-    var duration: Int;
-    var interval: Int;
-    var interval_current: Int;
-    var value: Int;
-    var origin_name: String;
+    DropTable_LockedChest;
 }
 
 typedef Combat = {
@@ -347,12 +323,6 @@ static function validate(e: Int) {
     }
     if (locked.exists(e) && equipment.exists(e)) {
         trace('Conflict: Locked and Equipment.');
-        error = true;
-    }
-
-    // Other
-    if (position.exists(e) && position[e].room == -1) {
-        trace('Error: Position.room = -1.');
         error = true;
     }
 

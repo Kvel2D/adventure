@@ -38,6 +38,16 @@ static function generate_name(): String {
     return name;
 }
 
+static function get_element_color(element: ElementType): Int {
+    return switch (element) {
+        case ElementType_Physical: Col.GREEN;
+        case ElementType_Fire: Col.RED;
+        case ElementType_Ice: Col.BLUE;
+        case ElementType_Shadow: Col.BLACK;
+        case ElementType_Light: Col.YELLOW;
+    }
+}
+
 static function snail(x: Int, y: Int): Int {
     var e = Entity.make();
 
@@ -229,41 +239,51 @@ static function chest(x: Int, y: Int): Int {
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Chest';
+
+    Entity.description[e] = 'Unlocked chest.';
+    Entity.draw_char[e] = {
+        char: 'C',
+        color: Col.GRAY,
+    };
+    Entity.combat[e] = {
+        health: 1, 
+        attack: [
+        ElementType_Physical => 0,
+        ], 
+        absorb: [
+        ElementType_Physical => 0,
+        ], 
+        message: 'Chest opens with a creak.',
+        aggression: AggressionType_Passive,
+        attacked_by_player: false,
+    };
     Entity.drop_entity[e] = {
         table: DropTable_Default,
         chance: 100,
     };
 
-    var chest_is_locked = Random.chance(50);
-    if (chest_is_locked) {
-        var color = Random.pick(locked_colors);
-        Entity.description[e] = 'A locked chest.';
-        Entity.draw_char[e] = {
-            char: 'C',
-            color: color,
-        };
-        Entity.locked[e] = {
-            color: color,
-        };
-    } else {
-        Entity.description[e] = 'Unlocked chest.';
-        Entity.draw_char[e] = {
-            char: 'C',
-            color: Col.GRAY,
-        };
-        Entity.combat[e] = {
-            health: 1, 
-            attack: [
-            ElementType_Physical => 0,
-            ], 
-            absorb: [
-            ElementType_Physical => 0,
-            ], 
-            message: 'Chest opens with a creak.',
-            aggression: AggressionType_Passive,
-            attacked_by_player: false,
-        };
-    }
+    return e;
+}
+
+static function locked_chest(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Chest';
+
+    var color = Random.pick(locked_colors);
+    Entity.description[e] = 'A locked chest.';
+    Entity.draw_char[e] = {
+        char: 'C',
+        color: color,
+    };
+    Entity.locked[e] = {
+        color: color,
+    };
+    Entity.drop_entity[e] = {
+        table: DropTable_LockedChest,
+        chance: 100,
+    };
 
     return e;
 }
@@ -279,17 +299,8 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [{
-            type: SpellType_UncoverMap,
-            element: ElementType_Physical,
-            duration_type: SpellDuration_Permanent,
-            duration: Entity.INFINITE_DURATION,
-            interval: 1,
-            interval_current: 0,
-            value: 0,
-            origin_name: "noname",
-        }],
-        charges: 1,
+        spells: [Spells.noclip()],
+        charges: 2,
         consumable: true,
     };
     Entity.draw_tile[e] = Tile.PotionPhysical;
@@ -301,12 +312,21 @@ static function test_potion(x: Int, y: Int): Int {
 
 static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
     switch (droptable) {
+        // For common mobs and unlocked chests
         case DropTable_Default: {
             return (Pick.value([
                 {v: Entities.random_weapon, c: 1.0},
                 {v: Entities.random_armor, c: 3.0},
                 {v: Entities.random_potion, c: 6.0},
                 {v: Entities.random_ring, c: 2.0},
+                ])(x, y));
+        }
+        // For locked chests
+        case DropTable_LockedChest: {
+            return (Pick.value([
+                {v: Entities.random_weapon, c: 1.0},
+                {v: Entities.random_armor, c: 3.0},
+                {v: Entities.random_ring, c: 1.0},
                 ])(x, y));
         }
     };
@@ -419,7 +439,36 @@ static function random_potion(x: Int, y: Int): Int {
     return e;
 }
 
-static function random_enemy_type(): EntityType {
+static function random_scroll(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Scroll';
+    Entity.item[e] = {
+        name: "Scroll item",
+        type: ItemType_Normal,
+        spells: [],
+    };
+    Entity.use[e] = {
+        spells: [Spells.random_scroll_spell()],
+        charges: 1,
+        consumable: true,
+    };
+
+    Entity.draw_tile[e] = switch(Entity.use[e].spells[0].element) {
+        case ElementType_Physical: Tile.ScrollPhysical;
+        case ElementType_Shadow: Tile.ScrollShadow;
+        case ElementType_Light: Tile.ScrollLight;
+        case ElementType_Fire: Tile.ScrollFire;
+        case ElementType_Ice: Tile.ScrollIce;
+    }
+
+    Entity.validate(e);
+
+    return e;
+}
+
+static function random_enemy_type(element: ElementType): EntityType {
     var name = generate_name();
 
     return {
@@ -428,7 +477,7 @@ static function random_enemy_type(): EntityType {
         draw_tile: Entity.NULL_INT,
         draw_char: {
             char: name.charAt(0),
-            color: Col.RED,
+            color: get_element_color(element),
         },
         equipment: null,
         item: null,
@@ -436,12 +485,12 @@ static function random_enemy_type(): EntityType {
         combat: {
             health: Random.int(1, 3), 
             attack: [
-            ElementType_Physical => Random.int(1, 2),
+            element => Random.int(1, 2),
             ], 
             absorb: [
-            ElementType_Physical => 0,
+            element => 0,
             ], 
-            message: '$name defense itself.',
+            message: '$name defends itself.',
             aggression: Pick.value([
                 {v: AggressionType_Aggressive, c: 6.0},
                 {v: AggressionType_Neutral, c: 3.0},
