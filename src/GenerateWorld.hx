@@ -39,16 +39,17 @@ typedef Spawn = {
 class GenerateWorld {
 // NOTE: force unindent
 
-static var origin_x = Main.funtown_x + 1;
-static var origin_y = Main.funtown_y + 1;
+static var origin_x = 1;
+static var origin_y = 1;
 static inline var min = Main.room_size_min;
 static inline var max = Main.room_size_max;
 static var spacing = 3;
 static var iterations = 400;
-static var max_entities_per_biggest_room = 5;
+static var enemy_room_entity_amount = 5;
+static var item_room_entity_amount = 2;
 
 static var enemy_types_per_level = 4;
-static var empty_room_chance = 20;
+static var empty_room_chance = 10;
 
 public static function shuffle<T>(array: Array<T>): Array<T> {
     if (array != null) {
@@ -64,8 +65,13 @@ public static function shuffle<T>(array: Array<T>): Array<T> {
 }
 
 static function fill_rooms_with_entities() {
-
-    var enemy_types = [for (i in 0...enemy_types_per_level) Entities.random_enemy_type(ElementType_Physical)];
+    // Generate enemy types for level
+    // First level only has physical enemies, later levels start having varied elements
+    var enemy_types = if (Main.current_level == 0) {
+        [for (i in 0...enemy_types_per_level) Entities.random_enemy_type(ElementType_Physical)];
+    } else {
+        [for (i in 0...enemy_types_per_level) Entities.random_enemy_type(Spells.random_element())];
+    };
 
     // Make sure that at least one enemy type is aggressive
     var at_least_one_enemy_type_is_aggressive = false;
@@ -111,19 +117,35 @@ static function fill_rooms_with_entities() {
         }
         shuffle(positions);
 
-        var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * max_entities_per_biggest_room));
-        for (i in 0...amount) {
-            var pos = positions.pop();
-            entities.push(Pick.value([
-                {v: random_enemy, c: 40.0},
-                {v: Entities.random_weapon, c: 1.0},
-                {v: Entities.random_armor, c: 3.0},
-                {v: Entities.random_potion, c: 6.0},
-                {v: Entities.random_scroll, c: 3.0},
-                {v: Entities.random_ring, c: 2.0},
-                {v: Entities.chest, c: 0.25},
-                {v: Entities.locked_chest, c: 0.75},
-                ])(pos.x, pos.y));
+        var room_with_enemies = Random.chance(90);
+
+        if (room_with_enemies) {
+            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * enemy_room_entity_amount));
+            for (i in 0...amount) {
+                var pos = positions.pop();
+                entities.push(Pick.value([
+                    {v: random_enemy, c: 50.0},
+                    {v: Entities.random_weapon, c: 1.0},
+                    {v: Entities.random_armor, c: 3.0},
+                    {v: Entities.random_potion, c: 6.0},
+                    {v: Entities.random_scroll, c: 3.0},
+                    {v: Entities.random_ring, c: 2.0},
+                    {v: Entities.locked_chest, c: 2.0},
+                    ])(pos.x, pos.y));
+            }
+        } else {
+            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));
+            for (i in 0...amount) {
+                var pos = positions.pop();
+                entities.push(Pick.value([
+                    {v: Entities.random_weapon, c: 1.0},
+                    {v: Entities.random_armor, c: 3.0},
+                    {v: Entities.random_potion, c: 6.0},
+                    {v: Entities.random_scroll, c: 3.0},
+                    {v: Entities.random_ring, c: 2.0},
+                    {v: Entities.locked_chest, c: 2.0},
+                    ])(pos.x, pos.y));
+            }
         }
 
         // Remember locked entity colors for later when spawning matching keys
@@ -136,10 +158,11 @@ static function fill_rooms_with_entities() {
 
     // Spawn matching keys for each locked entity, duplicates possible, keys in same room as locked entity also possible, avoid spawning in connection rooms
     for (color in locked_colors) {
-        var r = Random.pick(Main.rooms);
-        while (r.is_connection) {
-            r = Random.pick(Main.rooms);
+        var r_i = 0;
+        while (r_i == 0 || Main.rooms[r_i].is_connection) {
+            r_i = Random.int(0, Main.rooms.length - 1);
         }
+        var r = Main.rooms[r_i];
         var free_map = Main.get_free_map(r.x, r.y, r.x + r.width, r.y + r.height);
         
         var positions = new Array<Vec2i>();

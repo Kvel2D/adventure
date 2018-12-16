@@ -97,6 +97,7 @@ typedef Move = {
 
 typedef Locked = {
     var color: Int;
+    var seen: Bool;
 }
 
 typedef Unlocker = {
@@ -235,6 +236,7 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
     if (type.locked != null) {
         locked[e] = {
             color: type.locked.color,
+            seen: type.locked.seen,
         };
     }
     if (type.unlocker != null) {
@@ -356,6 +358,10 @@ static function set_position(e: Int, x: Int, y: Int) {
 
     if (position_map[x][y] != Entity.NONE) {
         trace('new position occupied');
+        trace('entity 1:');
+        print(e);
+        trace('entity 2:');
+        print(position_map[x][y]);
     }
 
     // Write new position

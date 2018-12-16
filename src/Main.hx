@@ -23,13 +23,11 @@ class Main {
 static inline var screen_width = 1600;
 static inline var screen_height = 1000;
 static inline var tilesize = 8;
-static inline var map_width = 200;
-static inline var map_height = 200;
+static inline var map_width = 150;
+static inline var map_height = 150;
 static inline var view_width = 31;
 static inline var view_height = 31;
 static inline var world_scale = 4;
-static inline var funtown_x = 15;
-static inline var funtown_y = 15;
 static inline var minimap_scale = 2;
 static inline var minimap_x = 0;
 static inline var minimap_y = 100;
@@ -69,7 +67,6 @@ var nolos = false;
 var show_locked = false;
 
 var show_dev_buttons = true;
-var in_funtown = true;
 var noclip_DEV = false;
 var nolos_DEV = false;
 var full_minimap_DEV = false;
@@ -78,8 +75,6 @@ var draw_invisible_entities = true;
 
 static var player_x = 0;
 static var player_y = 0;
-var player_previous_world_x = 0;
-var player_previous_world_y = 0;
 var player_health = 10;
 var copper_count = 0;
 var player_room = -1;
@@ -135,6 +130,12 @@ var added_message_this_turn = false;
 
 var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
 
+// Used by all generation functions, don't need to pass it around everywhere
+static var current_level = 0;
+
+var stairs_x = 0;
+var stairs_y = 0;
+var seen_stairs = false;
 
 function init() {
     Gfx.resizescreen(screen_width, screen_height, true);
@@ -146,12 +147,32 @@ function init() {
     Gfx.createimage('frametime_canvas2', 100, 50);
 
     Entities.read_name_corpus();
+    LOS.calculate_rays();
+
+    generate_level();
 
     //
-    // Generate world
+    // Test entities in first room
     //
+    var first_room = rooms[0];
+    for (i in 0...2) {
+        var x = 3;
+        var y = 3;
+        Entities.random_armor(first_room.x + x + 0, first_room.y + y + i);
+        Entities.random_armor(first_room.x + x + 1, first_room.y + y + i);
+        Entities.random_armor(first_room.x + x + 2, first_room.y + y + i);
+    }
+    Entities.test_potion(first_room.x + 5, first_room.y + 7);
+}
 
-    // Fil world with walls at the start
+function generate_level() {
+    // Remove all entities, except inventory items and equipped equipment
+    // NOTE: if new entities are added which don't have a position need to change this
+    for (e in Entity.position.keys()) {
+        Entity.remove(e);
+    }
+
+    // Fill world with walls
     for (x in 0...map_width) {
         for (y in 0...map_height) {
             walls[x][y] = true;
@@ -160,17 +181,14 @@ function init() {
 
     // Generate and connect rooms
     rooms = GenerateWorld.generate_via_digging();
-    GenerateWorld.connect_rooms(rooms, 2);
-    // NOTE: need to increment room dimensions because connections have
-    // one dimension of 0 and rooms are really one bigger as well
+    GenerateWorld.connect_rooms(rooms, Random.float(1, 3));
+    // NOTE: need to increment room dimensions because connections have one dimension of 0 and rooms are really one bigger as well
     for (r in rooms) {
         r.width++;
         r.height++;
     }
 
-    for (r in rooms) {
-        visited_room.push(false);
-    }
+    visited_room = [for (i in 0...rooms.length) false];
 
     // Clear walls inside rooms
     for (r in rooms) {
@@ -181,70 +199,24 @@ function init() {
         }
     }
 
-    // Clear funtown
-    for (x in 0...funtown_x + 1) {
-        for (y in 0...funtown_y + 1) {
-            walls[x][y] = false;
-        }
-    }
+    // Set start position to first room, before generating entities so that generation uses the new player position in collision checks
+    player_x = rooms[0].x;
+    player_y = rooms[0].y;
 
     GenerateWorld.fill_rooms_with_entities();
 
-    // Set start position to first room
-    player_previous_world_x = rooms[0].x;
-    player_previous_world_y = rooms[0].y;
+    need_to_update_los = true;
 
-    if (in_funtown) {
-        player_x = funtown_x;
-        player_y = funtown_y;
-    } else {
-        player_x = player_previous_world_x;
-        player_y = player_previous_world_y;
+    // Put stairs to next level at the center of a random room
+    var random_room_i = 0;
+    while (random_room_i == 0 || rooms[random_room_i].is_connection) {
+        random_room_i = Random.int(0, rooms.length - 1);
     }
 
-    LOS.calculate_rays();
-
-    //
-    // Funtown
-    //
-    // walls[7][5] = true;
-    // walls[8][5] = true;
-    // walls[9][5] = true;
-    // walls[10][5] = true;
-    // walls[11][5] = true;
-    // walls[12][5] = true;
-
-    // Entities.snail(10, 3);
-    // Entities.ring(11, 3);
-    // Entities.ring(12, 3);
-    // Entities.ring(13, 3);
-    // Entities.ring(14, 3);
-    // Entities.ring(15, 3);
-    // Entities.snail(10, 4);
-    // Entities.snail(10, 5);
-    // Entities.bear(8, 8);
-
-    // Entities.fountain(8, 10);
-
-    // var enemy_type = Entities.random_enemy_type();
-    // for (i in 0...5) {
-    //     var x = i;
-    //     var y = 2;
-    //     Entity.make_type(x, y, enemy_type);
-    // }
-
-    for (i in 0...2) {
-        var x = 7;
-        var y = 5;
-        Entities.random_armor(x + 0, y + i);
-        Entities.random_armor(x + 1, y + i);
-        Entities.random_armor(x + 2, y + i);
-    }
-
-    // Entities.sword(6, 7);
-    Entities.test_potion(6, 8);
-
-    // Entities.chest(2, 15);
+    var r = rooms[random_room_i];
+    stairs_x = r.x + Math.floor(r.width / 2);
+    stairs_y = r.y + Math.floor(r.height / 2);
+    seen_stairs = false;
 }
 
 static var time_stamp = 0.0;
@@ -315,6 +287,10 @@ static function get_room_index(x: Int, y: Int): Int {
     return -1;
 }
 
+inline function position_visible(x: Int, y: Int): Bool {
+    return !los[x][y] || nolos || nolos_DEV;
+}
+
 function player_attack_total(): Map<ElementType, Int> {
     // Calculate attack totals for each element which is a sum of natural attack plus spell mods from spells(which can come from buffs, items, equipment)
     // Attack can't be negative
@@ -324,6 +300,7 @@ function player_attack_total(): Map<ElementType, Int> {
     for (element in Type.allEnums(ElementType)) {
         attack_total[element] = player_attack[element] + player_attack_mod[element];
 
+        // Attack can't be negative
         if (attack_total[element] < 0) {
             attack_total[element] = 0;
         }
@@ -337,6 +314,7 @@ function player_defense_total(): Map<ElementType, Int> {
     for (element in Type.allEnums(ElementType)) {
         defense_total[element] = player_defense[element] + player_defense_mod[element];
 
+        // Defense can't be negative
         if (defense_total[element] < 0) {
             defense_total[element] = 0;
         }
@@ -795,11 +773,11 @@ function entity_attack_player(e: Int) {
     var defense_total = player_defense_total();
     function defense_to_absorb(def: Int): Int {
         // 82 def = absorb at least 8, absorb 9 20% of the time
-        var absorb = def / 10;
-        if (Random.chance(def % 10 * 10)) {
+        var absorb: Int = Math.floor(def / 10);
+        if (Random.chance((def % 10) * 10)) {
             absorb++;
         }
-        return Math.floor(absorb);
+        return absorb;
     }
 
     var damage_total = 0;
@@ -913,7 +891,7 @@ function draw_entity(e: Int, x: Float, y: Float) {
     }
 }
 
-function do_spell(spell: Spell): Bool {
+function do_spell(spell: Spell, effect_message: Bool = true): Bool {
     var spell_over = false;
     var active = false;
 
@@ -971,7 +949,7 @@ function do_spell(spell: Spell): Bool {
                     player_health_max_mod += spell.value;
                 }
                 
-                if (spell.duration != Entity.INFINITE_DURATION) {
+                if (spell.duration_type == SpellDuration_Permanent) {
                     add_message('${spell.origin_name} increases your max health by ${spell.value}.');
                 }
             }
@@ -987,7 +965,7 @@ function do_spell(spell: Spell): Bool {
                     player_attack_mod[spell.element] += spell.value;
                 }
 
-                if (spell.duration != Entity.INFINITE_DURATION) {
+                if (spell.duration_type == SpellDuration_Permanent) {
                     add_message('${spell.origin_name} increases your ${spell.element} attack by ${spell.value}.');
                 }
             }
@@ -998,7 +976,7 @@ function do_spell(spell: Spell): Bool {
                     player_defense_mod[spell.element] += spell.value;
                 }
 
-                if (spell.duration != Entity.INFINITE_DURATION) {
+                if (spell.duration_type == SpellDuration_Permanent) {
                     add_message('${spell.origin_name} increases your ${spell.element} defense by ${spell.value}.');
                 }
             }
@@ -1177,6 +1155,7 @@ function update() {
     //
     // Render
     //
+    // Tiles
     Gfx.scale(1, 1, 0, 0);
     Gfx.drawtoimage('tiles_canvas');
     for (x in 0...view_width) {
@@ -1188,10 +1167,10 @@ function update() {
             if (out_of_map_bounds(map_x, map_y) || walls[map_x][map_y]) {
                 new_tile = Tile.Black;
             } else {
-                if (los[x][y] && !nolos && !nolos_DEV) {
-                    new_tile = Tile.DarkerGround;
-                } else {
+                if (position_visible(x, y)) {
                     new_tile = Tile.Ground;
+                } else {
+                    new_tile = Tile.DarkerGround;
                 }
             }
 
@@ -1207,11 +1186,16 @@ function update() {
     Gfx.clearscreen(Col.BLACK);
     Gfx.drawimage(0, 0, "tiles_canvas");
 
+    // Stairs
+    if (!out_of_view_bounds(stairs_x, stairs_y) && position_visible(stairs_x - view_x, stairs_y - view_y)) {
+        Gfx.drawtile(screen_x(stairs_x), screen_y(stairs_y), 'tiles', Tile.Stairs);
+    }
+
     // Entities
     Text.size = draw_char_size;
     for (e in Entity.position.keys()) {
         var pos = Entity.position[e];
-        if (!out_of_view_bounds(pos.x, pos.y) && (!los[pos.x - view_x][pos.y - view_y] || nolos || nolos_DEV)) {
+        if (!out_of_view_bounds(pos.x, pos.y) && position_visible(pos.x - view_x, pos.y - view_y)) {
             draw_entity(e, screen_x(pos.x), screen_y(pos.y));
         }
     }
@@ -1405,7 +1389,7 @@ function update() {
     // Stop interaction if entity too far away or is not visible
     if (Entity.position.exists(interact_target)) {
         var pos = Entity.position[interact_target];
-        if (!player_next_to(Entity.position[interact_target]) || los[pos.x - view_x][pos.y - view_y]) {
+        if (!player_next_to(Entity.position[interact_target]) || !position_visible(pos.x - view_x, pos.y - view_y)) {
             interact_target = Entity.NONE;
         }
     }
@@ -1432,7 +1416,6 @@ function update() {
             if (Entity.position.exists(interact_target)) {
                 // Can equip if is equipment and is on map
                 if (GUI.auto_text_button('Equip')) {
-                    trace("equip");
                     equip_entity(interact_target);
 
                     done_interaction = true;
@@ -1440,7 +1423,6 @@ function update() {
             } else {
                 // Can unequip if is equipment and not on map
                 if (GUI.auto_text_button('Unequip')) {
-                    trace("unequip");
                     drop_entity_from_player(interact_target);
 
                     done_interaction = true;
@@ -1497,30 +1479,17 @@ function update() {
     //
     // Developer options
     //
-    GUI.x = ui_x - 200;
+    GUI.x = ui_x - 250;
     GUI.y = 0;
     if (GUI.auto_text_button('Toggle dev')) {
         show_dev_buttons = !show_dev_buttons;
     }
     if (show_dev_buttons) {
-        if (in_funtown) {
-            if (GUI.auto_text_button('To world')) {
-                in_funtown = false;
-                player_x = player_previous_world_x;
-                player_y = player_previous_world_y;
-                need_to_update_los = true;
-                player_acted = true;
-            }
-        } else {
-            if (GUI.auto_text_button('To funtown')) {
-                in_funtown = true;
-                player_previous_world_x = player_x;
-                player_previous_world_y = player_y;
-                player_x = funtown_x;
-                player_y = funtown_y;
-                need_to_update_los = true;
-                player_acted = true;
-            }
+        if (GUI.auto_text_button('To first room')) {
+            player_x = rooms[0].x;
+            player_y = rooms[0].y;
+            need_to_update_los = true;
+            player_acted = true;
         }
         if (GUI.auto_text_button('Toggle full map')) {
             full_minimap_DEV = !full_minimap_DEV;
@@ -1537,6 +1506,23 @@ function update() {
     }
 
     //
+    // Update seen status for entities drawn on minimap
+    //
+    if (!seen_stairs && !out_of_view_bounds(stairs_x, stairs_y) && position_visible(stairs_x - view_x, stairs_y - view_y)) {
+        seen_stairs = true;
+    }
+    for (e in Entity.locked.keys()) {
+        var locked = Entity.locked[e];
+
+        if (!locked.seen && Entity.position.exists(e)) {
+            var pos = Entity.position[e];
+            if (!out_of_view_bounds(pos.x, pos.y) && position_visible(pos.x - view_x, pos.y - view_y)) {
+                locked.seen = true;
+            }
+        }
+    }
+
+    //
     // Minimap
     //
     for (i in 0...rooms.length) {
@@ -1545,14 +1531,16 @@ function update() {
             Gfx.drawbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
         }
 
-        if (show_locked) {
-            for (e in Entity.locked.keys()) {
-                if (Entity.position.exists(e)) {
-                    var pos = Entity.position[e];
-                    var locked = Entity.locked[e];
-                    Gfx.drawbox(minimap_x + pos.x * minimap_scale, minimap_y + pos.y * minimap_scale, minimap_scale, minimap_scale, locked.color);
-                }
+        // Draw locked if they were seen or if show_locked spell active
+        for (e in Entity.locked.keys()) {
+            var locked = Entity.locked[e];
+            if ((locked.seen || show_locked) && Entity.position.exists(e)) {
+                var pos = Entity.position[e];
+                Gfx.drawbox(minimap_x + pos.x * minimap_scale, minimap_y + pos.y * minimap_scale, minimap_scale, minimap_scale, locked.color);
             }
+        }
+        // Draw keys only if show_locked spell active
+        if (show_locked) {
             for (e in Entity.unlocker.keys()) {
                 if (Entity.position.exists(e)) {
                     var pos = Entity.position[e];
@@ -1561,9 +1549,18 @@ function update() {
                 }
             }
         }
+
+        if (seen_stairs) {
+            Gfx.drawbox(minimap_x + stairs_x * minimap_scale, minimap_y + stairs_y * minimap_scale, minimap_scale, minimap_scale, Col.LIGHTBLUE);
+        }
     }
 
     Gfx.drawbox(minimap_x + player_x * minimap_scale, minimap_y + player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
+
+    if (Input.justpressed(Key.U)) {
+        current_level++;
+        generate_level();
+    }
 
     //
     // End of turn
@@ -1571,6 +1568,12 @@ function update() {
     if (player_acted) {
         // Clear interact target if done something
         interact_target = Entity.NONE;
+
+        // Transition to new level if stepped on stairs
+        if (player_x == stairs_x && player_y == stairs_y) {
+            current_level++;
+            generate_level();
+        }
 
         // Recalculate player room if room changed
         if (player_room != -1) {

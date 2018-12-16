@@ -302,18 +302,9 @@ static function random_potion_spell(): Spell {
 
     var duration_type = switch (type) {
         case SpellType_ModHealth: SpellDuration_Permanent;
-        case SpellType_ModHealthMax: Pick.value([
-            {v: SpellDuration_Permanent, c: 1.0},
-            {v: SpellDuration_EveryTurn, c: 2.0},
-            ]);
-        case SpellType_ModAttack: Pick.value([
-            {v: SpellDuration_Permanent, c: 1.0},
-            {v: SpellDuration_EveryTurn, c: 40.0},
-            ]);
-        case SpellType_ModDefense: Pick.value([
-            {v: SpellDuration_Permanent, c: 1.0},
-            {v: SpellDuration_EveryTurn, c: 20.0},
-            ]);
+        case SpellType_ModHealthMax: SpellDuration_EveryTurn;
+        case SpellType_ModAttack: SpellDuration_EveryTurn;
+        case SpellType_ModDefense: SpellDuration_EveryTurn;
         default: SpellDuration_Permanent;
     }
 
@@ -330,27 +321,9 @@ static function random_potion_spell(): Spell {
 
     var value = switch (type) {
         case SpellType_ModHealth: Random.int(5, 8);
-        case SpellType_ModHealthMax: {
-            switch (duration_type) {
-                case SpellDuration_Permanent: Random.int(1, 2);
-                case SpellDuration_EveryTurn: Random.int(2, 3);
-                default: 0;
-            };
-        }
-        case SpellType_ModAttack: {
-            switch (duration_type) {
-                case SpellDuration_Permanent: 1;
-                case SpellDuration_EveryTurn: Random.int(1, 2);
-                default: 0;
-            };
-        }
-        case SpellType_ModDefense: {
-            switch (duration_type) {
-                case SpellDuration_Permanent: Random.int(1, 2);
-                case SpellDuration_EveryTurn: Random.int(2, 4);
-                default: 0;
-            };
-        }
+        case SpellType_ModHealthMax: Random.int(2, 3);
+        case SpellType_ModAttack: Random.int(2, 3);
+        case SpellType_ModDefense: Random.int(2, 3);
         default: 0;
     }
 
@@ -381,7 +354,7 @@ static function random_scroll_spell(): Spell {
         {v: SpellType_UncoverMap, c: 1.0},
         {v: SpellType_Nolos, c: 1.0},
         {v: SpellType_Noclip, c: 1.0},
-        {v: SpellType_RandomTeleport, c: 1.0},
+        {v: SpellType_RandomTeleport, c: 0.5},
         {v: SpellType_SafeTeleport, c: 0.5},
         {v: SpellType_ModHealthMax, c: 1.0},
         {v: SpellType_ModAttack, c: 1.0},
@@ -459,6 +432,14 @@ static function random_ring_spell(): Spell {
         case SpellType_ModAttack: 1;
         case SpellType_ModDefense: Random.int(1, 2);
         default: 0;
+    }
+
+    // Figure out when to make elements random
+    var element = switch (type) {
+        case SpellType_ModHealthMax: ElementType_Physical;
+        case SpellType_ModAttack: ElementType_Physical;
+        case SpellType_ModDefense: ElementType_Physical;
+        default: ElementType_Physical;
     }
 
     return {

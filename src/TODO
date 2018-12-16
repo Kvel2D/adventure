@@ -1,28 +1,43 @@
 --------------------------------------------------------------------------
 TODO
 
+how to scale values by level
+    add level?
+    add level * some scale?
+    multiple by some scale based on level
+        health_scale_by_level = [1 => 1.0, 2 => 1.5, 3 => 1.75 ...
+        attack_scale_by_level = [1 => 1.0, 2 => 1.4, 3 => 1.7 ...
+    this way can scale each value differently while also making it possible to make arbitrary increase amounts between levels
+
+merchant
+    merchants can attack as a buffer if item drops are crap
+
 implement different elements for
     generated entities should have elements
     same for spells
 
-start thinking about level progression
-    first level should have mostly just physical enemies
-    later levels should become more varied
+elemental enemies should start later and should be phys+element mixed, not pure element
 
-friendly mobs which attack other mobs
-    other mobs should attack them as well?
-
+draw value on top of spell icon?
 
 --------------------------------------------------------------------------
 DONE
 
-
 --------------------------------------------------------------------------
 BUGS
 
+somehow generated a disconnected room
+couldn't pick up a key
+
+entities with random movement can move into other rooms(might actually be a fun design?)
+
+generated 2 orange chests but only 1 key
 
 --------------------------------------------------------------------------
 IDEAS
+
+friendly mobs which attack other mobs
+    other mobs should attack them as well?
 
 cells with effects
     poison - works like bloodborne, but full damage instantly at completion of meter, meter invisible, in effect allows for constant accumulation of poison in realtime which periodically "ticks"
@@ -51,17 +66,6 @@ locked doors that need keys(key spawned randomly in world a bit far away from do
 long-range attack for entities
     attacks player if no LOS(i.e. player can see it)
 
-elements system
-    fire, lightning, shadow(maybe something else too)
-    each dmg bonus and stuff is one of those
-    regular dmg is melee
-    mobs can be resistant to some elements, including melee
-        ex: a mob that can only be defeated with shadow
-    dmg bonus spells for same element don't stack
-        +2fire dmg followed by +4fire dmg = +4fire dmg
-        limits the max amount of bonus you can get
-        have to use multiple elements if you want to go crazy
-
 make levels
     the world could be a tower
 
@@ -85,21 +89,11 @@ special effects
 increase movespeed
 increase copper droprate
 increase item droprate
-resistant to elements/ailments
 invisibility, enemies can't chase you
-increase armor by a factor
 cure poison
 extra life, restore full hp once when dying
 swap stats with enemy
     health, attacks, defenses
-armor scale mod
-armor flat mod
-absorb mod
-
-spell notes
-    combat related bonuses should either be everyattack or everyturn but last long enough
-    attack bonus that lasts 1 turn is useless
-    temporary max health mod should have one tick only which lasts for N turns/attacks
 
 entity editor in-game
     edit/add/remove all components
@@ -125,16 +119,6 @@ mod equipment stat
         one that adds element power even if it's 0
         other that only increases existing element
             so enchanting ice on a sword with 1 phys dmg will do nothing 
-
-
-make defense translate to absorb like this:
-    82 defense = absorb 8 dmg always, 20% chance to absorb 9 dmg
-
-
-can defense be negative?
-    keep positive for now but should consider
-    could work as a penalty for specializing too much into one element
-        though on the other hand this might penalize it too hard
 
 ranged attacks
     entities can attack if 2-3-4 away from player
@@ -164,9 +148,6 @@ make entities have defense instead of absorb because right now it's inconsistent
 
 attacking always takes prio, might need to disable attack while interact menu is up
 
-html5 target draws text at incorrect locations
-    might be related to the "pixel perfect" setting that's passed to haxegon
-
 browsers need hardware acceleration apparently, need to put a note on game site
 
 find a good font, that doesn't have scaling or offset problems
@@ -174,9 +155,6 @@ find a good font, that doesn't have scaling or offset problems
 scrolling for spell display, at some point spells won't fit in current area
 
 figure out copper drop amount
-
-entities should sometimes drop locked chests
-    other entities drop the key once chest is down
 
 weapons buffs   
     base attack buffs
@@ -194,15 +172,6 @@ potion that has two spells
 boss mobs
     guaranteed powerful item drop
     big health pool
-
-SPELL identify
-    probably only for specific items/buffs
-    potions should not need to be identified
-    special scrolls with complicated spell effects might be a good candidate
-    or armor's use non-standard spells  
-        +defense/attack is fine
-        extra stuff can require identification
-    identified with a spell from a scroll or in-world entity
 
 SPELL decrease stat of everything on level
     includes all entities, items, equipment, in world or carried
@@ -277,3 +246,20 @@ swap defense spell should
 
 decrease attack of EVERYTHING on the level(includes player's stuff)
 
+need to make sure that friendly mobs can't cause a path block
+    making it possible to attack them would allow the player to get out of any possible buggy situation
+
+identify system
+    only applies to use effects(maybe special armor buffs too?)
+    once used a spell once, can see the same type everywhere else
+    identifying a use spell identifies all similar spells everywhere
+
+need to make sure stairs can't be blocked
+
+cache map image
+    redraw on new map rect additions or removals
+    draw player on top of cache
+
+single element defense potions are pretty useless
+    make all-element defense potions most of the time
+    could make single element def but the value should be high to make it worth the inventory slot

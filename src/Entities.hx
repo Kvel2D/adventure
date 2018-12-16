@@ -382,37 +382,6 @@ static function key(x: Int, y: Int, color: Int): Int {
     return e;
 }
 
-static function chest(x: Int, y: Int): Int {
-    var e = Entity.make();
-
-    Entity.set_position(e, x, y);
-    Entity.name[e] = 'Chest';
-
-    Entity.description[e] = 'Unlocked chest.';
-    Entity.draw_char[e] = {
-        char: 'C',
-        color: Col.GRAY,
-    };
-    Entity.combat[e] = {
-        health: 1, 
-        attack: [
-        ElementType_Physical => 0,
-        ], 
-        absorb: [
-        ElementType_Physical => 0,
-        ], 
-        message: 'Chest opens with a creak.',
-        aggression: AggressionType_Passive,
-        attacked_by_player: false,
-    };
-    Entity.drop_entity[e] = {
-        table: DropTable_Default,
-        chance: 100,
-    };
-
-    return e;
-}
-
 static function locked_chest(x: Int, y: Int): Int {
     var e = Entity.make();
 
@@ -427,6 +396,7 @@ static function locked_chest(x: Int, y: Int): Int {
     };
     Entity.locked[e] = {
         color: color,
+        seen: false,
     };
     Entity.drop_entity[e] = {
         table: DropTable_LockedChest,
@@ -447,7 +417,16 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [Spells.show_locked()],
+        spells: [{
+        type: SpellType_ModDefense,
+        element: ElementType_Physical,
+        duration_type: SpellDuration_EveryTurn,
+        duration: 30,
+        interval: 1,
+        interval_current: 0,
+        value: 1,
+        origin_name: "noname",
+    }],
         charges: 2,
         consumable: true,
     };
@@ -460,7 +439,7 @@ static function test_potion(x: Int, y: Int): Int {
 
 static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
     switch (droptable) {
-        // For common mobs and unlocked chests
+        // For common mobs chests
         case DropTable_Default: {
             return (Pick.value([
                 {v: Entities.random_weapon, c: 1.0},
@@ -535,7 +514,6 @@ static function random_armor(x: Int, y: Int): Int {
 
 static function random_ring(x: Int, y: Int) {
     var e = Entity.make();
-    // TODO: figure out picking random spell
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Ring';
     Entity.item[e] = {
@@ -631,12 +609,12 @@ static function random_enemy_type(element: ElementType): EntityType {
         item: null,
         use: null,
         combat: {
-            health: Random.int(1, 3), 
+            health: Random.int(1, 3) + Main.current_level, 
             attack: [
-            element => Random.int(1, 2),
+            element => Random.int(1, 2) + Main.current_level,
             ], 
             absorb: [
-            element => 0,
+            element => 0 + Random.int(0, Main.current_level),
             ], 
             message: '$name defends itself.',
             aggression: Pick.value([

@@ -10,6 +10,7 @@ class Tile {
     static inline var Black = at(1, 0);
     static inline var Ground = at(2, 0);
     static inline var DarkerGround = at(3, 0);
+    static inline var Stairs = at(4, 0);
 
     static inline var PotionPhysical = at(0, 1);
     static inline var PotionShadow = at(1, 1);
