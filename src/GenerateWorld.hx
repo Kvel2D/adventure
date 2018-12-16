@@ -198,7 +198,7 @@ static function generate_via_digging(): Array<Room> {
 // Connect rooms that intersect with each other on an axis
 // Then remove connections that go across rooms or are too long
 // Avoid creating disconnected islands
-static function connect_rooms(rooms: Array<Room>) {
+static function connect_rooms(rooms: Array<Room>, disconnect_factor: Float = 0.0) {
     var horizontals = new Array<Connection>();
     var verticals = new Array<Connection>();
 
@@ -372,23 +372,40 @@ static function connect_rooms(rooms: Array<Room>) {
 
         return true;
     }
-
-    // Remove long connections
-    var removed = new Array<Connection>();
+    var removed_long = new Array<Connection>();
     for (c in connections) {
         if (Math.dst(c.x1, c.y1, c.x2, c.y2) > max || Random.chance(10)) {
             connected[c.i][c.j] = false;
             connected[c.j][c.i] = false;
 
             if (all_connected()) {
-                removed.push(c);
+                removed_long.push(c);
             } else {
                 connected[c.i][c.j] = true;
                 connected[c.j][c.i] = true;
             }
         }
     }
-    for (c in removed) {
+    for (c in removed_long) {
+        connections.remove(c);
+    }
+
+    // Remove random connections without disconnecting rooms
+    var removed_random = new Array<Connection>();
+    for (i in 0...Math.floor(disconnect_factor * connections.length)) {
+        var c = Random.pick(connections);
+
+        connected[c.i][c.j] = false;
+        connected[c.j][c.i] = false;
+
+        if (all_connected()) {
+            removed_random.push(c);
+        } else {
+            connected[c.i][c.j] = true;
+            connected[c.j][c.i] = true;
+        }
+    }
+    for (c in removed_random) {
         connections.remove(c);
     }
 

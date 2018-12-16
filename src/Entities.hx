@@ -4,17 +4,165 @@ import Entity;
 import Spells;
 import Pick;
 
+typedef MarkovStruct = {
+    chars: Array<String>,
+    char_map: Map<String, Int>,
+    char_counts: Map<Int, Int>,
+    char_counts_inc: Array<Int>,
+    char_chances: Map<String, Int>,
+};
+
 @:publicFields
 class Entities {
 // NOTE: force unindent
 
 static var locked_colors = [Col.RED, Col.ORANGE, Col.GREEN, Col.BLUE];
 
+static var firsts: MarkovStruct = {
+    chars: new Array<String>(),
+    char_map: new Map<String, Int>(),
+    char_counts: new Map<Int, Int>(),
+    char_counts_inc: new Array<Int>(),
+    char_chances: new Map<String, Int>(),
+};
+
+static var pairs = new Map<String, MarkovStruct>();
+static var pairs_chars = new Array<String>();
+static var pairs_char_map = new Map<String, Int>();
+
+static inline var EOF = '0';
+
+static function read_name_corpus() {
+    function count_char(char: String, s: MarkovStruct) {
+        if (!s.char_map.exists(char)) {
+            s.chars.push(char);
+            s.char_map[char] = s.chars.length - 1;
+            s.char_counts[s.chars.length - 1] = 1;
+        } else {
+            var index = s.char_map[char];
+            s.char_counts[index]++;
+        }
+    }
+
+    function add_up_increments(s: MarkovStruct) {
+        var total: Int = 0;
+        for (i in 0...s.chars.length) {
+            total += s.char_counts[i];
+            s.char_counts_inc.push(total);
+        }
+    }
+
+    var corpus = Data.loadtext('name_corpus.txt');
+
+    for (name in corpus) {
+        count_char('${name.charAt(0)}${name.charAt(1)}', firsts);
+    }
+
+    add_up_increments(firsts);
+
+    for (name in corpus) {
+        for (i in 0...name.length) {
+            var j = 0;
+
+            while (j < name.length - 2) {
+                var first = name.charAt(j);
+                var second = name.charAt(j + 1);
+
+                var third = if (j + 2 == name.length) {
+                    EOF;
+                } else {
+                    name.charAt(j + 2);
+                }
+
+                var pair = first + second;
+
+                if (!pairs_char_map.exists(pair)) {
+                    pairs[pair] = {
+                        chars: new Array<String>(),
+                        char_map: new Map<String, Int>(),
+                        char_counts: new Map<Int, Int>(),
+                        char_counts_inc: new Array<Int>(),
+                        char_chances: new Map<String, Int>(),
+                    };
+
+                    pairs_chars.push(pair);
+                    pairs_char_map[pair] = pairs_chars.length - 1;
+                }
+
+                if (third != second && third != first) {
+                    count_char(third, pairs[pair]);
+                }
+                j++;
+            }
+        }
+    }
+
+    for (i in 0...pairs_chars.length) {
+        add_up_increments(pairs[pairs_chars[i]]);
+    }
+}
+
 static var generated_names = new Array<String>();
+
+static function generate_name(): String {
+    var name = '';
+    while (generated_names.indexOf(name) != -1 || name == '') {
+        name = generate_name_markov();
+    }
+    return name;
+}
+
+static function generate_name_markov(): String {
+    function random_char(struct: MarkovStruct): String {
+        var total = struct.char_counts_inc[struct.char_counts_inc.length - 1];
+        var k = Random.int(0, total);
+        for (i in 0...struct.chars.length) {
+            if (k <= struct.char_counts_inc[i]) {
+                return struct.chars[i];
+            }
+        }
+
+        return EOF;
+    }
+
+    var str = "";
+
+    var first_pair = random_char(firsts);
+    while (!pairs.exists(first_pair) || pairs[first_pair].chars.length == 0) {
+        first_pair = random_char(firsts);
+    }
+
+    var count = 2;
+    str += first_pair;
+
+    var prev_prev = first_pair.charAt(0);
+    var prev = first_pair.charAt(1);
+    var k = Random.int(4, 10);
+    while (k > 0) {
+        var pair = prev_prev + prev;
+        var next = "";
+        if (pairs.exists(pair)) {
+            next = random_char(pairs[pair]);
+            count++;
+        }
+
+        prev_prev = prev;
+        prev = next;
+        if (!pairs.exists(pair) || next == EOF) {
+            break;
+        } else {
+            str += next;
+        }
+        k--;
+    }
+
+    return str;
+}
+
 static var vowels = ['a', 'e', 'i', 'o', 'u'];
 static var consonants = ['y', 'q', 'w', 'r', 't', 'p', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'z', 'x', 'c', 'v', 'b', 'n', 'm'];
 
-static function generate_name(): String {
+static function generate_name_old(): String {
     var name = '';
     while (generated_names.indexOf(name) != -1 || name == '') {
         var consonant_first = Random.bool();
@@ -299,7 +447,7 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [Spells.noclip()],
+        spells: [Spells.show_locked()],
         charges: 2,
         consumable: true,
     };

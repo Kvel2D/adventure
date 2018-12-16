@@ -42,7 +42,7 @@ static inline var equipment_y = 120;
 static inline var equipment_amount = 4;
 static inline var inventory_y = 180;
 static inline var inventory_width = 4;
-static inline var inventory_height = 4;
+static inline var inventory_height = 2;
 static inline var spells_list_y = 320;
 static inline var message_history_y = 600;
 static inline var message_history_length_max = 20;
@@ -54,7 +54,7 @@ static inline var ui_text_size = 14;
 static inline var player_hud_text_size = 8;
 static inline var charges_text_size = 8;
 
-static inline var max_rings = 4;
+static inline var max_rings = 3;
 
 static var walls = Data.create2darray(map_width, map_height, false);
 static var rooms: Array<Room>;
@@ -64,15 +64,17 @@ var los = Data.create2darray(view_width, view_height, false);
 
 var damage_numbers = new Array<DamageNumber>();
 
+var noclip = false;
+var nolos = false;
+var show_locked = false;
+
 var show_dev_buttons = true;
 var in_funtown = true;
-var noclip = false;
 var noclip_DEV = false;
 var nolos_DEV = false;
-var nolos = false;
-var draw_minimap = true;
+var full_minimap_DEV = false;
+var frametime_graph_DEV = false;
 var draw_invisible_entities = true;
-var frametime_graph = false;
 
 static var player_x = 0;
 static var player_y = 0;
@@ -143,6 +145,8 @@ function init() {
     Gfx.createimage('frametime_canvas', 100, 50);
     Gfx.createimage('frametime_canvas2', 100, 50);
 
+    Entities.read_name_corpus();
+
     //
     // Generate world
     //
@@ -156,7 +160,7 @@ function init() {
 
     // Generate and connect rooms
     rooms = GenerateWorld.generate_via_digging();
-    GenerateWorld.connect_rooms(rooms);
+    GenerateWorld.connect_rooms(rooms, 2);
     // NOTE: need to increment room dimensions because connections have
     // one dimension of 0 and rooms are really one bigger as well
     for (r in rooms) {
@@ -966,8 +970,6 @@ function do_spell(spell: Spell): Bool {
                 } else {
                     player_health_max_mod += spell.value;
                 }
-                player_health += spell.value;
-
                 
                 if (spell.duration != Entity.INFINITE_DURATION) {
                     add_message('${spell.origin_name} increases your max health by ${spell.value}.');
@@ -1022,11 +1024,25 @@ function do_spell(spell: Spell): Bool {
 
                 add_message('You are teleported to a random room.');
             }
+            case SpellType_SafeTeleport: {
+                // Teleport to top-left corner of first room, which is always empty
+                var destination = 0;
+
+                var r = rooms[destination];
+                player_x = r.x;
+                player_y = r.y;
+                player_room = destination;
+
+                add_message('You are teleported to a safe place.');
+            }
             case SpellType_Nolos: {
                 nolos = true;
             }
             case SpellType_Noclip: {
                 noclip = true;
+            }
+            case SpellType_ShowLocked: {
+                show_locked = true;
             }
         }
     }
@@ -1506,8 +1522,8 @@ function update() {
                 player_acted = true;
             }
         }
-        if (GUI.auto_text_button('Toggle minimap')) {
-            draw_minimap = !draw_minimap;
+        if (GUI.auto_text_button('Toggle full map')) {
+            full_minimap_DEV = !full_minimap_DEV;
         }
         if (GUI.auto_text_button('Toggle noclip')) {
             noclip_DEV = !noclip_DEV;
@@ -1516,20 +1532,38 @@ function update() {
             nolos_DEV = !nolos_DEV;
         }
         if (GUI.auto_text_button('Toggle frametime graph')) {
-            frametime_graph = !frametime_graph;
+            frametime_graph_DEV = !frametime_graph_DEV;
         }
     }
 
-    if (draw_minimap) {
-        for (i in 0...rooms.length) {
-            if (visited_room[i]) {
-                var r = rooms[i];
-                Gfx.drawbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
+    //
+    // Minimap
+    //
+    for (i in 0...rooms.length) {
+        if (visited_room[i] || full_minimap_DEV) {
+            var r = rooms[i];
+            Gfx.drawbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
+        }
+
+        if (show_locked) {
+            for (e in Entity.locked.keys()) {
+                if (Entity.position.exists(e)) {
+                    var pos = Entity.position[e];
+                    var locked = Entity.locked[e];
+                    Gfx.drawbox(minimap_x + pos.x * minimap_scale, minimap_y + pos.y * minimap_scale, minimap_scale, minimap_scale, locked.color);
+                }
+            }
+            for (e in Entity.unlocker.keys()) {
+                if (Entity.position.exists(e)) {
+                    var pos = Entity.position[e];
+                    var unlocker = Entity.unlocker[e];
+                    Gfx.drawbox(minimap_x + pos.x * minimap_scale, minimap_y + pos.y * minimap_scale, minimap_scale, minimap_scale, unlocker.color);
+                }
             }
         }
-
-        Gfx.drawbox(minimap_x + player_x * minimap_scale, minimap_y + player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
     }
+
+    Gfx.drawbox(minimap_x + player_x * minimap_scale, minimap_y + player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
 
     //
     // End of turn
@@ -1564,6 +1598,7 @@ function update() {
         }
         nolos = false;
         noclip = false;
+        show_locked = false;
 
         //
         // Process spells
@@ -1651,7 +1686,7 @@ function update() {
         }
     }
 
-    if (frametime_graph) {
+    if (frametime_graph_DEV) {
         var frame_time = Math.max(1 / 60.0, Timer.stamp() - update_start);
 
         Gfx.drawtoimage('frametime_canvas2');

@@ -5,16 +5,21 @@ implement different elements for
     generated entities should have elements
     same for spells
 
+start thinking about level progression
+    first level should have mostly just physical enemies
+    later levels should become more varied
+
+friendly mobs which attack other mobs
+    other mobs should attack them as well?
+
+
 --------------------------------------------------------------------------
 DONE
+
 
 --------------------------------------------------------------------------
 BUGS
 
-saw a mob move ontop of another mob
-    possible that the other died and the alive one moved on top of it in the same turn?
-
-light potion had shadow icon
 
 --------------------------------------------------------------------------
 IDEAS
@@ -40,8 +45,6 @@ pushable blocks ala sokoban
     but block is surround by enemies, need to clear them to be able to push it
     pushed by moving next to block
     can grab block for undoing purposes by holding G
-
-rivalry - contains it's own "faction" and an enemy "faction", they attack each other instead of player if they are close
 
 locked doors that need keys(key spawned randomly in world a bit far away from door)
 
@@ -97,10 +100,6 @@ spell notes
     combat related bonuses should either be everyattack or everyturn but last long enough
     attack bonus that lasts 1 turn is useless
     temporary max health mod should have one tick only which lasts for N turns/attacks
-
-make a markov chain name generator
-    not sure if it will work well, need to test
-    use animal names for corpus
 
 entity editor in-game
     edit/add/remove all components
@@ -254,3 +253,27 @@ aoe damage spell
 
 modhealth everyattack
     something like leech
+
+summon friendly mobs spell
+    moving or stationary
+
+show whether mob is friendly or aggressive in tooltip
+    disallow attacking friendly mobs so that player is more likely to check that he can interact and pick it up
+
+reign of shadow spell
+    remove everything with light element from the level, entities drop items when removed
+    includes player items/equipment?
+
+copy scroll spell
+    probably on another scroll
+    copies another scroll exactly
+
+add use charges spell
+    probably very rare, because can be extremely powerful
+
+swap defense spell should
+    give mob's natural defense to player
+    but give natural+mods defense of player to mob
+
+decrease attack of EVERYTHING on the level(includes player's stuff)
+
