@@ -17,6 +17,7 @@ class Entities {
 // NOTE: force unindent
 
 static var locked_colors = [Col.RED, Col.ORANGE, Col.GREEN, Col.BLUE];
+static var unlocked_color = Col.YELLOW;
 
 static var firsts: MarkovStruct = {
     chars: new Array<String>(),
@@ -31,6 +32,16 @@ static var pairs_chars = new Array<String>();
 static var pairs_char_map = new Map<String, Int>();
 
 static inline var EOF = '0';
+
+
+static inline var health_base_min = 1;
+static inline var health_base_max = 3;
+static inline var health_scaling = 1.0;
+static inline var attack_base_min = 1;
+static inline var attack_base_max = 1.5;
+static inline var attack_scaling = 1.0;
+static inline var absorb_base = 0;
+static inline var absorb_scaling = 1.0;
 
 static function read_name_corpus() {
     function count_char(char: String, s: MarkovStruct) {
@@ -188,7 +199,7 @@ static function generate_name_old(): String {
 
 static function get_element_color(element: ElementType): Int {
     return switch (element) {
-        case ElementType_Physical: Col.GREEN;
+        case ElementType_Physical: Col.GRAY;
         case ElementType_Fire: Col.RED;
         case ElementType_Ice: Col.BLUE;
         case ElementType_Shadow: Col.BLACK;
@@ -376,8 +387,40 @@ static function key(x: Int, y: Int, color: Int): Int {
     Entity.unlocker[e] = {
         color: color,
     };
+    Entity.draw_on_minimap[e] = {
+        color: color,
+        seen: false,
+    };
 
     Entity.validate(e);
+
+    return e;
+}
+
+static function unlocked_chest(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Chest';
+
+    var color = unlocked_color;
+    Entity.description[e] = 'An unlocked chest.';
+    Entity.draw_char[e] = {
+        char: 'C',
+        color: color,
+    };
+    Entity.locked[e] = {
+        color: color,
+        need_key: false,
+    };
+    Entity.drop_entity[e] = {
+        table: DropTable_Default,
+        chance: 100,
+    };
+    Entity.draw_on_minimap[e] = {
+        color: color,
+        seen: false,
+    };
 
     return e;
 }
@@ -396,11 +439,37 @@ static function locked_chest(x: Int, y: Int): Int {
     };
     Entity.locked[e] = {
         color: color,
-        seen: false,
+        need_key: true,
     };
     Entity.drop_entity[e] = {
         table: DropTable_LockedChest,
         chance: 100,
+    };
+    Entity.draw_on_minimap[e] = {
+        color: color,
+        seen: false,
+    };
+
+    return e;
+}
+
+static function stairs(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Stairs';
+
+    var color = Random.pick(locked_colors);
+    Entity.description[e] = 'Stairs to the next level.';
+    Entity.draw_tile[e] = Tile.Stairs;
+    Entity.draw_on_minimap[e] = {
+        color: Col.LIGHTBLUE,
+        seen: false,
+    };
+    Entity.use[e] = {
+        spells: [Spells.next_floor()],
+        charges: 1,
+        consumable: false,
     };
 
     return e;
@@ -417,17 +486,8 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [{
-        type: SpellType_ModDefense,
-        element: ElementType_Physical,
-        duration_type: SpellDuration_EveryTurn,
-        duration: 30,
-        interval: 1,
-        interval_current: 0,
-        value: 1,
-        origin_name: "noname",
-    }],
-        charges: 2,
+        spells: [Spells.chance_copper_drop()],
+        charges: 3,
         consumable: true,
     };
     Entity.draw_tile[e] = Tile.PotionPhysical;
@@ -594,8 +654,68 @@ static function random_scroll(x: Int, y: Int): Int {
     return e;
 }
 
-static function random_enemy_type(element: ElementType): EntityType {
+static function random_enemy_type(): EntityType {
     var name = generate_name();
+
+    var level = Main.current_floor;
+
+    // Higher floors have more elemental enemies, with possibility of full elementals
+    var element_ratio_min = 0.0;
+    var element_ratio_max = 0.0;
+    if (level == 0) {
+        // First floor only has physical enemies
+        element_ratio_min = 0.0;
+        element_ratio_max = 0.0;
+    } else if (level < 2) {
+        element_ratio_min = 0.0;
+        element_ratio_max = 0.33;
+    } else if (level < 3) {
+        element_ratio_min = 0.0;
+        element_ratio_max = 0.66;
+    } else if (level < 4) {
+        element_ratio_min = 0.0;
+        element_ratio_max = 1.0;
+    }
+
+    var element_ratio = Random.float(element_ratio_min, element_ratio_max);
+
+    var attack_base = Random.float(attack_base_min, attack_base_max);
+    var attack_avg = attack_base + attack_scaling * level;
+    var attack = Std.int(Math.round(Random.float(attack_avg * 0.8, attack_avg * 1.2))); 
+    var health_base = Random.float(health_base_min, health_base_max);
+    var health_avg = health_base + health_scaling * level;
+    var health = Std.int(Math.round(Random.float(health_avg * 0.8, health_avg * 1.2))); 
+    var absorb_avg = absorb_base + absorb_scaling * level;
+    var absorb = Std.int(Math.round(Random.float(absorb_avg * 0.8, absorb_avg * 1.2))); 
+
+    var attack_physical = Std.int(Math.floor(attack * (1 - element_ratio)));
+    var attack_elemental = Std.int(Math.floor(attack * element_ratio));
+
+    var absorb_physical = Std.int(Math.floor(absorb * (1 - element_ratio)));
+    var absorb_elemental = Std.int(Math.floor(absorb * element_ratio));
+
+    var agression_type = Pick.value([
+        {v: AggressionType_Aggressive, c: 4.0},
+        {v: AggressionType_Neutral, c: (4.0 / (1 + level))},
+        {v: AggressionType_Passive, c: (1.0 / (1 + level))},
+        ]);
+
+    var move_type = Pick.value([
+        {v: MoveType_Astar, c: 1.0},
+        {v: MoveType_Straight, c: 1.0},
+        {v: MoveType_Random, c: (1.0 / (1 + level))},
+        ]);
+
+    var element = Random.pick([ElementType_Fire, ElementType_Ice, ElementType_Light, ElementType_Shadow]);
+
+    // Only color according to element if some stat is non-zero
+    var color = if (attack_elemental > 0 || absorb_elemental > 0) {
+        get_element_color(element);
+    } else {
+        get_element_color(ElementType_Physical);
+    }
+
+    trace('ENEMY lvl$level: hp=$health,atk=$attack_physical+$attack_elemental,abs=$absorb_physical+$absorb_elemental');
 
     return {
         name: name,
@@ -603,25 +723,23 @@ static function random_enemy_type(element: ElementType): EntityType {
         draw_tile: Entity.NULL_INT,
         draw_char: {
             char: name.charAt(0),
-            color: get_element_color(element),
+            color: color,
         },
         equipment: null,
         item: null,
         use: null,
         combat: {
-            health: Random.int(1, 3) + Main.current_level, 
+            health: health, 
             attack: [
-            element => Random.int(1, 2) + Main.current_level,
+            ElementType_Physical => attack_physical,
+            element => attack_elemental,
             ], 
             absorb: [
-            element => 0 + Random.int(0, Main.current_level),
+            ElementType_Physical => absorb_physical,
+            element => absorb_elemental,
             ], 
             message: '$name defends itself.',
-            aggression: Pick.value([
-                {v: AggressionType_Aggressive, c: 6.0},
-                {v: AggressionType_Neutral, c: 3.0},
-                {v: AggressionType_Passive, c: 1.0},
-                ]),
+            aggression: agression_type,
             attacked_by_player: false,
         },
         // TODO: think about what percentage is good and whether to vary percentages by mob
@@ -636,11 +754,12 @@ static function random_enemy_type(element: ElementType): EntityType {
             max: 1,
         },
         move: {
-            type: Random.pick(Type.allEnums(MoveType)),
+            type: move_type,
             cant_move: false,
         },
         locked: null,
         unlocker: null,
+        draw_on_minimap: null,
     };
 } 
 

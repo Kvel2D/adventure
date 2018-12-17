@@ -64,7 +64,10 @@ var damage_numbers = new Array<DamageNumber>();
 
 var noclip = false;
 var nolos = false;
-var show_locked = false;
+var show_things = false;
+var movespeed_mod = 0;
+var dropchance_mod = 0;
+var copperchance_mod = 0;
 
 var show_dev_buttons = true;
 var noclip_DEV = false;
@@ -75,6 +78,8 @@ var draw_invisible_entities = true;
 
 static var player_x = 0;
 static var player_y = 0;
+var player_x_old = -1;
+var player_y_old = -1;
 var player_health = 10;
 var copper_count = 0;
 var player_room = -1;
@@ -123,7 +128,6 @@ var attack_target = Entity.NONE;
 var interact_target = Entity.NONE;
 var interact_target_x: Int;
 var interact_target_y: Int;
-var need_to_update_los = true;
 
 var message_history = [for (i in 0...message_history_length_max) turn_delimiter];
 var added_message_this_turn = false;
@@ -131,11 +135,8 @@ var added_message_this_turn = false;
 var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
 
 // Used by all generation functions, don't need to pass it around everywhere
-static var current_level = 0;
+static var current_floor = 0;
 
-var stairs_x = 0;
-var stairs_y = 0;
-var seen_stairs = false;
 
 function init() {
     Gfx.resizescreen(screen_width, screen_height, true);
@@ -203,20 +204,19 @@ function generate_level() {
     player_x = rooms[0].x;
     player_y = rooms[0].y;
 
-    GenerateWorld.fill_rooms_with_entities();
-
-    need_to_update_los = true;
-
-    // Put stairs to next level at the center of a random room
+    // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
     var random_room_i = 0;
     while (random_room_i == 0 || rooms[random_room_i].is_connection) {
         random_room_i = Random.int(0, rooms.length - 1);
     }
-
     var r = rooms[random_room_i];
-    stairs_x = r.x + Math.floor(r.width / 2);
-    stairs_y = r.y + Math.floor(r.height / 2);
-    seen_stairs = false;
+    Entities.stairs(r.x + Math.floor(r.width / 2), r.y + Math.floor(r.height / 2));
+
+    GenerateWorld.fill_rooms_with_entities();
+
+    // Reset old pos to force los update, very small chance of player spawning in same position and los not updating
+    player_x_old = -1;
+    player_y_old = -1;
 }
 
 static var time_stamp = 0.0;
@@ -499,7 +499,14 @@ function drop_entity_from_entity(e: Int, dropping_entity_name: String) {
     var drop_entity = Entity.drop_entity[e];
     var pos = Entity.position[e];
 
-    if (Random.chance(drop_entity.chance)) {
+    var chance = drop_entity.chance + dropchance_mod;
+    if (chance < 0) {
+        chance = 0;
+    } else if (chance > 100) {
+        chance = 100;
+    }
+
+    if (Random.chance(chance)) {
         Entity.remove_position(e);
         var drop = Entities.entity_from_table(pos.x, pos.y, drop_entity.table);
         var drop_name = if (Entity.equipment.exists(drop)) {
@@ -514,7 +521,7 @@ function drop_entity_from_entity(e: Int, dropping_entity_name: String) {
     }
 }
 
-function try_unlock_entity(e: Int) {
+function try_open_entity(e: Int) {
     // Look for same color unlocker in inventory
     var locked = Entity.locked[e];
 
@@ -524,24 +531,35 @@ function try_unlock_entity(e: Int) {
         'unnamed_locked';
     }
 
-    for (y in 0...inventory_height) {
-        for (x in 0...inventory_width) {
-            if (Entity.unlocker.exists(inventory[x][y]) && !Entity.position.exists(inventory[x][y]) && Entity.unlocker[inventory[x][y]].color == locked.color) {
-                // Found unlocker, remove unlocker and unlock locked entity
-                add_message('You unlock $locked_name.');
-                Entity.remove(inventory[x][y]);
-
-                if (Entity.drop_entity.exists(e) && Entity.position.exists(e)) {
-                    drop_entity_from_entity(e, locked_name);
-                    Entity.remove(e);
-                }
-
-                return;
-            }
+    function drop_from_locked() {
+        if (Entity.drop_entity.exists(e) && Entity.position.exists(e)) {
+            drop_entity_from_entity(e, locked_name);
+            Entity.remove(e);
         }
     }
 
-    add_message('Need matching key to unlock $locked_name.');
+    if (locked.need_key) {
+        // Normal locked need a matching key, search for it in inventory
+        for (y in 0...inventory_height) {
+            for (x in 0...inventory_width) {
+                if (Entity.unlocker.exists(inventory[x][y]) && !Entity.position.exists(inventory[x][y]) && Entity.unlocker[inventory[x][y]].color == locked.color) {
+                    // Found unlocker, remove unlocker and unlock locked entity
+                    add_message('You unlock $locked_name.');
+                    Entity.remove(inventory[x][y]);
+
+                    drop_from_locked();
+
+                    return;
+                }
+            }
+        }
+
+        add_message('Need matching key to unlock $locked_name.');
+    } else {
+        // Unlocked lockeds don't need a key
+        add_message('You open $locked_name.');
+        drop_from_locked();
+    }
 }
 
 function use_entity(e: Int) {
@@ -848,10 +866,19 @@ function player_attack_entity(e: Int) {
         if (Entity.give_copper_on_death.exists(e)) {
             var give_copper = Entity.give_copper_on_death[e];
 
-            if (Random.chance(give_copper.chance)) {
+            var chance = give_copper.chance + copperchance_mod;
+            if (chance < 0) {
+                chance = 0;
+            } else if (chance > 100) {
+                chance = 100;
+            }
+
+            if (Random.chance(chance)) {
                 var drop_amount = Random.int(give_copper.min, give_copper.max);
-                copper_count += drop_amount;
-                add_message('$target_name drops $drop_amount copper.');
+                if (drop_amount > 0) {
+                    copper_count += drop_amount;
+                    add_message('$target_name drops $drop_amount copper.');
+                }
             }
         }
     }
@@ -930,7 +957,6 @@ function do_spell(spell: Spell, effect_message: Bool = true): Bool {
         }
     }
 
-    // NOTE: Temporary mods currently don't stack, the highest bonus gets applied 
     // NOTE: some infinite spells(buffs from items) are printed, some aren't
     // for example: printing that a sword increases ice attack every turn is NOT useful
     // printing that the sword is damaging the player every 5 turns IS useful
@@ -989,26 +1015,31 @@ function do_spell(spell: Spell, effect_message: Bool = true): Bool {
                 add_message('${spell.origin_name} uncovers the map.');
             }
             case SpellType_RandomTeleport: {
-                // Teleport to top-left corner of random room different from current one and not a connection room
+                // Teleport to random position in a random room different from current one and not a connection room
                 var destination = player_room;
                 while (destination == player_room || rooms[destination].is_connection) {
                     destination = Random.int(0, rooms.length - 1);
                 }
 
                 var r = rooms[destination];
-                player_x = r.x;
-                player_y = r.y;
+                var positions = GenerateWorld.room_free_positions_shuffled(r);
+                var pos = positions.pop();
+                player_x = pos.x;
+                player_y = pos.y;
                 player_room = destination;
 
                 add_message('You are teleported to a random room.');
             }
             case SpellType_SafeTeleport: {
-                // Teleport to top-left corner of first room, which is always empty
+                // Teleport to first room, which is always empty
                 var destination = 0;
 
                 var r = rooms[destination];
-                player_x = r.x;
-                player_y = r.y;
+                var positions = GenerateWorld.room_free_positions_shuffled(r);
+                var pos = positions.pop();
+
+                player_x = pos.x;
+                player_y = pos.y;
                 player_room = destination;
 
                 add_message('You are teleported to a safe place.');
@@ -1019,8 +1050,22 @@ function do_spell(spell: Spell, effect_message: Bool = true): Bool {
             case SpellType_Noclip: {
                 noclip = true;
             }
-            case SpellType_ShowLocked: {
-                show_locked = true;
+            case SpellType_ShowThings: {
+                show_things = true;
+            }
+            case SpellType_NextFloor: {
+                current_floor++;
+                generate_level();
+                add_message('You go up to the next floor.');
+            }
+            case SpellType_ModMoveSpeed: {
+                movespeed_mod += spell.value;
+            }
+            case SpellType_ModDropChance: {
+                dropchance_mod += spell.value;
+            }
+            case SpellType_ModCopperDrop: {
+                copperchance_mod += spell.value;
             }
         }
     }
@@ -1062,25 +1107,34 @@ function update() {
     if (player_dx != 0 && player_dy != 0) {
         player_dy = 0;
     }
-    if ((player_dx != 0 || player_dy != 0) && !out_of_map_bounds(player_x + player_dx, player_y + player_dy)) {
-        var free_map = get_free_map(player_x + player_dx, player_y + player_dy, 1, 1);
-        
-        var noclipping_through_wall = walls[player_x + player_dx][player_y + player_dy] && (noclip || noclip_DEV);
+    if (player_dx != 0 || player_dy != 0) {
+        // If movespeed is increased, try moving extra times in same direction
+        var move_amount = 1 + movespeed_mod;
 
-        if (free_map[0][0] || noclipping_through_wall) {
-            player_x += player_dx;
-            player_y += player_dy;
-            need_to_update_los = true;
-            player_acted = true;
+        for (i in 0...move_amount) {
+            if (!out_of_map_bounds(player_x + player_dx, player_y + player_dy)) {
+                var free_map = get_free_map(player_x + player_dx, player_y + player_dy, 1, 1);
+
+                var noclipping_through_wall = walls[player_x + player_dx][player_y + player_dy] && (noclip || noclip_DEV);
+
+                if (free_map[0][0] || noclipping_through_wall) {
+                    player_x += player_dx;
+                    player_y += player_dy;
+                    player_acted = true;
+                }
+            }
         }
     }
 
-    var view_x = player_x - Math.floor(view_width / 2);
-    var view_y = player_y - Math.floor(view_height / 2);
+    function get_view_x(): Int { return player_x - Math.floor(view_width / 2); }
+    function get_view_y(): Int { return player_y - Math.floor(view_width / 2); }
+    var view_x = get_view_x();
+    var view_y = get_view_y();
 
     // Update LOS after movement
-    if (need_to_update_los) {
-        need_to_update_los = false;
+    if (player_x != player_x_old || player_y != player_y_old) {
+        player_x_old = player_x;
+        player_y_old = player_y;
 
         LOS.update_los(los);
     }
@@ -1185,11 +1239,6 @@ function update() {
     Gfx.scale(world_scale, world_scale, 0, 0);
     Gfx.clearscreen(Col.BLACK);
     Gfx.drawimage(0, 0, "tiles_canvas");
-
-    // Stairs
-    if (!out_of_view_bounds(stairs_x, stairs_y) && position_visible(stairs_x - view_x, stairs_y - view_y)) {
-        Gfx.drawtile(screen_x(stairs_x), screen_y(stairs_y), 'tiles', Tile.Stairs);
-    }
 
     // Entities
     Text.size = draw_char_size;
@@ -1447,8 +1496,8 @@ function update() {
             }
         }
         if (Entity.locked.exists(interact_target)) {
-            if (GUI.auto_text_button('Unlock')) {
-                try_unlock_entity(interact_target);
+            if (GUI.auto_text_button('Open')) {
+                try_open_entity(interact_target);
 
                 done_interaction = true;
             }
@@ -1488,7 +1537,6 @@ function update() {
         if (GUI.auto_text_button('To first room')) {
             player_x = rooms[0].x;
             player_y = rooms[0].y;
-            need_to_update_los = true;
             player_acted = true;
         }
         if (GUI.auto_text_button('Toggle full map')) {
@@ -1503,21 +1551,25 @@ function update() {
         if (GUI.auto_text_button('Toggle frametime graph')) {
             frametime_graph_DEV = !frametime_graph_DEV;
         }
+        if (GUI.auto_text_button('Next level')) {
+            current_floor++;
+            generate_level();
+            // Update view, since moving to next level changes player position
+            view_x = get_view_x();
+            view_y = get_view_y();
+        }
     }
 
     //
     // Update seen status for entities drawn on minimap
     //
-    if (!seen_stairs && !out_of_view_bounds(stairs_x, stairs_y) && position_visible(stairs_x - view_x, stairs_y - view_y)) {
-        seen_stairs = true;
-    }
-    for (e in Entity.locked.keys()) {
-        var locked = Entity.locked[e];
+    for (e in Entity.draw_on_minimap.keys()) {
+        var draw_on_minimap = Entity.draw_on_minimap[e];
 
-        if (!locked.seen && Entity.position.exists(e)) {
+        if (!draw_on_minimap.seen && Entity.position.exists(e)) {
             var pos = Entity.position[e];
             if (!out_of_view_bounds(pos.x, pos.y) && position_visible(pos.x - view_x, pos.y - view_y)) {
-                locked.seen = true;
+                draw_on_minimap.seen = true;
             }
         }
     }
@@ -1525,42 +1577,27 @@ function update() {
     //
     // Minimap
     //
+
+    // Draw rooms
     for (i in 0...rooms.length) {
         if (visited_room[i] || full_minimap_DEV) {
             var r = rooms[i];
             Gfx.drawbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
         }
+    }
 
-        // Draw locked if they were seen or if show_locked spell active
-        for (e in Entity.locked.keys()) {
-            var locked = Entity.locked[e];
-            if ((locked.seen || show_locked) && Entity.position.exists(e)) {
-                var pos = Entity.position[e];
-                Gfx.drawbox(minimap_x + pos.x * minimap_scale, minimap_y + pos.y * minimap_scale, minimap_scale, minimap_scale, locked.color);
-            }
-        }
-        // Draw keys only if show_locked spell active
-        if (show_locked) {
-            for (e in Entity.unlocker.keys()) {
-                if (Entity.position.exists(e)) {
-                    var pos = Entity.position[e];
-                    var unlocker = Entity.unlocker[e];
-                    Gfx.drawbox(minimap_x + pos.x * minimap_scale, minimap_y + pos.y * minimap_scale, minimap_scale, minimap_scale, unlocker.color);
-                }
-            }
-        }
+    // Draw seen things
+    for (e in Entity.draw_on_minimap.keys()) {
+        var draw_on_minimap = Entity.draw_on_minimap[e];
 
-        if (seen_stairs) {
-            Gfx.drawbox(minimap_x + stairs_x * minimap_scale, minimap_y + stairs_y * minimap_scale, minimap_scale, minimap_scale, Col.LIGHTBLUE);
+        if ((draw_on_minimap.seen || show_things || full_minimap_DEV) && Entity.position.exists(e)) {
+            var pos = Entity.position[e];
+            Gfx.drawbox(minimap_x + pos.x * minimap_scale, minimap_y + pos.y * minimap_scale, minimap_scale, minimap_scale, draw_on_minimap.color);
         }
     }
 
+    // Draw player
     Gfx.drawbox(minimap_x + player_x * minimap_scale, minimap_y + player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
-
-    if (Input.justpressed(Key.U)) {
-        current_level++;
-        generate_level();
-    }
 
     //
     // End of turn
@@ -1568,12 +1605,6 @@ function update() {
     if (player_acted) {
         // Clear interact target if done something
         interact_target = Entity.NONE;
-
-        // Transition to new level if stepped on stairs
-        if (player_x == stairs_x && player_y == stairs_y) {
-            current_level++;
-            generate_level();
-        }
 
         // Recalculate player room if room changed
         if (player_room != -1) {
@@ -1601,7 +1632,10 @@ function update() {
         }
         nolos = false;
         noclip = false;
-        show_locked = false;
+        show_things = false;
+        movespeed_mod = 0;
+        dropchance_mod = 0;
+        copperchance_mod = 0;
 
         //
         // Process spells

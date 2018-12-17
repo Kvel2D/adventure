@@ -64,14 +64,27 @@ public static function shuffle<T>(array: Array<T>): Array<T> {
     return array;
 }
 
+static function room_free_positions_shuffled(r: Room): Array<Vec2i> {
+    var free_map = Main.get_free_map(r.x, r.y, r.x + r.width, r.y + r.height);
+    var positions = new Array<Vec2i>();
+    for (x in r.x...(r.x + r.width)) {
+        for (y in r.y...(r.y + r.height)) {
+            if (free_map[x - r.x][y - r.y]) {
+                positions.push({
+                    x: x,
+                    y: y,
+                });
+            }
+        }
+    }
+    shuffle(positions);
+    return positions;
+}
+
 static function fill_rooms_with_entities() {
     // Generate enemy types for level
     // First level only has physical enemies, later levels start having varied elements
-    var enemy_types = if (Main.current_level == 0) {
-        [for (i in 0...enemy_types_per_level) Entities.random_enemy_type(ElementType_Physical)];
-    } else {
-        [for (i in 0...enemy_types_per_level) Entities.random_enemy_type(Spells.random_element())];
-    };
+    var enemy_types = [for (i in 0...enemy_types_per_level) Entities.random_enemy_type()];
 
     // Make sure that at least one enemy type is aggressive
     var at_least_one_enemy_type_is_aggressive = false;
@@ -106,16 +119,7 @@ static function fill_rooms_with_entities() {
 
         var entities = new Array<Int>();
 
-        var positions = new Array<Vec2i>();
-        for (x in r.x...(r.x + r.width)) {
-            for (y in r.y...(r.y + r.height)) {
-                positions.push({
-                    x: x,
-                    y: y,
-                });
-            }
-        }
-        shuffle(positions);
+        var positions = room_free_positions_shuffled(r);
 
         var room_with_enemies = Random.chance(90);
 
@@ -129,7 +133,8 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_potion, c: 6.0},
                     {v: Entities.random_scroll, c: 3.0},
-                    {v: Entities.random_ring, c: 2.0},
+                    {v: Entities.random_ring, c: 1.0},
+                    {v: Entities.unlocked_chest, c: 6.0},
                     {v: Entities.locked_chest, c: 2.0},
                     ])(pos.x, pos.y));
             }
@@ -142,7 +147,8 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_potion, c: 6.0},
                     {v: Entities.random_scroll, c: 3.0},
-                    {v: Entities.random_ring, c: 2.0},
+                    {v: Entities.random_ring, c: 1.0},
+                    {v: Entities.unlocked_chest, c: 6.0},
                     {v: Entities.locked_chest, c: 2.0},
                     ])(pos.x, pos.y));
             }
@@ -150,7 +156,7 @@ static function fill_rooms_with_entities() {
 
         // Remember locked entity colors for later when spawning matching keys
         for (e in entities) {
-            if (Entity.locked.exists(e)) {
+            if (Entity.locked.exists(e) && Entity.locked[e].need_key) {
                 locked_colors.push(Entity.locked[e].color);
             }
         }
@@ -165,16 +171,7 @@ static function fill_rooms_with_entities() {
         var r = Main.rooms[r_i];
         var free_map = Main.get_free_map(r.x, r.y, r.x + r.width, r.y + r.height);
         
-        var positions = new Array<Vec2i>();
-        for (x in r.x...(r.x + r.width)) {
-            for (y in r.y...(r.y + r.height)) {
-                positions.push({
-                    x: x,
-                    y: y,
-                });
-            }
-        }
-        shuffle(positions);
+        var positions = room_free_positions_shuffled(r);
 
         for (p in positions) {
             if (free_map[p.x][p.y]) {

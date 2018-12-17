@@ -1,37 +1,21 @@
 --------------------------------------------------------------------------
 TODO
 
-how to scale values by level
-    add level?
-    add level * some scale?
-    multiple by some scale based on level
-        health_scale_by_level = [1 => 1.0, 2 => 1.5, 3 => 1.75 ...
-        attack_scale_by_level = [1 => 1.0, 2 => 1.4, 3 => 1.7 ...
-    this way can scale each value differently while also making it possible to make arbitrary increase amounts between levels
-
-merchant
-    merchants can attack as a buffer if item drops are crap
-
-implement different elements for
-    generated entities should have elements
-    same for spells
-
-elemental enemies should start later and should be phys+element mixed, not pure element
-
-draw value on top of spell icon?
-
 --------------------------------------------------------------------------
 DONE
 
 --------------------------------------------------------------------------
-BUGS
+PROBLEMS
+
+crash on  next level
 
 somehow generated a disconnected room
-couldn't pick up a key
 
-entities with random movement can move into other rooms(might actually be a fun design?)
+entities with random movement can move into other rooms
+    might actually be fun gameplay
 
-generated 2 orange chests but only 1 key
+speed spell makes it hard to get through connections
+    not sure if bug or feature
 
 --------------------------------------------------------------------------
 IDEAS
@@ -47,8 +31,12 @@ doors opened with buttons
     can make rooms be one-way entrance by putting a button and a door at the entrance
     (one way entrance poison room)
 
-merchant block entrance to shop storage which contains a chest
-    could attack merchant to open the way and get the chest but merchant is deadly
+merchant
+    sells 3-4 random items like potions/scrolls
+        rare stuff is very expensive
+    merchants can attack as a buffer if item drops are crap
+    merchant block entrance to a cut-off room
+    could attack merchant to open the way and get stuff inside but merchant is deadly
 
 crab-hand
     crabs can be attacked but also can be used to gain +X to dmg for a limited time while taking damage periodically
@@ -66,17 +54,6 @@ locked doors that need keys(key spawned randomly in world a bit far away from do
 long-range attack for entities
     attacks player if no LOS(i.e. player can see it)
 
-make levels
-    the world could be a tower
-
-elemental affinity
-    using an element, whether for attack/buff whatever else increases it's power
-    every N uses you get a message "your fire affinity increased, fire spells are now more powerful"
-    affinity level up improves one affinity but makes the opposite element worse
-    fire <-> lightning
-    shadow <-> light
-    could make it so that increase is bigger than decrease
-
 spell that buffs entities
     increase random entity's health and attack
     increase all entity's health but also drop amount
@@ -85,15 +62,12 @@ increase effect of element in general
     increase light = higher light dmg, higher light heal amount, etc.(higher light dmg taken?)
     decrease light = lower light dmg, lower light heal, lower light dmg taken
 
-special effects
-increase movespeed
-increase copper droprate
-increase item droprate
-invisibility, enemies can't chase you
-cure poison
-extra life, restore full hp once when dying
-swap stats with enemy
-    health, attacks, defenses
+spell ideas
+    invisibility, enemies can't chase you
+    cure poison
+    extra life, restore full hp once when dying
+    swap stats with enemy
+        health, attacks, defenses
 
 entity editor in-game
     edit/add/remove all components
@@ -151,6 +125,7 @@ attacking always takes prio, might need to disable attack while interact menu is
 browsers need hardware acceleration apparently, need to put a note on game site
 
 find a good font, that doesn't have scaling or offset problems
+    also preferably mob chars should be full-width, hard to judge the distance if char not centered
 
 scrolling for spell display, at some point spells won't fit in current area
 
@@ -254,12 +229,23 @@ identify system
     once used a spell once, can see the same type everywhere else
     identifying a use spell identifies all similar spells everywhere
 
-need to make sure stairs can't be blocked
-
 cache map image
     redraw on new map rect additions or removals
     draw player on top of cache
+    need to clear transparently
 
 single element defense potions are pretty useless
     make all-element defense potions most of the time
     could make single element def but the value should be high to make it worth the inventory slot
+
+door-button pair
+    button is not a step on button but a touch button
+        can be activated by anything near it, enemies, dropped items, etc
+        combination of a button far away from door
+        door in connection
+        spawn to close an isolated room with one connection that contains something good
+
+make friendly mobs green
+
+filter bad words in names?
+    not sure what's worse, generating a bad word or writing bad words in code to filter bad words

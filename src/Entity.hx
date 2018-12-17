@@ -97,11 +97,16 @@ typedef Move = {
 
 typedef Locked = {
     var color: Int;
-    var seen: Bool;
+    var need_key: Bool;
 }
 
 typedef Unlocker = {
     var color: Int;
+}
+
+typedef DrawOnMinimap = {
+    var color: Int;
+    var seen: Bool;
 }
 
 typedef EntityType = {
@@ -119,6 +124,7 @@ typedef EntityType = {
     var move: Move;
     var locked: Locked;
     var unlocker: Unlocker;
+    var draw_on_minimap: DrawOnMinimap;
 }
 
 @:publicFields
@@ -151,6 +157,7 @@ static var give_copper_on_death = new Map<Int, GiveCopper>();
 static var move = new Map<Int, Move>();
 static var locked = new Map<Int, Locked>();
 static var unlocker = new Map<Int, Unlocker>();
+static var draw_on_minimap = new Map<Int, DrawOnMinimap>();
 
 static function make(): Int {
     var e = id_max;
@@ -236,12 +243,18 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
     if (type.locked != null) {
         locked[e] = {
             color: type.locked.color,
-            seen: type.locked.seen,
+            need_key: type.locked.need_key,
         };
     }
     if (type.unlocker != null) {
         unlocker[e] = {
             color: type.unlocker.color,
+        };
+    }
+    if (type.draw_on_minimap != null) {
+        draw_on_minimap[e] = {
+            color: type.draw_on_minimap.color,
+            seen: type.draw_on_minimap.seen,
         };
     }
 
@@ -268,6 +281,7 @@ static function remove(e: Int) {
     move.remove(e);
     locked.remove(e);
     unlocker.remove(e);
+    draw_on_minimap.remove(e);
 }
 
 static function print(e: Int) {
@@ -288,6 +302,7 @@ static function print(e: Int) {
     trace('move=${move[e]}');
     trace('locked=${locked[e]}');
     trace('unlocker=${unlocker[e]}');
+    trace('draw_on_minimap=${draw_on_minimap[e]}');
 }
 
 static function validate(e: Int) {
@@ -307,6 +322,10 @@ static function validate(e: Int) {
     }
     if (move.exists(e) && !position.exists(e)) {
         trace('Missing dependency: Move needs Position.');
+        error = true;
+    }
+    if (draw_on_minimap.exists(e) && !position.exists(e)) {
+        trace('Missing dependency: DrawOnMinimap needs Position.');
         error = true;
     }
 

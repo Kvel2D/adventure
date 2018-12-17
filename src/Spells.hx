@@ -13,7 +13,11 @@ enum SpellType {
     SpellType_SafeTeleport;
     SpellType_Nolos;
     SpellType_Noclip;
-    SpellType_ShowLocked;
+    SpellType_ShowThings;
+    SpellType_NextFloor;
+    SpellType_ModMoveSpeed;
+    SpellType_ModDropChance;
+    SpellType_ModCopperDrop;
 }
 
 enum SpellDuration {
@@ -52,7 +56,11 @@ static function get_description(spell: Spell): String {
         case SpellType_SafeTeleport: 'safe teleport';
         case SpellType_Nolos: 'see everything';
         case SpellType_Noclip: 'go through walls';
-        case SpellType_ShowLocked: 'see locked things and keys';
+        case SpellType_ShowThings: 'see things on minimap';
+        case SpellType_NextFloor: 'go to next floor';
+        case SpellType_ModMoveSpeed: 'increase move speed';
+        case SpellType_ModDropChance: 'change item drop chance';
+        case SpellType_ModCopperDrop: 'change copper drop chance';
     }
     var element = switch (spell.element) {
         case ElementType_Physical: 'physical';
@@ -227,7 +235,7 @@ static function buff_phys_def(element: ElementType, value: Int): Spell {
     };
 }
 
-static function teleport(): Spell {
+static function random_teleport(): Spell {
     return {
         type: SpellType_RandomTeleport,
         element: ElementType_Shadow,
@@ -266,15 +274,67 @@ static function noclip(): Spell {
     }
 }
 
-static function show_locked(): Spell {
+static function show_things(): Spell {
     return {
-        type: SpellType_ShowLocked,
+        type: SpellType_ShowThings,
         element: ElementType_Fire,
         duration_type: SpellDuration_EveryTurn,
         duration: 30,
         interval: 1,
         interval_current: 0,
         value: 0,
+        origin_name: "noname",
+    }
+}
+
+static function next_floor(): Spell {
+    return {
+        type: SpellType_NextFloor,
+        element: ElementType_Physical,
+        duration_type: SpellDuration_Permanent,
+        duration: 0,
+        interval: 0,
+        interval_current: 0,
+        value: 0,
+        origin_name: "noname",
+    }
+}
+
+static function increase_movespeed(): Spell {
+    return {
+        type: SpellType_ModMoveSpeed,
+        element: ElementType_Physical,
+        duration_type: SpellDuration_EveryTurn,
+        duration: 100,
+        interval: 1,
+        interval_current: 0,
+        value: 2,
+        origin_name: "noname",
+    }
+}
+
+static function increase_droprate(): Spell {
+    return {
+        type: SpellType_ModDropChance,
+        element: ElementType_Shadow,
+        duration_type: SpellDuration_EveryTurn,
+        duration: 100,
+        interval: 1,
+        interval_current: 0,
+        value: 50,
+        origin_name: "noname",
+    }
+}
+
+static function chance_copper_drop(): Spell {
+    return {
+        type: SpellType_ModCopperDrop,
+        element: ElementType_Shadow,
+        duration_type: SpellDuration_EveryTurn,
+        duration: 100,
+        interval: 1,
+        interval_current: 0,
+        value: 2,
         origin_name: "noname",
     }
 }
@@ -359,7 +419,7 @@ static function random_scroll_spell(): Spell {
         {v: SpellType_ModHealthMax, c: 1.0},
         {v: SpellType_ModAttack, c: 1.0},
         {v: SpellType_ModDefense, c: 1.0},
-        {v: SpellType_ShowLocked, c: 0.5},
+        {v: SpellType_ShowThings, c: 0.5},
         ]);
 
     var duration_type = switch (type) {
@@ -371,7 +431,7 @@ static function random_scroll_spell(): Spell {
         case SpellType_ModHealthMax: SpellDuration_Permanent;
         case SpellType_ModAttack: SpellDuration_Permanent;
         case SpellType_ModDefense: SpellDuration_Permanent;
-        case SpellType_ShowLocked: SpellDuration_EveryTurn;
+        case SpellType_ShowThings: SpellDuration_EveryTurn;
         default: SpellDuration_Permanent;
     }
 
@@ -381,7 +441,7 @@ static function random_scroll_spell(): Spell {
         switch (type) {
             case SpellType_Nolos: Random.int(100, 150);
             case SpellType_Noclip: Random.int(50, 100);
-            case SpellType_ShowLocked: Random.int(30, 50);
+            case SpellType_ShowThings: Random.int(30, 50);
             default: 0;
         }
     }
@@ -402,7 +462,7 @@ static function random_scroll_spell(): Spell {
         case SpellType_Noclip: ElementType_Shadow;
         case SpellType_RandomTeleport: ElementType_Shadow;
         case SpellType_SafeTeleport: ElementType_Light;
-        case SpellType_ShowLocked: ElementType_Fire;
+        case SpellType_ShowThings: ElementType_Fire;
         default: ElementType_Physical;
     }
 
