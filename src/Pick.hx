@@ -8,7 +8,7 @@ typedef ValPickPair = {
 
 @:publicFields
 class Pick {
-// NOTE: force unindent
+// force unindent
 
 static function value(pairs: Array<ValPickPair>): Dynamic {
     var total = 0.0;

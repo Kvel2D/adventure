@@ -129,7 +129,7 @@ typedef EntityType = {
 
 @:publicFields
 class Entity {
-// NOTE: force unindent
+// force unindent
 
 static var all = new Array<Int>();
 static var id_max: Int = 0;
@@ -137,6 +137,7 @@ static var id_max: Int = 0;
 // don't "==/!= NONE", check for component existence instead
 static inline var NONE = -1;
 static inline var INFINITE_DURATION = -1;
+static inline var LEVEL_DURATION = -2;
 static inline var NULL_INT = -1;
 static inline var NULL_STRING = 'null';
 static inline var random_move_chance = 50;

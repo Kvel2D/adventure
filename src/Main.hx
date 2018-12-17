@@ -18,7 +18,7 @@ typedef DamageNumber = {
 
 @:publicFields
 class Main {
-// NOTE: force unindent
+// force unindent
 
 static inline var screen_width = 1600;
 static inline var screen_height = 1000;
@@ -135,7 +135,7 @@ var added_message_this_turn = false;
 var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
 
 // Used by all generation functions, don't need to pass it around everywhere
-static var current_floor = 0;
+static var current_level = 0;
 
 
 function init() {
@@ -156,7 +156,7 @@ function init() {
     // Test entities in first room
     //
     var first_room = rooms[0];
-    for (i in 0...2) {
+    for (i in 0...4) {
         var x = 3;
         var y = 3;
         Entities.random_armor(first_room.x + x + 0, first_room.y + y + i);
@@ -173,6 +173,17 @@ function generate_level() {
         Entity.remove(e);
     }
 
+    var removed_spells = new Array<Spell>();
+    // Remove level-specific spells
+    for (spell in player_spells) {
+        if (spell.duration == Entity.LEVEL_DURATION) {
+            removed_spells.push(spell);
+        }
+    }
+    for (spell in removed_spells) {
+        player_spells.remove(spell);
+    }
+
     // Fill world with walls
     for (x in 0...map_width) {
         for (y in 0...map_height) {
@@ -182,7 +193,7 @@ function generate_level() {
 
     // Generate and connect rooms
     rooms = GenerateWorld.generate_via_digging();
-    GenerateWorld.connect_rooms(rooms, Random.float(1, 3));
+    GenerateWorld.connect_rooms(rooms, Random.float(0.5, 2));
     // NOTE: need to increment room dimensions because connections have one dimension of 0 and rooms are really one bigger as well
     for (r in rooms) {
         r.width++;
@@ -817,7 +828,6 @@ function entity_attack_player(e: Int) {
     }
     if (damage_total != 0) {
         add_message('You take ${damage_total} damage from $target_name.');
-        // TODO: display absorb amount
         add_damage_number(-damage_total);
     }
     if (absorb_total != 0) {
@@ -832,12 +842,10 @@ function entity_attack_player(e: Int) {
 }
 
 function player_attack_entity(e: Int) {
-    // NOTE: what if player attack is negative?
     var combat = Entity.combat[e];
 
     var attack_total = player_attack_total();
 
-    // TODO: apply resists
     var damage_to_entity = 0;
     for (element in Type.allEnums(ElementType)) {
         var absorb = if (combat.absorb.exists(element)) {
@@ -929,7 +937,7 @@ function do_spell(spell: Spell, effect_message: Bool = true): Bool {
             spell.interval_current = 0;
             active = true;
 
-            if (spell.duration != Entity.INFINITE_DURATION) {
+            if (spell.duration != Entity.INFINITE_DURATION && spell.duration != Entity.LEVEL_DURATION) {
                 spell.duration--;
                 if (spell.duration == 0) {
                     spell_over = true;
@@ -983,7 +991,7 @@ function do_spell(spell: Spell, effect_message: Bool = true): Bool {
                 if (spell.duration_type == SpellDuration_Permanent) {
                     player_attack[spell.element] += spell.value;
 
-                    // Permanent attack mod can't make attack negative
+                    // Attack can't be negative
                     if (player_attack[spell.element] < 0) {
                         player_attack[spell.element] = 0;
                     }
@@ -1054,7 +1062,7 @@ function do_spell(spell: Spell, effect_message: Bool = true): Bool {
                 show_things = true;
             }
             case SpellType_NextFloor: {
-                current_floor++;
+                current_level++;
                 generate_level();
                 add_message('You go up to the next floor.');
             }
@@ -1317,7 +1325,6 @@ function update() {
     player_stats += '\nAttack: P:${attack_total[ElementType_Physical]} F:${attack_total[ElementType_Fire]} I:${attack_total[ElementType_Ice]} S:${attack_total[ElementType_Shadow]} L:${attack_total[ElementType_Light]}';
     var defense_total = player_defense_total();
     player_stats += '\nDefense: P:${defense_total[ElementType_Physical]} F:${defense_total[ElementType_Fire]} I:${defense_total[ElementType_Ice]} S:${defense_total[ElementType_Shadow]} L:${defense_total[ElementType_Light]}';
-    // TODO: display absorb amount(or not?)
     player_stats += '\nCopper: ${copper_count}';
     Text.display(ui_x, player_stats_y, player_stats);
 
@@ -1379,45 +1386,59 @@ function update() {
     // Hovered entity tooltip
     //
     Text.wordwrap = hovered_tooltip_wordwrap;
-    var entity_tooltip = "";
-    if (Entity.name.exists(hovered_anywhere)) {
-        entity_tooltip += 'Id: ${hovered_anywhere}';
-        entity_tooltip += '\nName: ${Entity.name[hovered_anywhere]}';
-    }
-    if (Entity.combat.exists(hovered_anywhere)) {
-        var entity_combat = Entity.combat[hovered_anywhere];
-        entity_tooltip += '\nHealth: ${entity_combat.health}';
-        entity_tooltip += '\nAttack: P:${entity_combat.attack[ElementType_Physical]} F:${entity_combat.attack[ElementType_Fire]} I:${entity_combat.attack[ElementType_Ice]} S:${entity_combat.attack[ElementType_Shadow]} L:${entity_combat.attack[ElementType_Light]}';
-        entity_tooltip += '\nAbsorb: P:${entity_combat.absorb[ElementType_Physical]} F:${entity_combat.absorb[ElementType_Fire]} I:${entity_combat.absorb[ElementType_Ice]} S:${entity_combat.absorb[ElementType_Shadow]} L:${entity_combat.absorb[ElementType_Light]}';
-    }
-    if (Entity.description.exists(hovered_anywhere)) {
-        entity_tooltip += '\n${Entity.description[hovered_anywhere]}';
-    }
-    if (Entity.equipment.exists(hovered_anywhere)) {
-        var equipment = Entity.equipment[hovered_anywhere];
-        entity_tooltip += '\nEquipment name: ${equipment.name}';
-        entity_tooltip += '\nEquipment type: ${equipment.type}';
-        if (equipment.spells.length > 0) {
-            entity_tooltip += '\nSpells applied while equipped:';
-            for (s in equipment.spells) {
-                entity_tooltip += '\n-' + Spells.get_description(s);
+    function get_tooltip(e: Int): String {
+        var tooltip = "";
+        if (Entity.name.exists(e)) {
+            tooltip += 'Id: ${e}';
+            tooltip += '\nName: ${Entity.name[e]}';
+        }
+        if (Entity.combat.exists(e)) {
+            var entity_combat = Entity.combat[e];
+            tooltip += '\nHealth: ${entity_combat.health}';
+            tooltip += '\nAttack: P:${entity_combat.attack[ElementType_Physical]} F:${entity_combat.attack[ElementType_Fire]} I:${entity_combat.attack[ElementType_Ice]} S:${entity_combat.attack[ElementType_Shadow]} L:${entity_combat.attack[ElementType_Light]}';
+            tooltip += '\nAbsorb: P:${entity_combat.absorb[ElementType_Physical]} F:${entity_combat.absorb[ElementType_Fire]} I:${entity_combat.absorb[ElementType_Ice]} S:${entity_combat.absorb[ElementType_Shadow]} L:${entity_combat.absorb[ElementType_Light]}';
+        }
+        if (Entity.description.exists(e)) {
+            tooltip += '\n${Entity.description[e]}';
+        }
+        if (Entity.equipment.exists(e)) {
+            var equipment = Entity.equipment[e];
+            tooltip += '\nEquipment name: ${equipment.name}';
+            tooltip += '\nEquipment type: ${equipment.type}';
+            if (equipment.spells.length > 0) {
+                tooltip += '\nEquip effects:';
+                for (s in equipment.spells) {
+                    tooltip += '\n    ' + Spells.get_description(s);
+                }
             }
         }
+        if (Entity.use.exists(e)) {
+            var use = Entity.use[e];
+            tooltip += '\nUse effects:';
+            for (s in use.spells) {
+                tooltip += '\n    ' + Spells.get_description(s);
+            }
+        }
+        if (Entity.item.exists(e) && Entity.item[e].spells.length > 0) {
+            var item = Entity.item[e];
+            tooltip += '\nCarry effect:';
+            for (s in item.spells) {
+                tooltip += '\n    ' + Spells.get_description(s);
+            }
+        }
+
+        return tooltip;
     }
-    if (Entity.use.exists(hovered_anywhere)) {
-        var use = Entity.use[hovered_anywhere];
-        entity_tooltip += '\nSpells applied on use:';
-        for (s in use.spells) {
-            entity_tooltip += '\n-' + Spells.get_description(s);
+    var entity_tooltip = get_tooltip(hovered_anywhere);
+    if (Entity.equipment.exists(hovered_anywhere) && Entity.position.exists(hovered_anywhere)) {
+        // Show comparison tooltip for equipment on the ground
+        var equipped = player_equipment[Entity.equipment[hovered_anywhere].type];
+
+        if (Entity.equipment.exists(equipped) && !Entity.position.exists(equipped)) {
+            entity_tooltip += '\n\nCURRENTLY EQUIPPED:\n' + get_tooltip(equipped);
         }
     }
-    if (Entity.item.exists(hovered_anywhere) && Entity.item[hovered_anywhere].spells.length > 0) {
-        var item = Entity.item[hovered_anywhere];
-        entity_tooltip += '\nSpells applied while carrying:';
-        for (s in item.spells) {
-            entity_tooltip += '\n-' + Spells.get_description(s);
-        }
-    }
+    
     if (interact_target == Entity.NONE) {
         // Only show tooltip if interact menu isn't open
         Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, hovered_tooltip_wordwrap, Text.height(entity_tooltip), Col.GRAY);
@@ -1552,7 +1573,7 @@ function update() {
             frametime_graph_DEV = !frametime_graph_DEV;
         }
         if (GUI.auto_text_button('Next level')) {
-            current_floor++;
+            current_level++;
             generate_level();
             // Update view, since moving to next level changes player position
             view_x = get_view_x();

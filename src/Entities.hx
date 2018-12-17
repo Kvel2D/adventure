@@ -3,6 +3,7 @@ import haxegon.*;
 import Entity;
 import Spells;
 import Pick;
+import Stats;
 
 typedef MarkovStruct = {
     chars: Array<String>,
@@ -14,7 +15,7 @@ typedef MarkovStruct = {
 
 @:publicFields
 class Entities {
-// NOTE: force unindent
+// force unindent
 
 static var locked_colors = [Col.RED, Col.ORANGE, Col.GREEN, Col.BLUE];
 static var unlocked_color = Col.YELLOW;
@@ -32,16 +33,6 @@ static var pairs_chars = new Array<String>();
 static var pairs_char_map = new Map<String, Int>();
 
 static inline var EOF = '0';
-
-
-static inline var health_base_min = 1;
-static inline var health_base_max = 3;
-static inline var health_scaling = 1.0;
-static inline var attack_base_min = 1;
-static inline var attack_base_max = 1.5;
-static inline var attack_scaling = 1.0;
-static inline var absorb_base = 0;
-static inline var absorb_scaling = 1.0;
 
 static function read_name_corpus() {
     function count_char(char: String, s: MarkovStruct) {
@@ -170,33 +161,6 @@ static function generate_name_markov(): String {
     return str;
 }
 
-static var vowels = ['a', 'e', 'i', 'o', 'u'];
-static var consonants = ['y', 'q', 'w', 'r', 't', 'p', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'z', 'x', 'c', 'v', 'b', 'n', 'm'];
-
-static function generate_name_old(): String {
-    var name = '';
-    while (generated_names.indexOf(name) != -1 || name == '') {
-        var consonant_first = Random.bool();
-        if (consonant_first) {
-            name += consonants[Random.int(0, consonants.length - 1)];
-            name += vowels[Random.int(0, vowels.length - 1)];
-        } else {
-            name += vowels[Random.int(0, vowels.length - 1)];
-            name += consonants[Random.int(0, consonants.length - 1)];
-        }
-        consonant_first = Random.bool();
-        if (consonant_first) {
-            name += consonants[Random.int(0, consonants.length - 1)];
-            name += vowels[Random.int(0, vowels.length - 1)];
-        } else {
-            name += vowels[Random.int(0, vowels.length - 1)];
-            name += consonants[Random.int(0, consonants.length - 1)];
-        }
-        name = name.toUpperCase();
-    }
-    return name;
-}
-
 static function get_element_color(element: ElementType): Int {
     return switch (element) {
         case ElementType_Physical: Col.GRAY;
@@ -205,118 +169,6 @@ static function get_element_color(element: ElementType): Int {
         case ElementType_Shadow: Col.BLACK;
         case ElementType_Light: Col.YELLOW;
     }
-}
-
-static function snail(x: Int, y: Int): Int {
-    var e = Entity.make();
-
-    Entity.set_position(e, x, y);
-    Entity.name[e] = 'Snail';
-    Entity.drop_entity[e] = {
-        table: DropTable_Default,
-        chance: 20
-    };
-    Entity.draw_char[e] = {
-        char: 'S',
-        color: Col.RED
-    };
-    Entity.description[e] = 'A green snail with a brown shell.';
-    Entity.talk[e] = 'You try talking to the Snail, it doesn\'t respond.';
-    Entity.give_copper_on_death[e] = {
-        chance: 50, 
-        min: 1, 
-        max: 1
-    };
-    Entity.combat[e] = {
-        health: 2, 
-        attack: [
-        ElementType_Physical => 1,
-        ], 
-        absorb: [
-        ElementType_Physical => 0,
-        ElementType_Ice => 2,
-        ], 
-        message: 'Snail silently defends itself.',
-        aggression: AggressionType_Aggressive,
-        attacked_by_player: false,
-    };
-    Entity.move[e] = {
-        type: MoveType_Straight,
-        cant_move: false
-    };
-
-    Entity.validate(e);
-
-    return e;
-}
-
-static function bear(x: Int, y: Int): Int {
-    var e = Entity.make();
-
-    Entity.set_position(e, x, y);
-    Entity.name[e] = 'Bear';
-    Entity.draw_char[e] = {
-        char: 'B',
-        color: Col.RED
-    };
-    Entity.description[e] = 'A brown bear, looks cute.';
-    Entity.talk[e] = 'You try talking to the Bear, it roars angrily at you.';
-    Entity.give_copper_on_death[e] = {
-        chance: 50, 
-        min: 1, 
-        max: 2
-    };
-    Entity.combat[e] = {
-        health: 2, 
-        attack: [
-        ElementType_Physical => 2,
-        ],
-        absorb: [
-        ElementType_Physical => 0,
-        ElementType_Ice => 2,
-        ], 
-        message: 'Bear roars angrily at you.',
-        aggression: AggressionType_Aggressive,
-        attacked_by_player: false,
-    };
-    Entity.drop_entity[e] = {
-        table: DropTable_Default,
-        chance: 20,
-    };
-
-    Entity.validate(e);
-
-    return e;
-}
-
-static function armor(x: Int, y: Int, armor_type: EquipmentType): Int {
-    var e = Entity.make();
-
-    Entity.set_position(e, x, y);
-    var level = Random.int(1, 3);
-
-    var armor_name = [
-    EquipmentType_Head => ['leather helmet', 'copper helmet', 'iron helmet', 'obsidian helmet'],
-    EquipmentType_Chest => ['leather chestplate', 'copper chestplate', 'iron chestplate', 'obsidian chestplate'],
-    EquipmentType_Legs => ['leather pants', 'copper pants', 'iron pants', 'obsidian pants'],
-    ];
-    var armor_tile = [
-    EquipmentType_Head => [Tile.Head1, Tile.Head2, Tile.Head3, Tile.Head4],
-    EquipmentType_Chest => [Tile.Chest1, Tile.Chest2, Tile.Chest3, Tile.Chest4],
-    EquipmentType_Legs => [Tile.Legs1, Tile.Legs2, Tile.Legs3, Tile.Legs4],
-    ];
-
-    Entity.name[e] = 'Armor';
-    Entity.equipment[e] = {
-        name: armor_name[armor_type][level - 1],
-        type: armor_type,
-        spells: [Spells.buff_phys_def(ElementType_Physical, 4 * level)],
-    };
-    Entity.draw_tile[e] = armor_tile[armor_type][level - 1];
-
-    Entity.validate(e);
-
-    return e;
 }
 
 static function fountain(x: Int, y: Int): Int {
@@ -486,7 +338,7 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [Spells.chance_copper_drop()],
+        spells: [Spells.test()],
         charges: 3,
         consumable: true,
     };
@@ -519,22 +371,77 @@ static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
     };
 }
 
+static function random_element_split(element_count: Int, total: Int): Map<ElementType, Int> {
+    function split2(x: Int): Array<Array<Int>> {
+        return [for (i in 0...(x + 1)) [i, x - i]];
+    }
+    function split3(x: Int): Array<Array<Int>> {
+        return [for (i in 0...(x + 1)) for (split in split2(x - i)) [i].concat(split)];
+    }
+    function split4(x: Int): Array<Array<Int>> {
+        return [for (i in 0...(x + 1)) for (split in split3(x - i)) [i].concat(split)];
+    }
+    function split5(x: Int): Array<Array<Int>> {
+        return [for (i in 0...(x + 1)) for (split in split4(x - i)) [i].concat(split)];
+    }
+
+    var splits = switch (element_count) {
+        case 1: [[total]];
+        case 2: split2(total);
+        case 3: split3(total);
+        case 4: split4(total);
+        case 5: split5(total);
+        default: [[0]];
+    }
+    var split = Random.pick(splits);
+
+    var elements = Type.allEnums(ElementType);
+    Random.shuffle(elements);
+    while (elements.length > element_count) {
+        elements.pop();
+    }
+
+    return [
+    for (i in 0...element_count) if (split[i] > 0) 
+        elements[i] => split[i]
+    ];
+}
+
 static function random_weapon(x: Int, y: Int): Int {
     var e = Entity.make();
-
     Entity.set_position(e, x, y);
-
-    var tile = Tile.Sword1;
-
+    Entity.draw_tile[e] = Tile.Sword1;
     var weapon_names = ['copper sword', 'iron shank', 'big hammer'];
-
     Entity.name[e] = 'Weapon';
+
+    var level = Main.current_level;
+
+    var attack_total = Stats.get({min: 1, max: 1, scaling: 1.0}, level); 
+
+    var element_count: Int = 
+    if (level == 0) 1;
+    else if (level < 2) Random.int(1, 2);
+    else if (level < 3) Random.int(1, 3);
+    else Random.int(1, 4);
+
+    var attack_split = random_element_split(element_count, attack_total);
+    
+    var attack_spells = [
+    for (element in attack_split.keys())
+        Spells.attack_buff(element, attack_split[element])
+    ];
+
+    var buff_count: Int = 
+    if (level == 0) 0;
+    else if (level < 2) Random.int(0, 1);
+    else Random.int(1, 3);
+
+
     Entity.equipment[e] = {
         name: Random.pick(weapon_names),
         type: EquipmentType_Weapon,
-        spells: [Spells.attack_buff(ElementType_Physical, 1)],
+        spells: attack_spells,
     };
-    Entity.draw_tile[e] = tile;
 
     Entity.validate(e);
 
@@ -544,10 +451,10 @@ static function random_weapon(x: Int, y: Int): Int {
 static function random_armor(x: Int, y: Int): Int {
     var e = Entity.make();
 
+    var level = Main.current_level;
+
     Entity.set_position(e, x, y);
-
     var armor_type = Random.pick([EquipmentType_Head, EquipmentType_Chest, EquipmentType_Legs]);
-
     var armor_names = [
     EquipmentType_Head => 'helmet', 
     EquipmentType_Chest => 'chainmail vest', 
@@ -558,14 +465,29 @@ static function random_armor(x: Int, y: Int): Int {
     EquipmentType_Chest => Tile.Chest1,  
     EquipmentType_Legs => Tile.Legs1, 
     ];
-
     Entity.name[e] = 'Armor';
+    Entity.draw_tile[e] = armor_tiles[armor_type];
+
+    var defense_total = Stats.get({min: 2, max: 4, scaling: 1.0}, level);
+
+    var element_count: Int = 
+    if (level == 0) Random.int(1, 2);
+    else if (level < 2) Random.int(1, 3);
+    else if (level < 3) Random.int(1, 4);
+    else Random.int(1, 5);
+
+    var defense_split = random_element_split(element_count, defense_total);
+
+    var defense_spells = [
+    for (element in defense_split.keys())
+        Spells.defense_buff(element, defense_split[element])
+    ];
+
     Entity.equipment[e] = {
         name: armor_names[armor_type],
         type: armor_type,
-        spells: [Spells.buff_phys_def(ElementType_Physical, Random.int(2, 4))],
+        spells: defense_spells,
     };
-    Entity.draw_tile[e] = armor_tiles[armor_type];
 
     Entity.validate(e);
 
@@ -611,7 +533,7 @@ static function random_potion(x: Int, y: Int): Int {
         consumable: true,
     };
 
-    // TODO: figure out what tile to pick for potions with multiple spells that potentially have different elements
+    // TODO: figure out how to determine the dominant element for potions with multiple element spells
     Entity.draw_tile[e] = switch(Entity.use[e].spells[0].element) {
         case ElementType_Physical: Tile.PotionPhysical;
         case ElementType_Shadow: Tile.PotionShadow;
@@ -657,36 +579,18 @@ static function random_scroll(x: Int, y: Int): Int {
 static function random_enemy_type(): EntityType {
     var name = generate_name();
 
-    var level = Main.current_floor;
+    var level = Main.current_level;
 
     // Higher floors have more elemental enemies, with possibility of full elementals
-    var element_ratio_min = 0.0;
-    var element_ratio_max = 0.0;
-    if (level == 0) {
-        // First floor only has physical enemies
-        element_ratio_min = 0.0;
-        element_ratio_max = 0.0;
-    } else if (level < 2) {
-        element_ratio_min = 0.0;
-        element_ratio_max = 0.33;
-    } else if (level < 3) {
-        element_ratio_min = 0.0;
-        element_ratio_max = 0.66;
-    } else if (level < 4) {
-        element_ratio_min = 0.0;
-        element_ratio_max = 1.0;
-    }
+    var element_ratio: Float = 
+    if (level == 0) 0;
+    else if (level < 2) Random.float(0, 0.33);
+    else if (level < 3) Random.float(0, 0.66);
+    else Random.float(0, 1);
 
-    var element_ratio = Random.float(element_ratio_min, element_ratio_max);
-
-    var attack_base = Random.float(attack_base_min, attack_base_max);
-    var attack_avg = attack_base + attack_scaling * level;
-    var attack = Std.int(Math.round(Random.float(attack_avg * 0.8, attack_avg * 1.2))); 
-    var health_base = Random.float(health_base_min, health_base_max);
-    var health_avg = health_base + health_scaling * level;
-    var health = Std.int(Math.round(Random.float(health_avg * 0.8, health_avg * 1.2))); 
-    var absorb_avg = absorb_base + absorb_scaling * level;
-    var absorb = Std.int(Math.round(Random.float(absorb_avg * 0.8, absorb_avg * 1.2))); 
+    var attack = Stats.get({min: 1, max: 1.5, scaling: 1.0}, level); 
+    var health = Stats.get({min: 1, max: 3, scaling: 1.0}, level); 
+    var absorb = Stats.get({min: 0, max: 0, scaling: 1.0}, level); 
 
     var attack_physical = Std.int(Math.floor(attack * (1 - element_ratio)));
     var attack_elemental = Std.int(Math.floor(attack * element_ratio));
@@ -709,13 +613,14 @@ static function random_enemy_type(): EntityType {
     var element = Random.pick([ElementType_Fire, ElementType_Ice, ElementType_Light, ElementType_Shadow]);
 
     // Only color according to element if some stat is non-zero
-    var color = if (attack_elemental > 0 || absorb_elemental > 0) {
+    var color = 
+    if (attack_elemental > 0 || absorb_elemental > 0) {
         get_element_color(element);
     } else {
         get_element_color(ElementType_Physical);
     }
 
-    trace('ENEMY lvl$level: hp=$health,atk=$attack_physical+$attack_elemental,abs=$absorb_physical+$absorb_elemental');
+    // trace('ENEMY lvl$level: hp=$health,atk=$attack_physical+$attack_elemental,abs=$absorb_physical+$absorb_elemental');
 
     return {
         name: name,

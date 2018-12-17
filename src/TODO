@@ -1,21 +1,25 @@
 --------------------------------------------------------------------------
 TODO
 
+usable in-world entities
+    statue you sacrifice 5 hp to, to get some buff
+    something like sacrificing a ton of health or even stats to make drops on the level more powerful would be cool
+
+defense potions should be either for all elements of for single element with very high value
+
 --------------------------------------------------------------------------
 DONE
+
+
 
 --------------------------------------------------------------------------
 PROBLEMS
 
-crash on  next level
-
-somehow generated a disconnected room
-
 entities with random movement can move into other rooms
-    might actually be fun gameplay
+    possible feature
 
 speed spell makes it hard to get through connections
-    not sure if bug or feature
+    possible feature
 
 --------------------------------------------------------------------------
 IDEAS
@@ -234,10 +238,6 @@ cache map image
     draw player on top of cache
     need to clear transparently
 
-single element defense potions are pretty useless
-    make all-element defense potions most of the time
-    could make single element def but the value should be high to make it worth the inventory slot
-
 door-button pair
     button is not a step on button but a touch button
         can be activated by anything near it, enemies, dropped items, etc
@@ -247,5 +247,8 @@ door-button pair
 
 make friendly mobs green
 
-filter bad words in names?
-    not sure what's worse, generating a bad word or writing bad words in code to filter bad words
+armor/weapon use and buff spells
+armor/weapon buff spells
+
+"-health by element" spell
+    player burning shouldn't be just -X health, should be X fire damage so defense can come into play

@@ -37,14 +37,15 @@ typedef Spawn = {
 
 @:publicFields
 class GenerateWorld {
-// NOTE: force unindent
+// force unindent
 
 static var origin_x = 1;
 static var origin_y = 1;
 static inline var min = Main.room_size_min;
 static inline var max = Main.room_size_max;
 static var spacing = 3;
-static var iterations = 400;
+static var iterations = 300;
+static var max_rooms = 15;
 static var enemy_room_entity_amount = 5;
 static var item_room_entity_amount = 2;
 
@@ -185,12 +186,18 @@ static function fill_rooms_with_entities() {
 // Randomly place rooms that don't intersect with other rooms
 static function generate_via_digging(): Array<Room> {
 
-    var world_width = Math.floor((Main.map_width - origin_x - 1) * 0.75);
-    var world_height = Math.floor((Main.map_height - origin_y - 1) * 0.75);
+    var width_max = Math.floor((Main.map_width - origin_x - 1) * 0.75);
+    var height_max = Math.floor((Main.map_height - origin_y - 1) * 0.75);
+    var world_width = Random.int(width_max - 25, width_max);
+    var world_height = Random.int(height_max - 25, height_max);
 
     var rooms = new Array<Room>();
 
     for (i in 0...iterations) {
+        if (rooms.length >= max_rooms) {
+            break;
+        }
+
         var new_room = {
             x: Random.int(origin_x, world_width - max - 1),
             y: Random.int(origin_y, world_height - max - 1),
@@ -224,17 +231,39 @@ static function connect_rooms(rooms: Array<Room>, disconnect_factor: Float = 0.0
 
     var connected = Data.create2darray(rooms.length, rooms.length, false);
 
+    // Remove disconnected rooms that don't collide with any other room
     var unconnected_rooms = new Array<Room>();
-
-    // Connect rooms with horizontal or vertical lines with random attach points
-    // TODO: possible to have a room that doesn't intersect with any other room, bad if player is spawned in it
     for (i in 0...rooms.length) {
         var unconnected = true;
+
+        for (j in 0...rooms.length) {
+            if (i == j) {
+                continue;
+            }
+
+            var r = rooms[i];
+            var other = rooms[j];
+
+            if (Math.collision_1d(r.y, r.y + r.height, other.y, other.y + other.height) != 0 || Math.collision_1d(r.x, r.x + r.width, other.x, other.x + other.width) != 0) {
+                // Collission along y-axis
+                unconnected = false;
+                break;
+            }
+        }
+
+        if (unconnected) {
+            unconnected_rooms.push(rooms[i]);
+        }
+    }
+
+    for (r in unconnected_rooms) {
+        rooms.remove(r);
+    }
+
+    // Connect rooms with horizontal or vertical lines with random attach points
+    for (i in 0...rooms.length) {
         for (j in 0...rooms.length) {
             if (i == j || connected[i][j]) {
-                if (connected[i][j]) {
-                    unconnected = false;
-                }
                 continue;
             }
 
@@ -269,7 +298,6 @@ static function connect_rooms(rooms: Array<Room>, disconnect_factor: Float = 0.0
 
                 connected[i][j] = true;
                 connected[j][i] = true;
-                unconnected = false;
             } else if (Math.collision_1d(r.x, r.x + r.width, other.x, other.x + other.width) != 0) {
                 // Collission along x-axis
                 var y1;
@@ -298,17 +326,8 @@ static function connect_rooms(rooms: Array<Room>, disconnect_factor: Float = 0.0
 
                 connected[i][j] = true;
                 connected[j][i] = true;
-                unconnected = false;
             }
         }
-
-        if (unconnected) {
-            unconnected_rooms.push(rooms[i]);
-        }
-    }
-
-    for (r in unconnected_rooms) {
-        rooms.remove(r);
     }
 
     // Remove connections that intersect with rooms
