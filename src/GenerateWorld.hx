@@ -46,11 +46,15 @@ static inline var max = Main.room_size_max;
 static var spacing = 3;
 static var iterations = 300;
 static var max_rooms = 15;
+
 static var enemy_room_entity_amount = 5;
 static var item_room_entity_amount = 2;
 
 static var enemy_types_per_level = 4;
 static var empty_room_chance = 10;
+static var enemy_room_chance = 90; // subset of non-empty rooms
+static var spell_room_chance = 10; // subset of enemy rooms
+static var locked_room_chance = 100; // subset of rooms with one connection
 
 public static function shuffle<T>(array: Array<T>): Array<T> {
     if (array != null) {
@@ -103,7 +107,7 @@ static function fill_rooms_with_entities() {
         return Entity.make_type(x, y, Random.pick(enemy_types));
     }
 
-    var locked_colors = new Array<Int>();
+    var room_is_locked = [for (i in 0...Main.rooms.length) false];
 
     // NOTE: leave start room(0th) empty
     for (i in 1...Main.rooms.length) {
@@ -118,68 +122,114 @@ static function fill_rooms_with_entities() {
             continue;
         }
 
-        var entities = new Array<Int>();
+        // Some one-connection rooms can be locked behind a door
+        if (r.adjacent_rooms.length == 1 && Random.chance(locked_room_chance)) {
+            room_is_locked[i] = true;
+            var connection = Main.rooms[r.adjacent_rooms[0]];
 
-        var positions = room_free_positions_shuffled(r);
+            // other room
+            //    |D|
+            //    | |
+            //    | |
+            // this room
+            var end_a: Vec2i = {x: connection.x, y: connection.y};
+            // For connections with width or height of 1, need to not increment so that door is within connection
+            var dx = if (connection.width > 1) connection.width - 1; else 0;
+            var dy = if (connection.height > 1) connection.height - 1; else 0;
+            var end_b: Vec2i = {x: connection.x + dx, y: connection.y + dy};
+            var dst_a = Math.dst2(end_a.x, end_a.y, r.x, r.y);
+            var dst_b = Math.dst2(end_b.x, end_b.y, r.x, r.y);
 
-        var room_with_enemies = Random.chance(90);
-
-        if (room_with_enemies) {
-            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * enemy_room_entity_amount));
-            for (i in 0...amount) {
-                var pos = positions.pop();
-                entities.push(Pick.value([
-                    {v: random_enemy, c: 60.0},
-                    {v: Entities.random_weapon, c: 1.0},
-                    {v: Entities.random_armor, c: 3.0},
-                    {v: Entities.random_potion, c: 6.0},
-                    {v: Entities.random_scroll, c: 3.0},
-                    {v: Entities.random_ring, c: 1.0},
-                    {v: Entities.unlocked_chest, c: 6.0},
-                    {v: Entities.locked_chest, c: 2.0},
-                    {v: Entities.random_statue, c: 1.0},
-                    ])(pos.x, pos.y));
-            }
-        } else {
-            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));
-            for (i in 0...amount) {
-                var pos = positions.pop();
-                entities.push(Pick.value([
-                    {v: Entities.random_weapon, c: 1.0},
-                    {v: Entities.random_armor, c: 3.0},
-                    {v: Entities.random_potion, c: 6.0},
-                    {v: Entities.random_scroll, c: 3.0},
-                    {v: Entities.random_ring, c: 1.0},
-                    {v: Entities.locked_chest, c: 2.0},
-                    {v: Entities.random_statue, c: 1.0},
-                    ])(pos.x, pos.y));
+            // Pick the far end of the connection
+            if (dst_a > dst_b) {
+                Entities.locked_door(end_a.x, end_a.y);
+            } else {
+                Entities.locked_door(end_b.x, end_b.y);
             }
         }
 
-        // Remember locked entity colors for later when spawning matching keys
-        for (e in entities) {
-            if (Entity.locked.exists(e) && Entity.locked[e].need_key) {
-                locked_colors.push(Entity.locked[e].color);
+        var positions = room_free_positions_shuffled(r);
+
+        if (room_is_locked[i]) {
+            // Locked room
+            // More good stuff inside
+            // NOTE: spawning chests behind locked doors is okay
+            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));
+
+            for (i in 0...amount) {
+                var pos = positions.pop();
+                Pick.value([
+                    {v: Entities.random_armor, c: 1.0},
+                    {v: Entities.random_weapon, c: 1.0},
+                    {v: Entities.random_ring, c: 1.0},
+                    {v: Entities.random_statue, c: 1.0},
+                    ])
+                (pos.x, pos.y);
+            }
+        } else if (Random.chance(enemy_room_chance)) {
+            // Enemy/item room with possible location spells
+            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * enemy_room_entity_amount));
+            for (i in 0...amount) {
+                var pos = positions.pop();
+                Pick.value([
+                    {v: random_enemy, c: 60.0},
+                    {v: Entities.unlocked_chest, c: 6.0},
+                    {v: Entities.random_potion, c: 4.0},
+                    {v: Entities.random_armor, c: 3.0},
+                    {v: Entities.random_scroll, c: 3.0},
+                    {v: Entities.random_weapon, c: 1.0},
+                    {v: Entities.random_ring, c: 1.0},
+                    {v: Entities.locked_chest, c: 2.0},
+                    {v: Entities.random_statue, c: 1.0},
+                    ])
+                (pos.x, pos.y);
+            }
+
+            // Sometimes add location spells
+            if (Random.chance(spell_room_chance)) {
+                Pick.value([
+                    {v: Spells.poison_room, c: 1.0},
+                    {v: Spells.lava_room, c: 1.0},
+                    {v: Spells.ice_room, c: 1.0},
+                    {v: Spells.teleport_room, c: 1.0},
+                    {v: Spells.ailment_room, c: 1.0},
+                    ])
+                (r);
+            }
+        } else {
+            // Room with items only
+            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));
+            for (i in 0...amount) {
+                var pos = positions.pop();
+                Pick.value([
+                    {v: Entities.random_potion, c: 4.0},
+                    {v: Entities.random_armor, c: 3.0},
+                    {v: Entities.random_scroll, c: 3.0},
+                    {v: Entities.locked_chest, c: 2.0},
+                    {v: Entities.random_weapon, c: 1.0},
+                    {v: Entities.random_ring, c: 1.0},
+                    {v: Entities.random_statue, c: 1.0},
+                    ])
+                (pos.x, pos.y);
             }
         }
     }
 
     // Spawn matching keys for each locked entity, duplicates possible, keys in same room as locked entity also possible, avoid spawning in connection rooms
-    for (color in locked_colors) {
-        var r_i = 0;
-        while (r_i == 0 || Main.rooms[r_i].is_connection) {
-            r_i = Random.int(0, Main.rooms.length - 1);
-        }
-        var r = Main.rooms[r_i];
-        var free_map = Main.get_free_map(r.x, r.y, r.x + r.width, r.y + r.height);
-        
-        var positions = room_free_positions_shuffled(r);
-
-        for (p in positions) {
-            if (free_map[p.x][p.y]) {
-                Entities.key(p.x, p.y, color);
-                break;
+    // NOTE: don't spawn keys in locked rooms, could spawn a key for the door itself behind it
+    for (e in Entity.locked.keys()) {
+        var locked = Entity.locked[e];
+        if (locked.need_key) {
+            var r_i = Random.int(1, Main.rooms.length - 1);
+            while (Main.rooms[r_i].is_connection || room_is_locked[r_i]) {
+                r_i = Random.int(1, Main.rooms.length - 1);
             }
+            var r = Main.rooms[r_i];
+            
+            var positions = room_free_positions_shuffled(r);
+
+            var pos = positions.pop();
+            Entities.key(pos.x, pos.y, locked.color);
         }
     }
 }

@@ -3,6 +3,7 @@ import haxegon.*;
 import Entity;
 import Pick;
 import Stats;
+import GenerateWorld;
 
 enum SpellType {
     SpellType_ModHealth;
@@ -274,12 +275,12 @@ static function increase_healthmax_everyturn(): Spell {
 static function poison(): Spell {
     return {
         type: SpellType_ModHealth,
-        element: ElementType_Physical,
+        element: ElementType_Shadow,
         duration_type: SpellDuration_EveryTurn,
-        duration: 40,
+        duration: Entity.INFINITE_DURATION,
         interval: 4,
         interval_current: 0,
-        value: 1,
+        value: -1,
         origin_name: "noname",
     }
 }
@@ -460,9 +461,9 @@ static function random_potion_spells(level: Int): Array<Spell> {
         0;
     } else {
         switch (type) {
-            case SpellType_ModHealthMax: Random.int(20, 30);
-            case SpellType_ModAttack: Random.int(20, 30);
-            case SpellType_ModDefense: Random.int(20, 30);
+            case SpellType_ModHealthMax: Random.int(40, 60);
+            case SpellType_ModAttack: Random.int(40, 60);
+            case SpellType_ModDefense: Random.int(40, 60);
             default: 0;
         }
     }
@@ -732,6 +733,124 @@ static function random_statue_spells(level: Int): Array<Spell> {
     var cost = statue_cost_spell(buff.element);
 
     return [buff, cost];
+}
+
+static function poison_room(r: Room) {
+    var level = Main.current_level;
+
+    // NOTE: all locations get a shared reference to spell so that duration is shared between them, otherwise the spell wouldn't tick unless you stood in the same place 
+    var poison_spell = {
+        type: SpellType_ModHealth,
+        element: ElementType_Shadow,
+        duration_type: SpellDuration_EveryTurn,
+        duration: Entity.INFINITE_DURATION,
+        interval: Random.int(10, 15),
+        interval_current: 0,
+        value: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level),
+        origin_name: "noname",
+    };
+
+    for (x in r.x...r.x + r.width) {
+        for (y in r.y...r.y + r.height) {
+            Main.location_spells[x][y].push(poison_spell);
+            Main.tiles[x][y] = Tile.Poison;
+        }
+    }
+}
+
+static function lava_room(r: Room) {
+    var level = Main.current_level;
+    
+    var lava_spell = {
+        type: SpellType_ModHealth,
+        element: ElementType_Fire,
+        duration_type: SpellDuration_EveryTurn,
+        duration: Entity.INFINITE_DURATION,
+        interval: Random.int(2, 3),
+        interval_current: 0,
+        value: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level),
+        origin_name: "noname",
+    };
+
+    // Lava only covers portions of the room
+    for (x in r.x...r.x + r.width) {
+        for (y in r.y...r.y + r.height) {
+            if (Random.chance(20)) {
+                Main.location_spells[x][y].push(lava_spell);
+                Main.tiles[x][y] = Tile.Lava;
+            }
+        }
+    }
+}
+
+static function ice_room(r: Room) {
+    var level = Main.current_level;
+
+    var ice_spell = {
+        type: SpellType_ModHealth,
+        element: ElementType_Ice,
+        duration_type: SpellDuration_EveryTurn,
+        duration: Entity.INFINITE_DURATION,
+        interval: Random.int(2, 3),
+        interval_current: 0,
+        value: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level),
+        origin_name: "noname",
+    };
+
+    for (x in r.x...r.x + r.width) {
+        for (y in r.y...r.y + r.height) {
+            Main.location_spells[x][y].push(ice_spell);
+            Main.tiles[x][y] = Tile.Ice;
+        }
+    }
+}
+
+static function teleport_room(r: Room) {
+    var level = Main.current_level;
+    
+    var teleport_spell = {
+        type: SpellType_RandomTeleport,
+        element: ElementType_Light,
+        duration_type: SpellDuration_EveryTurn,
+        duration: Entity.INFINITE_DURATION,
+        interval: Random.int(40, 60),
+        interval_current: 0,
+        value: 0,
+        origin_name: "noname",
+    };
+
+    for (x in r.x...r.x + r.width) {
+        for (y in r.y...r.y + r.height) {
+            Main.location_spells[x][y].push(teleport_spell);
+            Main.tiles[x][y] = Tile.Magical;
+        }
+    }
+}
+
+static function ailment_room(r: Room) {
+    var level = Main.current_level;
+    
+    // TODO: decrease all defences
+    var decrease_def_spells = 
+    [for (element in Type.allEnums(ElementType)) {
+        type: SpellType_ModDefense,
+        element: element,
+        duration_type: SpellDuration_EveryTurn,
+        duration: Entity.INFINITE_DURATION,
+        interval: 1,
+        interval_current: 0,
+        value: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level),
+        origin_name: "noname",
+    }];
+
+    for (x in r.x...r.x + r.width) {
+        for (y in r.y...r.y + r.height) {
+            for (spell in decrease_def_spells) {
+                Main.location_spells[x][y].push(spell);
+            }
+            Main.tiles[x][y] = Tile.Ice;
+        }
+    }
 }
 
 }

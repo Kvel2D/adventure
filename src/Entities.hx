@@ -315,6 +315,30 @@ static function locked_chest(x: Int, y: Int): Int {
     return e;
 }
 
+static function locked_door(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Door';
+
+    var color = Random.pick(locked_colors);
+    Entity.description[e] = 'A locked door.';
+    Entity.draw_char[e] = {
+        char: 'D',
+        color: color,
+    };
+    Entity.locked[e] = {
+        color: color,
+        need_key: true,
+    };
+    Entity.draw_on_minimap[e] = {
+        color: color,
+        seen: false,
+    };
+
+    return e;
+}
+
 static function stairs(x: Int, y: Int): Int {
     var e = Entity.make();
 
@@ -425,10 +449,7 @@ static function random_weapon(x: Int, y: Int): Int {
     var weapon_names = ['copper sword', 'iron shank', 'big hammer'];
     Entity.name[e] = 'Weapon';
 
-    var level = Main.current_level;
-    if (Main.increase_drop_level) {
-        level += 4;
-    }
+    var level = Main.get_drop_entity_level();
 
     var attack_total = Stats.get({min: 1, max: 1, scaling: 1.0}, level); 
 
@@ -465,10 +486,7 @@ static function random_weapon(x: Int, y: Int): Int {
 static function random_armor(x: Int, y: Int): Int {
     var e = Entity.make();
 
-    var level = Main.current_level;
-    if (Main.increase_drop_level) {
-        level += 4;
-    }
+    var level = Main.get_drop_entity_level();
 
     Entity.set_position(e, x, y);
     var armor_type = Random.pick([EquipmentType_Head, EquipmentType_Chest, EquipmentType_Legs]);
@@ -514,10 +532,7 @@ static function random_armor(x: Int, y: Int): Int {
 static function random_ring(x: Int, y: Int) {
     var e = Entity.make();
 
-    var level = Main.current_level;
-    if (Main.increase_drop_level) {
-        level += 4;
-    }
+    var level = Main.get_drop_entity_level();
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Ring';
@@ -543,10 +558,7 @@ static function random_ring(x: Int, y: Int) {
 static function random_potion(x: Int, y: Int): Int {
     var e = Entity.make();
 
-    var level = Main.current_level;
-    if (Main.increase_drop_level) {
-        level += 4;
-    }
+    var level = Main.get_drop_entity_level();
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Potion';
@@ -590,10 +602,7 @@ static function random_potion(x: Int, y: Int): Int {
 static function random_scroll(x: Int, y: Int): Int {
     var e = Entity.make();
 
-    var level = Main.current_level;
-    if (Main.increase_drop_level) {
-        level += 4;
-    }
+    var level = Main.get_drop_entity_level();
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Scroll';

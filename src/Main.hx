@@ -55,6 +55,7 @@ static inline var charges_text_size = 8;
 static inline var max_rings = 3;
 
 static var walls = Data.create2darray(map_width, map_height, false);
+static var tiles = Data.create2darray(map_width, map_height, Tile.None);
 static var rooms: Array<Room>;
 static var visited_room = new Array<Bool>();
 var tile_canvas_state = Data.create2darray(view_width, view_height, Tile.None);
@@ -123,6 +124,7 @@ EquipmentType_Legs => Entity.NONE,
 EquipmentType_Weapon => Entity.NONE,
 ];
 var player_spells = new Array<Spell>();
+static var location_spells = [for (x in 0...map_width) [for (y in 0...map_height) new Array<Spell>()]];
 var inventory = Data.create2darray(inventory_width, inventory_height, Entity.NONE);
 
 var attack_target = Entity.NONE;
@@ -165,12 +167,23 @@ function init() {
         Entities.random_armor(first_room.x + x + 2, first_room.y + y + i);
     }
     Entities.test_potion(first_room.x + 5, first_room.y + 7);
+
+    // Testing location spell
+    // var burn = Spells.burn();
+    // location_spells[first_room.x + 2][first_room.y + 2].push(burn);
+    // tiles[first_room.x + 2][first_room.y + 2] = Tile.Poison;
+    // location_spells[first_room.x + 4][first_room.y + 2].push(burn);
+    // tiles[first_room.x + 4][first_room.y + 2] = Tile.Poison;
 }
 
 function generate_level() {
     // Remove all entities, except inventory items and equipped equipment
     // NOTE: if new entities are added which don't have a position need to change this
+    var removed_entities = new Array<Int>();
     for (e in Entity.position.keys()) {
+        removed_entities.push(e);
+    }
+    for (e in removed_entities) {
         Entity.remove(e);
     }
 
@@ -185,10 +198,20 @@ function generate_level() {
         player_spells.remove(spell);
     }
 
-    // Fill world with walls
+    // Remove location spells
+    for (x in 0...map_width) {
+        for (y in 0...map_height) {
+            if (location_spells[x][y].length > 0) {
+                location_spells[x][y] = new Array<Spell>();
+            }
+        }
+    }
+
+    // Clear wall and tile data
     for (x in 0...map_width) {
         for (y in 0...map_height) {
             walls[x][y] = true;
+            tiles[x][y] = Tile.Black;
         }
     }
 
@@ -208,6 +231,7 @@ function generate_level() {
         for (x in r.x...(r.x + r.width)) {
             for (y in r.y...(r.y + r.height)) {
                 walls[x][y] = false;
+                tiles[x][y] = Tile.Ground;
             }
         }
     }
@@ -261,6 +285,15 @@ static inline function out_of_map_bounds(x, y) {
 
 inline function out_of_view_bounds(x, y) {
     return x < (player_x - Math.floor(view_width / 2)) || y < (player_y - Math.floor(view_height / 2)) || x > (player_x + Math.floor(view_width / 2)) || y > (player_y + Math.floor(view_height / 2));
+}
+
+static function get_drop_entity_level(): Int {
+    return 
+    if (increase_drop_level) {
+        current_level + 1;
+    } else {
+        current_level;
+    }
 }
 
 function player_next_to(pos: Position): Bool {
@@ -333,6 +366,15 @@ function player_defense_total(): Map<ElementType, Int> {
     }
 
     return defense_total;
+}
+
+function defense_to_absorb(def: Int): Int {
+    // 82 def = absorb at least 8, absorb 9 20% of the time
+    var absorb: Int = Math.floor(def / 10);
+    if (Random.chance((def % 10) * 10)) {
+        absorb++;
+    }
+    return absorb;
 }
 
 // TODO: make sure that get_free_map() is used to get the min required area, instead of full map. Also try to use a cached free_map instead of creating new one everytime
@@ -801,14 +843,6 @@ function entity_attack_player(e: Int) {
     combat.attacked_by_player = false;
 
     var defense_total = player_defense_total();
-    function defense_to_absorb(def: Int): Int {
-        // 82 def = absorb at least 8, absorb 9 20% of the time
-        var absorb: Int = Math.floor(def / 10);
-        if (Random.chance((def % 10) * 10)) {
-            absorb++;
-        }
-        return absorb;
-    }
 
     var damage_total = 0;
     var absorb_total = 0;
@@ -931,10 +965,28 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
     // printing that the sword is damaging the player every 5 turns IS useful
     switch (spell.type) {
         case SpellType_ModHealth: {
-            player_health += spell.value;
+            // Negative health changes are affected by player defences
+            if (spell.value >= 0) {
+                player_health += spell.value;
 
-            add_message('${spell.origin_name} heals you for ${spell.value} health.');
-            add_damage_number(spell.value);
+                add_message('${spell.origin_name} heals you for ${spell.value} health.');
+                add_damage_number(spell.value);
+            } else {
+                var defense_total = player_defense_total();
+                var absorb = defense_to_absorb(defense_total[spell.element]);
+                var damage = Std.int(Math.max(0, (-1 * spell.value) - absorb));
+
+                player_health -= damage;
+
+                if (damage > 0) {
+                    // TODO: what should be the description of the spell origin?
+                    add_message('You take ${damage} ${spell.element} damage from ${spell.origin_name}.');
+                }
+
+                if (absorb > 0) {
+                    add_message('Your armor absorbs ${absorb} ${spell.element} damage.');
+                }
+            }
         }
         case SpellType_ModHealthMax: {
             if (spell.duration_type == SpellDuration_Permanent) {
@@ -1201,7 +1253,7 @@ function update() {
                 new_tile = Tile.Black;
             } else {
                 if (position_visible(x, y)) {
-                    new_tile = Tile.Ground;
+                    new_tile = tiles[map_x][map_y];
                 } else {
                     new_tile = Tile.DarkerGround;
                 }
@@ -1719,6 +1771,9 @@ function update() {
 
         // Player spells
         process_spell_list(player_spells);
+
+        // Location spells
+        process_spell_list(location_spells[player_x][player_y]);
 
         // Do spells in order of their priority, first 0th prio spells, then 1st, etc...
         for (i in 0...(Spells.last_prio + 1)) {

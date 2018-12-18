@@ -1,10 +1,6 @@
 --------------------------------------------------------------------------
 TODO
 
-maybe clicking on enemy should automatically skip a turn
-
-defense/attack effects too short
-
 --------------------------------------------------------------------------
 DONE
 
@@ -18,17 +14,8 @@ entities with random movement can move into other rooms
 speed spell makes it hard to get through connections
     possible feature
 
-failed to spawn matching key
-
 --------------------------------------------------------------------------
 IDEAS
-
-friendly mobs which attack other mobs
-    other mobs should attack them as well?
-
-cells with effects
-    poison - works like bloodborne, but full damage instantly at completion of meter, meter invisible, in effect allows for constant accumulation of poison in realtime which periodically "ticks"
-    straight damage when stepping on for the first time (lava)
 
 doors opened with buttons
     can make rooms be one-way entrance by putting a button and a door at the entrance
@@ -47,17 +34,8 @@ pushable blocks ala sokoban
     pushed by moving next to block
     can grab block for undoing purposes by holding G
 
-locked doors that need keys(key spawned randomly in world a bit far away from door)
-
 long-range attack for entities
     attacks player if no LOS(i.e. player can see it)
-
-increase effect of element in general
-    increase light = higher light dmg, higher light heal amount, etc.(higher light dmg taken?)
-    decrease light = lower light dmg, lower light heal, lower light dmg taken
-
-entity editor in-game
-    edit/add/remove all components
 
 ranged attacks
     entities can attack if 2-3-4 away from player
@@ -86,41 +64,15 @@ find a good font, that doesn't have scaling or offset problems
 
 scrolling for spell display, at some point spells won't fit in current area
 
-weapons buffs   
-    base attack buffs
-    physical or physical + element or only element(rare)
-    single element weapons have "of Element" in name
-    or all elements("of Radiance")
-    +
-    extra buffs for higher level weapons
-    or even use
-
 boss mobs
     guaranteed powerful item drop
     big health pool
 
-enemy chest
-    just a regular enemy with 100% droprate
-
-different attack pattern weapons
-    spear = damage everything 2-3 in front of you
-    axe = damage everything around you
-    whip = cleave, jumps from one entity to another(no branches)
-    offset by less dmg on single target
-
-start with 5 charge heal potion?
-    be able to select starting item
+start with some items?
+    could be like a class system where you start with certain loadouts
 
 picking up and dropping friendly enemy is like pokemon
     pick up an enemy like that and drop it and let it fight other enemies for you
-
-portals
-    two-way, connected to specific locations
-    port via interact menu?
-
-locked doors
-    need to spawn them and matching keys such that it's possible to unlock
-    (don't lock the key behind the door)
 
 show whether mob is friendly or aggressive in tooltip
     disallow attacking friendly mobs so that player is more likely to check that he can interact and pick it up
@@ -155,6 +107,9 @@ armor/weapon buff spells
 using items on anything might be needed
     some situations where would want to use heal potion on summoned entity for example
     "Use on target" interact option?
+
+friendly mobs which attack other mobs
+    other mobs should attack them as well?
 
 --------------------------------------------------------------------------
 SPELL IDEAS
@@ -254,3 +209,5 @@ maybe draw attack by colors on stat screen
 cache stat screen/tooltip?
 
 increase max amount of enemies with levels
+
+prevent movement of all mobs in current room
