@@ -129,7 +129,7 @@ static function fill_rooms_with_entities() {
             for (i in 0...amount) {
                 var pos = positions.pop();
                 entities.push(Pick.value([
-                    {v: random_enemy, c: 50.0},
+                    {v: random_enemy, c: 60.0},
                     {v: Entities.random_weapon, c: 1.0},
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_potion, c: 6.0},
@@ -137,6 +137,7 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_ring, c: 1.0},
                     {v: Entities.unlocked_chest, c: 6.0},
                     {v: Entities.locked_chest, c: 2.0},
+                    {v: Entities.random_statue, c: 1.0},
                     ])(pos.x, pos.y));
             }
         } else {
@@ -149,8 +150,8 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_potion, c: 6.0},
                     {v: Entities.random_scroll, c: 3.0},
                     {v: Entities.random_ring, c: 1.0},
-                    {v: Entities.unlocked_chest, c: 6.0},
                     {v: Entities.locked_chest, c: 2.0},
+                    {v: Entities.random_statue, c: 1.0},
                     ])(pos.x, pos.y));
             }
         }

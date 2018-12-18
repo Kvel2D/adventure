@@ -171,6 +171,16 @@ static function get_element_color(element: ElementType): Int {
     }
 }
 
+static function spell_element_count(spells: Array<Spell>): Int {
+    var spell_elements = new Array<ElementType>();
+    for (spell in spells) {
+        if (spell_elements.indexOf(spell.element) == -1) {
+            spell_elements.push(spell.element);
+        }
+    }
+    return spell_elements.length;
+}
+
 static function fountain(x: Int, y: Int): Int {
     var e = Entity.make();
 
@@ -338,7 +348,7 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [Spells.test()],
+        spells: [Spells.uncover_map()],
         charges: 3,
         consumable: true,
     };
@@ -385,7 +395,7 @@ static function random_element_split(element_count: Int, total: Int): Map<Elemen
         return [for (i in 0...(x + 1)) for (split in split4(x - i)) [i].concat(split)];
     }
 
-    var splits = switch (element_count) {
+    var all_splits = switch (element_count) {
         case 1: [[total]];
         case 2: split2(total);
         case 3: split3(total);
@@ -393,7 +403,8 @@ static function random_element_split(element_count: Int, total: Int): Map<Elemen
         case 5: split5(total);
         default: [[0]];
     }
-    var split = Random.pick(splits);
+
+    var split = Random.pick(all_splits);
 
     var elements = Type.allEnums(ElementType);
     Random.shuffle(elements);
@@ -415,6 +426,9 @@ static function random_weapon(x: Int, y: Int): Int {
     Entity.name[e] = 'Weapon';
 
     var level = Main.current_level;
+    if (Main.increase_drop_level) {
+        level += 4;
+    }
 
     var attack_total = Stats.get({min: 1, max: 1, scaling: 1.0}, level); 
 
@@ -452,6 +466,9 @@ static function random_armor(x: Int, y: Int): Int {
     var e = Entity.make();
 
     var level = Main.current_level;
+    if (Main.increase_drop_level) {
+        level += 4;
+    }
 
     Entity.set_position(e, x, y);
     var armor_type = Random.pick([EquipmentType_Head, EquipmentType_Chest, EquipmentType_Legs]);
@@ -468,7 +485,7 @@ static function random_armor(x: Int, y: Int): Int {
     Entity.name[e] = 'Armor';
     Entity.draw_tile[e] = armor_tiles[armor_type];
 
-    var defense_total = Stats.get({min: 2, max: 4, scaling: 1.0}, level);
+    var defense_total = Stats.get({min: 3, max: 4, scaling: 1.0}, level);
 
     var element_count: Int = 
     if (level == 0) Random.int(1, 2);
@@ -496,12 +513,18 @@ static function random_armor(x: Int, y: Int): Int {
 
 static function random_ring(x: Int, y: Int) {
     var e = Entity.make();
+
+    var level = Main.current_level;
+    if (Main.increase_drop_level) {
+        level += 4;
+    }
+
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Ring';
     Entity.item[e] = {
         name: "Big Ring",
         type: ItemType_Ring,
-        spells: [Spells.random_ring_spell()],
+        spells: [Spells.random_ring_spell(level)],
     };
     // TODO: make some rings have a use
     // Entity.use[e] = {
@@ -520,6 +543,11 @@ static function random_ring(x: Int, y: Int) {
 static function random_potion(x: Int, y: Int): Int {
     var e = Entity.make();
 
+    var level = Main.current_level;
+    if (Main.increase_drop_level) {
+        level += 4;
+    }
+
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Potion';
     Entity.item[e] = {
@@ -527,20 +555,32 @@ static function random_potion(x: Int, y: Int): Int {
         type: ItemType_Normal,
         spells: [],
     };
+    var spells = Spells.random_potion_spells(level);
     Entity.use[e] = {
-        spells: [Spells.random_potion_spell()],
+        spells: spells,
         charges: 1,
         consumable: true,
     };
 
-    // TODO: figure out how to determine the dominant element for potions with multiple element spells
-    Entity.draw_tile[e] = switch(Entity.use[e].spells[0].element) {
-        case ElementType_Physical: Tile.PotionPhysical;
-        case ElementType_Shadow: Tile.PotionShadow;
-        case ElementType_Light: Tile.PotionLight;
-        case ElementType_Fire: Tile.PotionFire;
-        case ElementType_Ice: Tile.PotionIce;
+    // Count spell elements
+    var spell_elements = new Map<ElementType, Bool>();
+    for (spell in spells) {
+        spell_elements[spell.element] = true;
     }
+
+    Entity.draw_tile[e] = 
+    if (spell_element_count(spells) == 1) {
+        switch(Entity.use[e].spells[0].element) {
+            case ElementType_Physical: Tile.PotionPhysical;
+            case ElementType_Shadow: Tile.PotionShadow;
+            case ElementType_Light: Tile.PotionLight;
+            case ElementType_Fire: Tile.PotionFire;
+            case ElementType_Ice: Tile.PotionIce;
+        }
+    } else {
+        Tile.PotionMixed;
+    }
+
 
     Entity.validate(e);
 
@@ -550,6 +590,11 @@ static function random_potion(x: Int, y: Int): Int {
 static function random_scroll(x: Int, y: Int): Int {
     var e = Entity.make();
 
+    var level = Main.current_level;
+    if (Main.increase_drop_level) {
+        level += 4;
+    }
+
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Scroll';
     Entity.item[e] = {
@@ -557,18 +602,24 @@ static function random_scroll(x: Int, y: Int): Int {
         type: ItemType_Normal,
         spells: [],
     };
+    var spells = [Spells.random_scroll_spell(level)];
     Entity.use[e] = {
-        spells: [Spells.random_scroll_spell()],
+        spells: spells,
         charges: 1,
         consumable: true,
     };
 
-    Entity.draw_tile[e] = switch(Entity.use[e].spells[0].element) {
-        case ElementType_Physical: Tile.ScrollPhysical;
-        case ElementType_Shadow: Tile.ScrollShadow;
-        case ElementType_Light: Tile.ScrollLight;
-        case ElementType_Fire: Tile.ScrollFire;
-        case ElementType_Ice: Tile.ScrollIce;
+    Entity.draw_tile[e] = 
+    if (spell_element_count(spells) == 1) {
+        switch(Entity.use[e].spells[0].element) {
+            case ElementType_Physical: Tile.ScrollPhysical;
+            case ElementType_Shadow: Tile.ScrollShadow;
+            case ElementType_Light: Tile.ScrollLight;
+            case ElementType_Fire: Tile.ScrollFire;
+            case ElementType_Ice: Tile.ScrollIce;
+        }
+    } else {
+        Tile.ScrollMixed;
     }
 
     Entity.validate(e);
@@ -667,5 +718,31 @@ static function random_enemy_type(): EntityType {
         draw_on_minimap: null,
     };
 } 
+
+static function random_statue(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    var level = Main.current_level;
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Statue';
+    Entity.use[e] = {
+        spells: Spells.random_statue_spells(level),
+        charges: 1,
+        consumable: false,
+    };
+
+    Entity.draw_tile[e] = switch (Entity.use[e].spells[0].element) {
+        case ElementType_Physical: Tile.StatuePhysical;
+        case ElementType_Shadow: Tile.StatueShadow;
+        case ElementType_Light: Tile.StatueLight;
+        case ElementType_Fire: Tile.StatueFire;
+        case ElementType_Ice: Tile.StatueIce;
+    }
+
+    Entity.validate(e);
+
+    return e;
+}
 
 }

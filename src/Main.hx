@@ -68,6 +68,7 @@ var show_things = false;
 var movespeed_mod = 0;
 var dropchance_mod = 0;
 var copperchance_mod = 0;
+static var increase_drop_level = false;
 
 var show_dev_buttons = true;
 var noclip_DEV = false;
@@ -841,10 +842,8 @@ function entity_attack_player(e: Int) {
     }
 }
 
-function player_attack_entity(e: Int) {
+function player_attack_entity(e: Int, attacks: Map<ElementType, Int>) {
     var combat = Entity.combat[e];
-
-    var attack_total = player_attack_total();
 
     var damage_to_entity = 0;
     for (element in Type.allEnums(ElementType)) {
@@ -853,7 +852,7 @@ function player_attack_entity(e: Int) {
         } else {
             0;
         }
-        damage_to_entity += Std.int(Math.max(0, attack_total[element] - absorb));
+        damage_to_entity += Std.int(Math.max(0, attacks[element] - absorb));
     }
 
     combat.health -= damage_to_entity;
@@ -926,159 +925,131 @@ function draw_entity(e: Int, x: Float, y: Float) {
     }
 }
 
-function do_spell(spell: Spell, effect_message: Bool = true): Bool {
-    var spell_over = false;
-    var active = false;
-
-    function decrement_duration() {
-        // Spell is active every interval, until duration reaches zero
-        spell.interval_current++;
-        if (spell.interval_current >= spell.interval) {
-            spell.interval_current = 0;
-            active = true;
-
-            if (spell.duration != Entity.INFINITE_DURATION && spell.duration != Entity.LEVEL_DURATION) {
-                spell.duration--;
-                if (spell.duration == 0) {
-                    spell_over = true;
-                }
-            }
-        }
-    }
-
-    switch (spell.duration_type) {
-        case SpellDuration_Permanent: {
-            spell_over = true;
-            active = true;
-        }
-        case SpellDuration_EveryTurn: {
-            // Every turn spells activate every turn
-            decrement_duration();
-        }
-        case SpellDuration_EveryAttack: {
-            // Every attack spells decrement duration only on turns with attacks
-            if (attack_target != Entity.NONE) {
-                decrement_duration();
-            } else {
-                active = true;
-            }
-        }
-    }
-
+function do_spell(spell: Spell, effect_message: Bool = true) {
     // NOTE: some infinite spells(buffs from items) are printed, some aren't
     // for example: printing that a sword increases ice attack every turn is NOT useful
     // printing that the sword is damaging the player every 5 turns IS useful
-    if (active) {
-        switch (spell.type) {
-            case SpellType_ModHealth: {
-                player_health += spell.value;
+    switch (spell.type) {
+        case SpellType_ModHealth: {
+            player_health += spell.value;
 
-                add_message('${spell.origin_name} heals you for ${spell.value} health.');
-                add_damage_number(spell.value);
+            add_message('${spell.origin_name} heals you for ${spell.value} health.');
+            add_damage_number(spell.value);
+        }
+        case SpellType_ModHealthMax: {
+            if (spell.duration_type == SpellDuration_Permanent) {
+                player_health_max += spell.value;
+            } else {
+                player_health_max_mod += spell.value;
             }
-            case SpellType_ModHealthMax: {
-                if (spell.duration_type == SpellDuration_Permanent) {
-                    player_health_max += spell.value;
-                } else {
-                    player_health_max_mod += spell.value;
-                }
-                
-                if (spell.duration_type == SpellDuration_Permanent) {
-                    add_message('${spell.origin_name} increases your max health by ${spell.value}.');
-                }
-            }
-            case SpellType_ModAttack: {
-                if (spell.duration_type == SpellDuration_Permanent) {
-                    player_attack[spell.element] += spell.value;
-
-                    // Attack can't be negative
-                    if (player_attack[spell.element] < 0) {
-                        player_attack[spell.element] = 0;
-                    }
-                } else {
-                    player_attack_mod[spell.element] += spell.value;
-                }
-
-                if (spell.duration_type == SpellDuration_Permanent) {
-                    add_message('${spell.origin_name} increases your ${spell.element} attack by ${spell.value}.');
-                }
-            }
-            case SpellType_ModDefense: {
-                if (spell.duration_type == SpellDuration_Permanent) {
-                    player_defense[spell.element] += spell.value;
-                } else {
-                    player_defense_mod[spell.element] += spell.value;
-                }
-
-                if (spell.duration_type == SpellDuration_Permanent) {
-                    add_message('${spell.origin_name} increases your ${spell.element} defense by ${spell.value}.');
-                }
-            }
-            case SpellType_UncoverMap: {
-                // Mark all rooms visited
-                for (i in 0...visited_room.length) {
-                    visited_room[i] = true;
-                }
-
-                add_message('${spell.origin_name} uncovers the map.');
-            }
-            case SpellType_RandomTeleport: {
-                // Teleport to random position in a random room different from current one and not a connection room
-                var destination = player_room;
-                while (destination == player_room || rooms[destination].is_connection) {
-                    destination = Random.int(0, rooms.length - 1);
-                }
-
-                var r = rooms[destination];
-                var positions = GenerateWorld.room_free_positions_shuffled(r);
-                var pos = positions.pop();
-                player_x = pos.x;
-                player_y = pos.y;
-                player_room = destination;
-
-                add_message('You are teleported to a random room.');
-            }
-            case SpellType_SafeTeleport: {
-                // Teleport to first room, which is always empty
-                var destination = 0;
-
-                var r = rooms[destination];
-                var positions = GenerateWorld.room_free_positions_shuffled(r);
-                var pos = positions.pop();
-
-                player_x = pos.x;
-                player_y = pos.y;
-                player_room = destination;
-
-                add_message('You are teleported to a safe place.');
-            }
-            case SpellType_Nolos: {
-                nolos = true;
-            }
-            case SpellType_Noclip: {
-                noclip = true;
-            }
-            case SpellType_ShowThings: {
-                show_things = true;
-            }
-            case SpellType_NextFloor: {
-                current_level++;
-                generate_level();
-                add_message('You go up to the next floor.');
-            }
-            case SpellType_ModMoveSpeed: {
-                movespeed_mod += spell.value;
-            }
-            case SpellType_ModDropChance: {
-                dropchance_mod += spell.value;
-            }
-            case SpellType_ModCopperDrop: {
-                copperchance_mod += spell.value;
+            
+            if (spell.duration_type == SpellDuration_Permanent) {
+                add_message('${spell.origin_name} increases your max health by ${spell.value}.');
             }
         }
-    }
+        case SpellType_ModAttack: {
+            if (spell.duration_type == SpellDuration_Permanent) {
+                player_attack[spell.element] += spell.value;
 
-    return spell_over;
+                // Attack can't be negative
+                if (player_attack[spell.element] < 0) {
+                    player_attack[spell.element] = 0;
+                }
+            } else {
+                player_attack_mod[spell.element] += spell.value;
+            }
+
+            if (spell.duration_type == SpellDuration_Permanent) {
+                add_message('${spell.origin_name} increases your ${spell.element} attack by ${spell.value}.');
+            }
+        }
+        case SpellType_ModDefense: {
+            if (spell.duration_type == SpellDuration_Permanent) {
+                player_defense[spell.element] += spell.value;
+            } else {
+                player_defense_mod[spell.element] += spell.value;
+            }
+
+            if (spell.duration_type == SpellDuration_Permanent) {
+                add_message('${spell.origin_name} increases your ${spell.element} defense by ${spell.value}.');
+            }
+        }
+        case SpellType_UncoverMap: {
+            // Mark all rooms visited
+            for (i in 0...visited_room.length) {
+                visited_room[i] = true;
+            }
+
+            add_message('${spell.origin_name} uncovers the map.');
+        }
+        case SpellType_RandomTeleport: {
+            // Teleport to random position in a random room different from current one and not a connection room
+            var destination = player_room;
+            while (destination == player_room || rooms[destination].is_connection) {
+                destination = Random.int(0, rooms.length - 1);
+            }
+
+            var r = rooms[destination];
+            var positions = GenerateWorld.room_free_positions_shuffled(r);
+            var pos = positions.pop();
+            player_x = pos.x;
+            player_y = pos.y;
+            player_room = destination;
+
+            add_message('You are teleported to a random room.');
+        }
+        case SpellType_SafeTeleport: {
+            // Teleport to first room, which is always empty
+            var destination = 0;
+
+            var r = rooms[destination];
+            var positions = GenerateWorld.room_free_positions_shuffled(r);
+            var pos = positions.pop();
+
+            player_x = pos.x;
+            player_y = pos.y;
+            player_room = destination;
+
+            add_message('You are teleported to a safe place.');
+        }
+        case SpellType_Nolos: {
+            nolos = true;
+        }
+        case SpellType_Noclip: {
+            noclip = true;
+        }
+        case SpellType_ShowThings: {
+            show_things = true;
+        }
+        case SpellType_NextFloor: {
+            current_level++;
+            generate_level();
+            add_message('You go up to the next floor.');
+        }
+        case SpellType_ModMoveSpeed: {
+            movespeed_mod += spell.value;
+        }
+        case SpellType_ModDropChance: {
+            dropchance_mod += spell.value;
+        }
+        case SpellType_ModCopperDrop: {
+            copperchance_mod += spell.value;
+        }
+        case SpellType_AoeDamage: {
+            for (e in Entity.combat.keys()) {
+                if (Entity.position.exists(e)) {
+                    var pos = Entity.position[e];
+
+                    if (Math.abs(player_x - pos.x) <= 2 && Math.abs(player_y - pos.y) <= 2) {
+                        player_attack_entity(e, [spell.element => spell.value]);
+                    }
+                }
+            }
+        }
+        case SpellType_ModDropLevel: {
+            increase_drop_level = true;
+        }
+    }
 }
 
 function update() {
@@ -1306,7 +1277,7 @@ function update() {
     // DEAD indicator
     // TODO: need a real transition
     if (player_health <= 0) {
-        Text.size = 8;
+        Text.size = 100;
         Text.display(100, 100, 'DEAD', Col.RED);
     }
 
@@ -1657,14 +1628,62 @@ function update() {
         movespeed_mod = 0;
         dropchance_mod = 0;
         copperchance_mod = 0;
+        increase_drop_level = false;
 
         //
         // Process spells
         //
+        var active_spells = [for (i in 0...(Spells.last_prio + 1)) new Array<Spell>()];
+
+        function process_spell(spell: Spell): Bool {
+            var spell_over = false;
+            var active = false;
+
+            function decrement_duration() {
+                // Spell is active every interval, until duration reaches zero
+                spell.interval_current++;
+                if (spell.interval_current >= spell.interval) {
+                    spell.interval_current = 0;
+                    active = true;
+
+                    if (spell.duration != Entity.INFINITE_DURATION && spell.duration != Entity.LEVEL_DURATION) {
+                        spell.duration--;
+                        if (spell.duration == 0) {
+                            spell_over = true;
+                        }
+                    }
+                }
+            }
+
+            switch (spell.duration_type) {
+                case SpellDuration_Permanent: {
+                    spell_over = true;
+                    active = true;
+                }
+                case SpellDuration_EveryTurn: {
+                    // Every turn spells activate every turn
+                    decrement_duration();
+                }
+                case SpellDuration_EveryAttack: {
+                    // Every attack spells activate only when attacking
+                    if (attack_target != Entity.NONE) {
+                        decrement_duration();
+                    }
+                }
+            }
+
+            if (active) {
+                var prio = Spells.prios[spell.type];
+                active_spells[prio].push(spell);
+            }
+
+            return spell_over;
+        }
+
         function process_spell_list(list: Array<Spell>) {
             var expired_spells = new Array<Spell>();
             for (spell in list) {
-                var spell_over = do_spell(spell);
+                var spell_over = process_spell(spell);
 
                 if (spell_over) {
                     expired_spells.push(spell);
@@ -1701,6 +1720,13 @@ function update() {
         // Player spells
         process_spell_list(player_spells);
 
+        // Do spells in order of their priority, first 0th prio spells, then 1st, etc...
+        for (i in 0...(Spells.last_prio + 1)) {
+            for (spell in active_spells[i]) {
+                do_spell(spell);
+            }
+        }
+
         // Limit health to health_max
         if (player_health > player_health_max + player_health_max_mod) {
             player_health = player_health_max + player_health_max_mod;
@@ -1708,7 +1734,7 @@ function update() {
 
         // Player attacks entity
         if (attack_target != Entity.NONE) {
-            player_attack_entity(attack_target);
+            player_attack_entity(attack_target, player_attack_total());
             attack_target = Entity.NONE;
         }
 

@@ -19,6 +19,8 @@ enum SpellType {
     SpellType_ModMoveSpeed;
     SpellType_ModDropChance;
     SpellType_ModCopperDrop;
+    SpellType_AoeDamage;
+    SpellType_ModDropLevel;
 }
 
 enum SpellDuration {
@@ -42,6 +44,32 @@ typedef Spell = {
 class Spells {
 // force unindent
 
+// Drop effects before everything else so that all drops that can be caused by spells are affected
+// Teleports last so that aoe hits stuff in old room
+// Must do NextFloor before ModDropLevel, otherwise all spawned entities will be +1 level
+static var prios = [
+SpellType_NextFloor => 0,
+
+SpellType_ModDropChance => 1,
+SpellType_ModCopperDrop => 1,
+SpellType_ModDropLevel => 1,
+
+SpellType_ModHealthMax => 2,
+SpellType_ModHealth => 2,
+SpellType_ModAttack => 2,
+SpellType_ModDefense => 2,
+SpellType_AoeDamage => 2,
+
+SpellType_ShowThings => 3,
+SpellType_UncoverMap => 3,
+SpellType_SafeTeleport => 3,
+SpellType_RandomTeleport => 3,
+SpellType_Nolos => 3,
+SpellType_Noclip => 3,
+SpellType_ModMoveSpeed => 3,
+];
+static inline var last_prio = 3;
+
 // TODO: need to think about wording
 // the interval thing is only for heal over time/dmg over time
 // attack bonuses/ health max bonuses are applied every turn
@@ -62,7 +90,8 @@ static function get_description(spell: Spell): String {
     // +1 ice defense for the rest of the level
     // see treasure on minimap for 30 turns
 
-    var sign = if (spell.value > 0) '+' else '-';
+    // negative numbers already have '-' in front
+    var sign = if (spell.value > 0) '+' else '';
 
     var effect = switch (spell.type) {
         case SpellType_ModHealth: '$sign${spell.value} health';
@@ -73,6 +102,7 @@ static function get_description(spell: Spell): String {
         case SpellType_ModDropChance: '$sign${spell.value}% item drop chance';
         case SpellType_ModCopperDrop: '$sign${spell.value}% copper drop chance';
 
+        case SpellType_ModDropLevel: 'make item drops more powerful';
         case SpellType_UncoverMap: 'uncover map';
         case SpellType_RandomTeleport: 'random teleport';
         case SpellType_SafeTeleport: 'safe teleport';
@@ -80,6 +110,7 @@ static function get_description(spell: Spell): String {
         case SpellType_Noclip: 'go through walls';
         case SpellType_ShowThings: 'see tresure on the map';
         case SpellType_NextFloor: 'go to next floor';
+        case SpellType_AoeDamage: 'deal ${spell.value} ${element} damage to enemies near you';
     }
 
     var interval = 
@@ -357,6 +388,45 @@ static function chance_copper_drop(): Spell {
     }
 }
 
+static function fire_aoe(): Spell {
+    return {
+        type: SpellType_AoeDamage,
+        element: ElementType_Fire,
+        duration_type: SpellDuration_Permanent,
+        duration: 0,
+        interval: 0,
+        interval_current: 0,
+        value: 2,
+        origin_name: "noname",
+    }
+}
+
+static function drop_level(): Spell {
+    return {
+        type: SpellType_ModDropLevel,
+        element: ElementType_Shadow,
+        duration_type: SpellDuration_EveryTurn,
+        duration: Entity.LEVEL_DURATION,
+        interval: 1,
+        interval_current: 0,
+        value: 0,
+        origin_name: "noname",
+    }
+}
+
+static function uncover_map(): Spell {
+    return {
+        type: SpellType_UncoverMap,
+        element: ElementType_Shadow,
+        duration_type: SpellDuration_EveryTurn,
+        duration: Entity.LEVEL_DURATION,
+        interval: 1,
+        interval_current: 0,
+        value: 0,
+        origin_name: "noname",
+    }
+}
+
 static function test(): Spell {
     return {
         type: SpellType_ModCopperDrop,
@@ -370,9 +440,7 @@ static function test(): Spell {
     }
 }
 
-static function random_potion_spell(): Spell {
-    var level = Main.current_level;
-
+static function random_potion_spells(level: Int): Array<Spell> {
     var type = Pick.value([
         {v: SpellType_ModHealth, c: 4.0},
         {v: SpellType_ModAttack, c: 1.0},
@@ -399,26 +467,33 @@ static function random_potion_spell(): Spell {
         }
     }
 
-    // TODO: scale everything else
+    // For defense/attack mods either do a bit too all elements or a lot to one element
+    var elements = switch (type) {
+        case SpellType_ModHealth: [ElementType_Light];
+        case SpellType_ModHealthMax: [ElementType_Shadow];
+        case SpellType_UncoverMap: [ElementType_Light];
+        case SpellType_ModAttack: Type.allEnums(ElementType);
+        case SpellType_ModDefense: Type.allEnums(ElementType);
+        default: [ElementType_Physical];
+    }
+
     var value = switch (type) {
         case SpellType_ModHealth: Stats.get({min: 5, max: 8, scaling: 1.0}, level);
         case SpellType_ModHealthMax: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
-        case SpellType_ModAttack: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
-        case SpellType_ModDefense: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+        case SpellType_ModAttack: {
+            if (elements.length == 0) 
+                Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+            else Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+        }
+        case SpellType_ModDefense: {
+            if (elements.length == 0) 
+                Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+            else Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+        }
         default: 0;
     }
 
-    var element = switch (type) {
-        case SpellType_ModHealth: ElementType_Light;
-        case SpellType_ModHealthMax: ElementType_Shadow;
-        case SpellType_ModAttack: ElementType_Physical;
-        case SpellType_ModDefense: ElementType_Physical;
-        case SpellType_UncoverMap: ElementType_Light;
-        case SpellType_Nolos: ElementType_Light;
-        default: ElementType_Physical;
-    }
-
-    return {
+    return [for (element in elements) {
         type: type,
         element: element,
         duration_type: duration_type,
@@ -427,12 +502,10 @@ static function random_potion_spell(): Spell {
         interval_current: 0,
         value: value,
         origin_name: "noname",
-    }
+    }];
 }
 
-static function random_scroll_spell(): Spell {
-    var level = Main.current_level;
-
+static function random_scroll_spell(level: Int): Spell {
     var type = Pick.value([
         {v: SpellType_UncoverMap, c: 1.0},
         {v: SpellType_Nolos, c: 1.0},
@@ -443,6 +516,7 @@ static function random_scroll_spell(): Spell {
         {v: SpellType_ModAttack, c: 1.0},
         {v: SpellType_ModDefense, c: 1.0},
         {v: SpellType_ShowThings, c: 0.5},
+        {v: SpellType_AoeDamage, c: 1.0},
         ]);
 
     var duration_type = switch (type) {
@@ -455,6 +529,9 @@ static function random_scroll_spell(): Spell {
         case SpellType_ModDefense: SpellDuration_Permanent;
         case SpellType_UncoverMap: SpellDuration_EveryTurn;
         case SpellType_ShowThings: SpellDuration_EveryTurn;
+        case SpellType_AoeDamage: Pick.value([
+            {v: SpellDuration_Permanent, c: 3.0},
+            {v: SpellDuration_EveryTurn, c: 1.0},]);
         default: SpellDuration_Permanent;
     }
 
@@ -466,6 +543,7 @@ static function random_scroll_spell(): Spell {
             case SpellType_ShowThings: Entity.LEVEL_DURATION;
             case SpellType_Nolos: Random.int(100, 150);
             case SpellType_Noclip: Random.int(50, 100);
+            case SpellType_AoeDamage: Random.int(30, 50);
             default: 0;
         }
     }
@@ -474,6 +552,7 @@ static function random_scroll_spell(): Spell {
         case SpellType_ModHealthMax: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         case SpellType_ModAttack: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         case SpellType_ModDefense: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+        case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         default: 0;
     }
 
@@ -487,6 +566,7 @@ static function random_scroll_spell(): Spell {
         case SpellType_RandomTeleport: ElementType_Shadow;
         case SpellType_SafeTeleport: ElementType_Light;
         case SpellType_ShowThings: ElementType_Fire;
+        case SpellType_AoeDamage: random_element();
         default: ElementType_Physical;
     }
 
@@ -502,22 +582,30 @@ static function random_scroll_spell(): Spell {
     }
 }
 
-static function random_ring_spell(): Spell {
-    var level = Main.current_level;
-
+static function random_ring_spell(level: Int): Spell {
     var type = Pick.value([
         {v: SpellType_ModAttack, c: 1.0},
         {v: SpellType_ModHealthMax, c: 5.0},
         {v: SpellType_ModDefense, c: 10.0},
+        {v: SpellType_AoeDamage, c: 1.0},
         ]);
 
-    var duration = SpellDuration_EveryTurn;
+    var duration = switch (type) {
+        case SpellType_AoeDamage: SpellDuration_EveryAttack;
+        default: SpellDuration_EveryTurn;
+    }
 
     var value = switch (type) {
         case SpellType_ModHealthMax: Stats.get({min: 4, max: 7, scaling: 1.0}, level);
         case SpellType_ModAttack: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_ModDefense: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+        case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         default: 0;
+    }
+
+    var interval = switch (type) {
+        case SpellType_AoeDamage: Random.int(10, 15);
+        default: 1;
     }
 
     // Figure out when to make elements random
@@ -525,6 +613,7 @@ static function random_ring_spell(): Spell {
         case SpellType_ModHealthMax: ElementType_Physical;
         case SpellType_ModAttack: ElementType_Physical;
         case SpellType_ModDefense: ElementType_Physical;
+        case SpellType_AoeDamage: random_element();
         default: ElementType_Physical;
     }
 
@@ -533,11 +622,116 @@ static function random_ring_spell(): Spell {
         element: ElementType_Physical,
         duration_type: duration,
         duration: Entity.INFINITE_DURATION,
-        interval: 1,
+        interval: interval,
         interval_current: 0,
         value: value,
         origin_name: "noname",
     }
+}
+
+static function random_statue_spells(level: Int): Array<Spell> {
+    function statue_buff_spell(): Spell {
+        var type = Pick.value([
+            {v: SpellType_ModAttack, c: 3.0},
+            {v: SpellType_ModDefense, c: 3.0},
+            {v: SpellType_ModDropChance, c: 1.0},
+            {v: SpellType_AoeDamage, c: 1.0},
+            {v: SpellType_ModDropLevel, c: 0.5},
+            ]);
+
+        var duration_type = switch (type) {
+            case SpellType_ModAttack: SpellDuration_EveryTurn;
+            case SpellType_ModDefense: SpellDuration_EveryTurn;
+            case SpellType_ModDropChance: SpellDuration_EveryTurn;
+            case SpellType_AoeDamage: SpellDuration_EveryTurn;
+            case SpellType_ModDropLevel: SpellDuration_EveryTurn;
+            default: SpellDuration_Permanent;
+        }
+
+        var interval = switch (type) {
+            case SpellType_AoeDamage: Random.int(10, 15);
+            default: 1;
+        }
+
+        var duration = if (duration_type == SpellDuration_Permanent) {
+            0;
+        } else {
+            switch (type) {
+                default: Entity.LEVEL_DURATION;
+            }
+        }
+
+        var value = switch (type) {
+            case SpellType_ModAttack: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+            case SpellType_ModDefense: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+            case SpellType_ModDropChance: Random.int(3, 5) * 10;
+            case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+            default: 0;
+        }
+
+        var element = switch (type) {
+            case SpellType_ModAttack: random_element();
+            case SpellType_ModDefense: random_element();
+            case SpellType_ModDropChance: ElementType_Light;
+            case SpellType_AoeDamage: random_element();
+            case SpellType_ModDropLevel: ElementType_Shadow;
+            default: ElementType_Physical;
+        }
+
+        return {
+            type: type,
+            element: element,
+            duration_type: duration_type,
+            duration: duration,
+            interval: interval,
+            interval_current: 0,
+            value: value,
+            origin_name: "noname",
+        };
+    }
+
+    // Cost spell can either be permanent -health or -health every X turns
+    function statue_cost_spell(element: ElementType): Spell {
+        var type = SpellType_ModHealth;
+
+        var duration_type = Pick.value([
+            {v: SpellDuration_Permanent, c: 2.0},
+            {v: SpellDuration_EveryTurn, c: 1.0},
+            ]);
+
+        var interval = switch (duration_type) {
+            case SpellDuration_EveryTurn: Random.int(30, 40);
+            default: 1;
+        }
+
+        var duration = if (duration_type == SpellDuration_Permanent) {
+            0;
+        } else {
+            Entity.LEVEL_DURATION;
+        }
+
+        var value = switch (duration_type) {
+            case SpellDuration_Permanent: Stats.get({min: 5, max: 7, scaling: 1.0}, level);
+            case SpellDuration_EveryTurn: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+            default: 0;
+        }
+
+        return {
+            type: type,
+            element: element,
+            duration_type: duration_type,
+            duration: duration,
+            interval: interval,
+            interval_current: 0,
+            value: -1 * value,
+            origin_name: "noname",
+        };
+    } 
+
+    var buff = statue_buff_spell();
+    var cost = statue_cost_spell(buff.element);
+
+    return [buff, cost];
 }
 
 }

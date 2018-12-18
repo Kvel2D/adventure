@@ -1,15 +1,12 @@
 --------------------------------------------------------------------------
 TODO
 
-usable in-world entities
-    statue you sacrifice 5 hp to, to get some buff
-    something like sacrificing a ton of health or even stats to make drops on the level more powerful would be cool
+maybe clicking on enemy should automatically skip a turn
 
-defense potions should be either for all elements of for single element with very high value
+defense/attack effects too short
 
 --------------------------------------------------------------------------
 DONE
-
 
 
 --------------------------------------------------------------------------
@@ -20,6 +17,8 @@ entities with random movement can move into other rooms
 
 speed spell makes it hard to get through connections
     possible feature
+
+failed to spawn matching key
 
 --------------------------------------------------------------------------
 IDEAS
@@ -42,11 +41,6 @@ merchant
     merchant block entrance to a cut-off room
     could attack merchant to open the way and get stuff inside but merchant is deadly
 
-crab-hand
-    crabs can be attacked but also can be used to gain +X to dmg for a limited time while taking damage periodically
-    this is an aura
-    crab disappears on end
-
 pushable blocks ala sokoban
     use blocks to push a button to open a door
     but block is surround by enemies, need to clear them to be able to push it
@@ -58,45 +52,12 @@ locked doors that need keys(key spawned randomly in world a bit far away from do
 long-range attack for entities
     attacks player if no LOS(i.e. player can see it)
 
-spell that buffs entities
-    increase random entity's health and attack
-    increase all entity's health but also drop amount
-
 increase effect of element in general
     increase light = higher light dmg, higher light heal amount, etc.(higher light dmg taken?)
     decrease light = lower light dmg, lower light heal, lower light dmg taken
 
-spell ideas
-    invisibility, enemies can't chase you
-    cure poison
-    extra life, restore full hp once when dying
-    swap stats with enemy
-        health, attacks, defenses
-
 entity editor in-game
     edit/add/remove all components
-
-mod equipment stat
-    mod attack doesn't cover all options, it modifies natural attack only
-    mod attack of weapon would only modify the weapon which presents an interesting choice of whether to enchant weapon now to get power now or save it for later to enchant a more powerful item
-
-    mod attack should affect a specific element
-    ex: enchant weapon with ice -> +1 ice attack
-
-    could make it general: enchant equipment's ice power:
-    increases attack or defense
-
-    enchanting works like this:
-        use the enchant item => set enchant flag
-        if enchant flag => add "enchant" option in interact
-
-    enchanting items/rings?
-        could be fun
-
-    two types of enchant:
-        one that adds element power even if it's 0
-        other that only increases existing element
-            so enchanting ice on a sword with 1 phys dmg will do nothing 
 
 ranged attacks
     entities can attack if 2-3-4 away from player
@@ -110,14 +71,6 @@ other move types
 vary room geometry
     cut off walls around edges(keep connections)
     add walls inside rooms
-
-dropping/equipping decrements spell counters
-    not sure if good but i think i still do want item interactions to take a turn
-
-make spell_effect_text() for what to print
-    make a distinction between positive and negative values
-    modhealth+1 = heal for 1
-    modhealth-1 = damage by 1(damage? idk something else)
 
 mob that heals itself over time
     new kind of spell ModEntityHealth?
@@ -133,8 +86,6 @@ find a good font, that doesn't have scaling or offset problems
 
 scrolling for spell display, at some point spells won't fit in current area
 
-figure out copper drop amount
-
 weapons buffs   
     base attack buffs
     physical or physical + element or only element(rare)
@@ -144,34 +95,12 @@ weapons buffs
     extra buffs for higher level weapons
     or even use
 
-potion that has two spells
-    one helpful that's better than usual
-    one unhelpful to offset
-
 boss mobs
     guaranteed powerful item drop
     big health pool
 
-SPELL decrease stat of everything on level
-    includes all entities, items, equipment, in world or carried
-    also all future items dropped/spawned on this level
-    something like -1 to light attack might be good
-        imagine you get to a level with a bunch of light mobs
-        then you can use this spell to make it easier to clear
-        but this will also decrease usefulness of your light weapon for example
-    increase is fun too
-        increase all attack makes item drops more valuable but everything also hits harder
-
-scroll items
-    contain mostly special effects
-
 enemy chest
     just a regular enemy with 100% droprate
-
-color enemies according to their strongest element
-
-spell to show locked things on map
-    and/or keys?
 
 different attack pattern weapons
     spear = damage everything 2-3 in front of you
@@ -185,8 +114,6 @@ start with 5 charge heal potion?
 picking up and dropping friendly enemy is like pokemon
     pick up an enemy like that and drop it and let it fight other enemies for you
 
-summon friendly enemy spell
-
 portals
     two-way, connected to specific locations
     port via interact menu?
@@ -195,33 +122,8 @@ locked doors
     need to spawn them and matching keys such that it's possible to unlock
     (don't lock the key behind the door)
 
-aoe damage spell
-    radius around player
-    or the whole room
-
-modhealth everyattack
-    something like leech
-
-summon friendly mobs spell
-    moving or stationary
-
 show whether mob is friendly or aggressive in tooltip
     disallow attacking friendly mobs so that player is more likely to check that he can interact and pick it up
-
-reign of shadow spell
-    remove everything with light element from the level, entities drop items when removed
-    includes player items/equipment?
-
-copy scroll spell
-    probably on another scroll
-    copies another scroll exactly
-
-add use charges spell
-    probably very rare, because can be extremely powerful
-
-swap defense spell should
-    give mob's natural defense to player
-    but give natural+mods defense of player to mob
 
 decrease attack of EVERYTHING on the level(includes player's stuff)
 
@@ -250,5 +152,105 @@ make friendly mobs green
 armor/weapon use and buff spells
 armor/weapon buff spells
 
+using items on anything might be needed
+    some situations where would want to use heal potion on summoned entity for example
+    "Use on target" interact option?
+
+--------------------------------------------------------------------------
+SPELL IDEAS
+
+crab-hand
+    crabs can be attacked but also can be used to gain +X to dmg for a limited time while taking damage periodically
+    this is an aura
+    crab disappears on end
+
+spell that buffs entities
+    increase random entity's health and attack
+    increase all entity's health but also drop amount
+
+invisibility, enemies can't chase you
+
+extra life, restore full hp once when dying
+
+swap stats with enemy: health, attacks, defenses
+    swap defense spell should
+    give mob's natural defense to player
+    but give natural+mods defense of player to mob
+
+cure poison
+
+mod equipment stat
+    mod attack doesn't cover all options, it modifies natural attack only
+    mod attack of weapon would only modify the weapon which presents an interesting choice of whether to enchant weapon now to get power now or save it for later to enchant a more powerful item
+
+    mod attack should affect a specific element
+    ex: enchant weapon with ice -> +1 ice attack
+
+    could make it general: enchant equipment's ice power:
+    increases attack or defense
+
+    enchanting works like this:
+        use the enchant item => set enchant flag
+        if enchant flag => add "enchant" option in interact
+
+    enchanting items/rings?
+        could be fun
+
+    two types of enchant:
+        one that adds element power even if it's 0
+        other that only increases existing element
+            so enchanting ice on a sword with 1 phys dmg will do nothing 
+
+decrease stat of everything on level
+    includes all entities, items, equipment, in world or carried
+    also all future items dropped/spawned on this level
+    something like -1 to light attack might be good
+        imagine you get to a level with a bunch of light mobs
+        then you can use this spell to make it easier to clear
+        but this will also decrease usefulness of your light weapon for example
+    increase is fun too
+        increase all attack makes item drops more valuable but everything also hits harder
+
+summon friendly enemy spell
+
+predict element types of enemies on next level
+    will need to pre-generate to be able to tell
+    not too much info, something like "you will meet many shadowy figures" is enough
+    "many chilling sights"
+    "many burning encounters"
+    "many blinding visages"
+
+modhealth everyattack
+    something like leech
+    most appropriate for weapons
+
+reign of shadow spell
+    remove everything with light element from the level, entities drop items when removed
+    includes player items/equipment?
+
+add use charges spell
+    probably very rare, because can be extremely powerful
+
 "-health by element" spell
     player burning shouldn't be just -X health, should be X fire damage so defense can come into play
+
+copy scroll
+    need a system for spells that target an entity
+    press "Use" and then if spell needs a target, go into targeting mode
+    click on entity to use spell on it
+    click anywhere else to cancel
+
+    copy scroll used on copy scroll could spawn a rare hard encounter on next level
+    "You hear a distant wail of a Copy Scroll God"
+
+increase power of spawned items
+    +1 to level of everything for the duration of the spell
+
+pure absorb spell
+    absorb all damage for X attacks
+
+maybe draw attack by colors on stat screen
+
+cache stat screen/tooltip?
+
+increase max amount of enemies with levels

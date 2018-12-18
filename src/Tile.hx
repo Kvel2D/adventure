@@ -17,12 +17,21 @@ class Tile {
     static inline var PotionLight = at(2, 1);
     static inline var PotionFire = at(3, 1);
     static inline var PotionIce = at(4, 1);
+    static inline var PotionMixed = at(5, 1);
 
     static inline var ScrollPhysical = at(0, 7);
     static inline var ScrollShadow = at(1, 7);
     static inline var ScrollLight = at(2, 7);
     static inline var ScrollFire = at(3, 7);
     static inline var ScrollIce = at(4, 7);
+    static inline var ScrollMixed = at(5, 7);
+
+    static inline var StatuePhysical = at(0, 9);
+    static inline var StatueShadow = at(1, 9);
+    static inline var StatueLight = at(2, 9);
+    static inline var StatueFire = at(3, 9);
+    static inline var StatueIce = at(4, 9);
+    static inline var StatueMixed = at(5, 9);
 
     static inline var Head0 = at(0, 2);
     static inline var Head1 = at(1, 2);
