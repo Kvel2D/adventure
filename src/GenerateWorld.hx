@@ -18,7 +18,8 @@ typedef Room = {
     width: Int,
     height: Int,
     is_connection: Bool,
-    adjacent_rooms: Array<Int>
+    adjacent_rooms: Array<Int>,
+    is_locked: Bool,
 }
 
 typedef Connection = {
@@ -49,12 +50,16 @@ static var max_rooms = 15;
 
 static var enemy_room_entity_amount = 5;
 static var item_room_entity_amount = 2;
+static var merchant_item_amount = 3;
 
 static var enemy_types_per_level = 4;
 static var empty_room_chance = 10;
-static var enemy_room_chance = 90; // subset of non-empty rooms
+// TODO: static var enemy_room_chance = 90; // subset of non-empty rooms
+static var enemy_room_chance = 10; // subset of non-empty rooms
 static var spell_room_chance = 10; // subset of enemy rooms
-static var locked_room_chance = 100; // subset of rooms with one connection
+static var locked_room_chance = 10; // subset of rooms with one connection
+// TODO: static var merchant_room_chance = 10; // subset of item-only rooms
+static var merchant_room_chance = 100; // subset of item-only rooms
 
 public static function shuffle<T>(array: Array<T>): Array<T> {
     if (array != null) {
@@ -70,10 +75,11 @@ public static function shuffle<T>(array: Array<T>): Array<T> {
 }
 
 static function room_free_positions_shuffled(r: Room): Array<Vec2i> {
+    // Exclude positions next to walls to avoid creating impassable cells
     var free_map = Main.get_free_map(r.x, r.y, r.x + r.width, r.y + r.height);
     var positions = new Array<Vec2i>();
-    for (x in r.x...(r.x + r.width)) {
-        for (y in r.y...(r.y + r.height)) {
+    for (x in (r.x + 1)...(r.x + r.width - 1)) {
+        for (y in (r.y + 1)...(r.y + r.height - 1)) {
             if (free_map[x - r.x][y - r.y]) {
                 positions.push({
                     x: x,
@@ -83,6 +89,21 @@ static function room_free_positions_shuffled(r: Room): Array<Vec2i> {
         }
     }
     shuffle(positions);
+    return positions;
+}
+
+// Odd only positions to avoid creating impassable formations
+static function room_free_ODD_positions_shuffled(r: Room): Array<Vec2i> {
+    var positions = room_free_positions_shuffled(r);
+    var even_positions = new Array<Vec2i>();
+    for (pos in positions) {
+        if (pos.x % 2 == 0 || pos.y % 2 == 0) {
+            even_positions.push(pos);
+        }        
+    }
+    for (pos in even_positions) {
+        positions.remove(pos);
+    }
     return positions;
 }
 
@@ -107,8 +128,6 @@ static function fill_rooms_with_entities() {
         return Entity.make_type(x, y, Random.pick(enemy_types));
     }
 
-    var room_is_locked = [for (i in 0...Main.rooms.length) false];
-
     // NOTE: leave start room(0th) empty
     for (i in 1...Main.rooms.length) {
         var r = Main.rooms[i];
@@ -124,7 +143,7 @@ static function fill_rooms_with_entities() {
 
         // Some one-connection rooms can be locked behind a door
         if (r.adjacent_rooms.length == 1 && Random.chance(locked_room_chance)) {
-            room_is_locked[i] = true;
+            r.is_locked = true;
             var connection = Main.rooms[r.adjacent_rooms[0]];
 
             // other room
@@ -148,15 +167,18 @@ static function fill_rooms_with_entities() {
             }
         }
 
-        var positions = room_free_positions_shuffled(r);
+        var positions = room_free_ODD_positions_shuffled(r);
 
-        if (room_is_locked[i]) {
+        if (r.is_locked) {
             // Locked room
             // More good stuff inside
             // NOTE: spawning chests behind locked doors is okay
             var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));
 
             for (i in 0...amount) {
+                if (positions.length == 0) {
+                    break;
+                }
                 var pos = positions.pop();
                 Pick.value([
                     {v: Entities.random_armor, c: 1.0},
@@ -170,6 +192,9 @@ static function fill_rooms_with_entities() {
             // Enemy/item room with possible location spells
             var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * enemy_room_entity_amount));
             for (i in 0...amount) {
+                if (positions.length == 0) {
+                    break;
+                }
                 var pos = positions.pop();
                 Pick.value([
                     {v: random_enemy, c: 60.0},
@@ -198,19 +223,46 @@ static function fill_rooms_with_entities() {
             }
         } else {
             // Room with items only
-            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));
-            for (i in 0...amount) {
-                var pos = positions.pop();
-                Pick.value([
-                    {v: Entities.random_potion, c: 4.0},
-                    {v: Entities.random_armor, c: 3.0},
-                    {v: Entities.random_scroll, c: 3.0},
-                    {v: Entities.locked_chest, c: 2.0},
-                    {v: Entities.random_weapon, c: 1.0},
-                    {v: Entities.random_ring, c: 1.0},
-                    {v: Entities.random_statue, c: 1.0},
-                    ])
-                (pos.x, pos.y);
+            if (Random.chance(merchant_room_chance)) {
+                // Merchant room
+                // Spawn items in a line starting from 3,3 away from top-left corner
+                var x = r.x + 3;
+                var y = r.y + 3;
+                var sell_items = new Array<Int>();
+                for (i in 0...merchant_item_amount) {
+                    sell_items.push(Pick.value([
+                        {v: Entities.random_potion, c: 1.0},
+                        {v: Entities.random_armor, c: 1.0},
+                        {v: Entities.random_scroll, c: 1.0},
+                        {v: Entities.random_weapon, c: 1.0},
+                        {v: Entities.random_ring, c: 1.0},
+                        ])
+                    (r.x + 3 + i, r.y + 3));
+                }
+
+                for (e in sell_items) {
+                    Entity.buy[e] = {
+                        cost: Stats.get({min: 3, max: 4, scaling: 1.0}, Main.current_level),
+                    };
+                }
+            } else {
+                var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));
+                for (i in 0...amount) {
+                    if (positions.length == 0) {
+                        break;
+                    }
+                    var pos = positions.pop();
+                    Pick.value([
+                        {v: Entities.random_potion, c: 4.0},
+                        {v: Entities.random_armor, c: 3.0},
+                        {v: Entities.random_scroll, c: 3.0},
+                        {v: Entities.locked_chest, c: 2.0},
+                        {v: Entities.random_weapon, c: 1.0},
+                        {v: Entities.random_ring, c: 1.0},
+                        {v: Entities.random_statue, c: 1.0},
+                        ])
+                    (pos.x, pos.y);
+                }
             }
         }
     }
@@ -220,13 +272,9 @@ static function fill_rooms_with_entities() {
     for (e in Entity.locked.keys()) {
         var locked = Entity.locked[e];
         if (locked.need_key) {
-            var r_i = Random.int(1, Main.rooms.length - 1);
-            while (Main.rooms[r_i].is_connection || room_is_locked[r_i]) {
-                r_i = Random.int(1, Main.rooms.length - 1);
-            }
-            var r = Main.rooms[r_i];
+            var r = Main.rooms[Main.random_good_room()];
             
-            var positions = room_free_positions_shuffled(r);
+            var positions = room_free_ODD_positions_shuffled(r);
 
             var pos = positions.pop();
             Entities.key(pos.x, pos.y, locked.color);
@@ -257,6 +305,7 @@ static function generate_via_digging(): Array<Room> {
             height: Random.int(min, max - 1),
             is_connection: false,
             adjacent_rooms: [],
+            is_locked: false,
         };
         var no_intersections = true;
         for (r in rooms) {
@@ -516,6 +565,7 @@ static function connect_rooms(rooms: Array<Room>, disconnect_factor: Float = 0.0
             height: height,
             is_connection: true,
             adjacent_rooms: [c.i, c.j],
+            is_locked: false,
         });
     }
 }

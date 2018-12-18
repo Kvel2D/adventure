@@ -109,6 +109,10 @@ typedef DrawOnMinimap = {
     var seen: Bool;
 }
 
+typedef Buy = {
+    var cost: Int;
+}
+
 typedef EntityType = {
     var name: String;
     var description: String;
@@ -125,6 +129,7 @@ typedef EntityType = {
     var locked: Locked;
     var unlocker: Unlocker;
     var draw_on_minimap: DrawOnMinimap;
+    var buy: Buy;
 }
 
 @:publicFields
@@ -159,6 +164,7 @@ static var move = new Map<Int, Move>();
 static var locked = new Map<Int, Locked>();
 static var unlocker = new Map<Int, Unlocker>();
 static var draw_on_minimap = new Map<Int, DrawOnMinimap>();
+static var buy = new Map<Int, Buy>();
 
 static function make(): Int {
     var e = id_max;
@@ -258,6 +264,11 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
             seen: type.draw_on_minimap.seen,
         };
     }
+    if (type.buy != null) {
+        buy[e] = {
+            cost: type.buy.cost,
+        };
+    }
 
     validate(e);
 
@@ -283,6 +294,7 @@ static function remove(e: Int) {
     locked.remove(e);
     unlocker.remove(e);
     draw_on_minimap.remove(e);
+    buy.remove(e);
 }
 
 static function print(e: Int) {
@@ -304,6 +316,7 @@ static function print(e: Int) {
     trace('locked=${locked[e]}');
     trace('unlocker=${unlocker[e]}');
     trace('draw_on_minimap=${draw_on_minimap[e]}');
+    trace('buy=${buy[e]}');
 }
 
 static function validate(e: Int) {
@@ -327,6 +340,10 @@ static function validate(e: Int) {
     }
     if (draw_on_minimap.exists(e) && !position.exists(e)) {
         trace('Missing dependency: DrawOnMinimap needs Position.');
+        error = true;
+    }
+    if (buy.exists(e) && !(item.exists(e) || equipment.exists(e))) {
+        trace('Missing dependency: Buy needs Item or Equipment.');
         error = true;
     }
 

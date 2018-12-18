@@ -1,8 +1,15 @@
 --------------------------------------------------------------------------
 TODO
 
+make merchant sell better things
+    like multi-charge potions/scrolls
+    or higher level equipment/rings
+
+merchant entity
+
 --------------------------------------------------------------------------
 DONE
+
 
 
 --------------------------------------------------------------------------
@@ -20,13 +27,6 @@ IDEAS
 doors opened with buttons
     can make rooms be one-way entrance by putting a button and a door at the entrance
     (one way entrance poison room)
-
-merchant
-    sells 3-4 random items like potions/scrolls
-        rare stuff is very expensive
-    merchants can attack as a buffer if item drops are crap
-    merchant block entrance to a cut-off room
-    could attack merchant to open the way and get stuff inside but merchant is deadly
 
 pushable blocks ala sokoban
     use blocks to push a button to open a door

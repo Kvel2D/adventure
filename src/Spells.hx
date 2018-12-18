@@ -285,6 +285,19 @@ static function poison(): Spell {
     }
 }
 
+static function safe_teleport(): Spell {
+    return {
+        type: SpellType_SafeTeleport,
+        element: ElementType_Shadow,
+        duration_type: SpellDuration_Permanent,
+        duration: Entity.INFINITE_DURATION,
+        interval: 0,
+        interval_current: 0,
+        value: 0,
+        origin_name: "noname",
+    }
+}
+
 static function random_teleport(): Spell {
     return {
         type: SpellType_RandomTeleport,

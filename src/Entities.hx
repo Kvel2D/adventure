@@ -372,11 +372,14 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [Spells.uncover_map()],
+        spells: [Spells.safe_teleport()],
         charges: 3,
         consumable: true,
     };
     Entity.draw_tile[e] = Tile.PotionPhysical;
+    Entity.buy[e] = {
+        cost: 3,
+    };
 
     Entity.validate(e);
 
@@ -725,6 +728,7 @@ static function random_enemy_type(): EntityType {
         locked: null,
         unlocker: null,
         draw_on_minimap: null,
+        buy: null,
     };
 } 
 

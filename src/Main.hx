@@ -6,6 +6,7 @@ import Spells;
 import Entities;
 import GenerateWorld;
 import GUI;
+import Path;
 
 using MathExtensions;
 
@@ -83,8 +84,11 @@ static var player_y = 0;
 var player_x_old = -1;
 var player_y_old = -1;
 var player_health = 10;
-var copper_count = 0;
+var copper_count = 10;
 var player_room = -1;
+
+var stairs_x = 0;
+var stairs_y = 0;
 
 var player_health_max = 10;
 var player_health_max_mod = 0;
@@ -135,7 +139,7 @@ var interact_target_y: Int;
 var message_history = [for (i in 0...message_history_length_max) turn_delimiter];
 var added_message_this_turn = false;
 
-var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
+static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
 
 // Used by all generation functions, don't need to pass it around everywhere
 static var current_level = 0;
@@ -167,13 +171,17 @@ function init() {
         Entities.random_armor(first_room.x + x + 2, first_room.y + y + i);
     }
     Entities.test_potion(first_room.x + 5, first_room.y + 7);
+}
 
-    // Testing location spell
-    // var burn = Spells.burn();
-    // location_spells[first_room.x + 2][first_room.y + 2].push(burn);
-    // tiles[first_room.x + 2][first_room.y + 2] = Tile.Poison;
-    // location_spells[first_room.x + 4][first_room.y + 2].push(burn);
-    // tiles[first_room.x + 4][first_room.y + 2] = Tile.Poison;
+// Room is good if it's not a connection and isn't locked
+static function random_good_room(): Int {
+    var room_indices = [
+    for (i in 1...rooms.length) { 
+        if (!rooms[i].is_connection && !rooms[i].is_locked) {
+            i;
+        }
+    }];
+    return Random.pick(room_indices);
 }
 
 function generate_level() {
@@ -241,12 +249,10 @@ function generate_level() {
     player_y = rooms[0].y;
 
     // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
-    var random_room_i = 0;
-    while (random_room_i == 0 || rooms[random_room_i].is_connection) {
-        random_room_i = Random.int(0, rooms.length - 1);
-    }
-    var r = rooms[random_room_i];
-    Entities.stairs(r.x + Math.floor(r.width / 2), r.y + Math.floor(r.height / 2));
+    var r = rooms[random_good_room()];
+    stairs_x = r.x + Math.floor(r.width / 2);
+    stairs_y = r.y + Math.floor(r.height / 2);
+    Entities.stairs(stairs_x, stairs_y);
 
     GenerateWorld.fill_rooms_with_entities();
 
@@ -414,139 +420,18 @@ static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, include_
     return free_map;
 }
 
-var astar_closed = Data.create2darray(room_size_max, room_size_max, false);
-var astar_open = Data.create2darray(room_size_max, room_size_max, false);
-var g_score = Data.create2darray(room_size_max, room_size_max, 0);
-var f_score = Data.create2darray(room_size_max, room_size_max, 0);
-var astar_prev = new Array<Array<Vec2i>>();
+function try_buy_entity(e: Int) {
+    var buy = Entity.buy[e];
 
-function astar(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
-    inline function heuristic_score(x1:Int, y1:Int, x2:Int, y2:Int):Int {
-        return Std.int(Math.abs(x2 - x1) + Math.abs(y2 - y1));
-    }
+    if (copper_count >= buy.cost) {
+        copper_count -= buy.cost;
 
-    var room = rooms[player_room];
+        Entity.buy.remove(e);
 
-    inline function out_of_bounds(x, y) {
-        return x < 0 || y < 0 || x >= room.width || y >= room.height;
-    }
-
-    x1 -= room.x;
-    x2 -= room.x;
-
-    y1 -= room.y;
-    y2 -= room.y;
-
-    var move_map = get_free_map(room.x, room.y, room.width, room.height);
-    move_map[x2][y2] = true; // destination cell needs to be "free" for the algorithm to find paths correctly
-    move_map[x1][y1] = true; 
-
-    var infinity = 10000000;
-    for (x in 0...room.width) {
-        for (y in 0...room.height) {
-            astar_closed[x][y] = false;
-        }
-    }
-    for (x in 0...room.width) {
-        for (y in 0...room.height) {
-            astar_open[x][y] = false;
-        }
-    }
-    astar_open[x1][y1] = true;
-    var astar_open_length = 1;
-
-    if (astar_prev.length == 0) {
-        for (x in 0...room_size_max) {
-            var arr = new Array<Vec2i>();
-            for (y in 0...room_size_max) {
-                arr.push({x: -1, y: -1});
-            }
-            astar_prev.push(arr);
-        }
+        add_message('Purchase complete.');
     } else {
-        for (x in 0...room.width) {
-            for (y in 0...room.height) {
-                astar_prev[x][y].x = -1;
-                astar_prev[x][y].y = -1;
-            }
-        }
+        add_message('You do not have enough copper.');
     }
-
-    for (x in 0...room.width) {
-        for (y in 0...room.height) {
-            g_score[x][y] = infinity;
-        }
-    }
-    g_score[x1][y1] = 0;
-
-    for (x in 0...room.width) {
-        for (y in 0...room.height) {
-            f_score[x][y] = infinity;
-        }
-    }
-    f_score[x1][y1] = heuristic_score(x1, y1, x2, y2);
-
-    while (astar_open_length != 0) {
-        var current = function(): Vec2i {
-            var lowest_score = infinity;
-            var lowest_node: Vec2i = {x: x1, y: y1};
-            for (x in 0...room.width) {
-                for (y in 0...room.height) {
-                    if (astar_open[x][y] && f_score[x][y] <= lowest_score) {
-                        lowest_node.x = x;
-                        lowest_node.y = y;
-                        lowest_score = f_score[x][y];
-                    }
-                }
-            }
-            return lowest_node;
-        }();
-
-        if (current.x == x2 && current.y == y2) {
-            var x = current.x;
-            var y = current.y;
-            var current = {x: x, y: y};
-            var temp = {x: x, y: y};
-            var path:Array<Vec2i> = [{x: current.x, y: current.y}];
-            while (astar_prev[current.x][current.y].x != -1) {
-                temp.x = current.x;
-                temp.y = current.y;
-                current.x = astar_prev[temp.x][temp.y].x;
-                current.y = astar_prev[temp.x][temp.y].y;
-                path.push({x: current.x, y: current.y});
-            }
-            return path;
-        }
-
-        astar_open[current.x][current.y] = false;
-        astar_open_length--;
-        astar_closed[current.x][current.y] = true;
-        for (dx_dy in four_dxdy) {
-            var neighbor_x = current.x + dx_dy.x;
-            var neighbor_y = current.y + dx_dy.y;
-            if (out_of_bounds(neighbor_x, neighbor_y) || !move_map[neighbor_x][neighbor_y]) {
-                continue;
-            }
-
-            if (astar_closed[neighbor_x][neighbor_y]) {
-                continue;
-            }
-            var tentative_g_score = g_score[current.x][current.y] + 1;
-            if (!astar_open[neighbor_x][neighbor_y]) {
-                astar_open[neighbor_x][neighbor_y] = true;
-                astar_open_length++;
-            } else if (tentative_g_score >= g_score[neighbor_x][neighbor_y]) {
-                continue;
-            }
-
-            astar_prev[neighbor_x][neighbor_y].x = current.x;
-            astar_prev[neighbor_x][neighbor_y].y = current.y;
-            g_score[neighbor_x][neighbor_y] = tentative_g_score;
-            f_score[neighbor_x][neighbor_y] = g_score[neighbor_x][neighbor_y] + heuristic_score(neighbor_x, neighbor_y, x2, y2);
-        }
-    }
-
-    return new Array<Vec2i>();
 }
 
 function drop_entity_from_entity(e: Int, dropping_entity_name: String) {
@@ -766,7 +651,7 @@ function move_entity(e: Int) {
 
         switch (move.type) {
             case MoveType_Astar: {
-                var path = astar(pos.x, pos.y, player_x, player_y);
+                var path = Path.astar_room(pos.x, pos.y, player_x, player_y, rooms[player_room]);
 
                 if (path.length > 2) {
                     var room = rooms[player_room];
@@ -963,6 +848,27 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
     // NOTE: some infinite spells(buffs from items) are printed, some aren't
     // for example: printing that a sword increases ice attack every turn is NOT useful
     // printing that the sword is damaging the player every 5 turns IS useful
+
+    function teleport_player_to_room(room_i: Int): Bool {
+        // Teleport to random position in a random room
+        // NOTE: in very rare cases teleport location might not have a path to stairs, in which case teleport just fails, for example if the player creates a blockade with dropped items and then fills the inventory so he can't pick any of the items up
+        var r = rooms[room_i];
+        var positions = GenerateWorld.room_free_positions_shuffled(r);
+        var pos = positions.pop();
+
+        // Check that there is a path to stairs
+        var path = Path.astar_map(pos.x, pos.y, stairs_x, stairs_y);
+
+        if (path.length > 0) {
+            player_x = pos.x;
+            player_y = pos.y;
+            player_room = room_i;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     switch (spell.type) {
         case SpellType_ModHealth: {
             // Negative health changes are affected by player defences
@@ -1035,34 +941,24 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             add_message('${spell.origin_name} uncovers the map.');
         }
         case SpellType_RandomTeleport: {
-            // Teleport to random position in a random room different from current one and not a connection room
-            var destination = player_room;
-            while (destination == player_room || rooms[destination].is_connection) {
-                destination = Random.int(0, rooms.length - 1);
+            // Teleport to random room
+            var teleport_success = teleport_player_to_room(random_good_room());
+
+            if (teleport_success) {
+                add_message('You are teleported to a random room.');
+            } else {
+                add_message('Teleport fails!');
             }
-
-            var r = rooms[destination];
-            var positions = GenerateWorld.room_free_positions_shuffled(r);
-            var pos = positions.pop();
-            player_x = pos.x;
-            player_y = pos.y;
-            player_room = destination;
-
-            add_message('You are teleported to a random room.');
         }
         case SpellType_SafeTeleport: {
             // Teleport to first room, which is always empty
-            var destination = 0;
-
-            var r = rooms[destination];
-            var positions = GenerateWorld.room_free_positions_shuffled(r);
-            var pos = positions.pop();
-
-            player_x = pos.x;
-            player_y = pos.y;
-            player_room = destination;
-
-            add_message('You are teleported to a safe place.');
+            var teleport_success = teleport_player_to_room(0);
+            
+            if (teleport_success) {
+                add_message('You are teleported to a safe place.');
+            } else {
+                add_message('Teleport fails!');
+            }
         }
         case SpellType_Nolos: {
             nolos = true;
@@ -1284,7 +1180,9 @@ function update() {
     for (equipment_type in Type.allEnums(EquipmentType)) {
         var e = player_equipment[equipment_type];
 
-        var equipment_tile = if (Entity.draw_tile.exists(e)) {
+        // Check that equipment exists, is equipped and has a draw tile
+        // Otherwise draw default equipment(naked)
+        var equipment_tile = if (Entity.equipment.exists(e) && !Entity.position.exists(e) && Entity.draw_tile.exists(e)) {
             Entity.draw_tile[e];
         } else {
             switch (equipment_type) {
@@ -1488,6 +1386,7 @@ function update() {
     }
 
     // Interaction buttons
+    // Can't use/pick up/equip if item has Buy, which means it's "in a shop"
     if (!player_acted) {
         var done_interaction = false;
         GUI.x = interact_target_x + tilesize * world_scale;
@@ -1498,14 +1397,14 @@ function update() {
                 done_interaction = true;
             }
         }
-        if (Entity.use.exists(interact_target)) {
+        if (Entity.use.exists(interact_target) && !Entity.buy.exists(interact_target)) {
             if (GUI.auto_text_button('Use')) {
                 use_entity(interact_target);
 
                 done_interaction = true;
             }
         }
-        if (Entity.equipment.exists(interact_target)) {
+        if (Entity.equipment.exists(interact_target) && !Entity.buy.exists(interact_target)) {
             if (Entity.position.exists(interact_target)) {
                 // Can equip if is equipment and is on map
                 if (GUI.auto_text_button('Equip')) {
@@ -1522,7 +1421,7 @@ function update() {
                 }
             }
         }
-        if (Entity.item.exists(interact_target)) {
+        if (Entity.item.exists(interact_target) && !Entity.buy.exists(interact_target)) {
             if (Entity.position.exists(interact_target)) {
                 // Can be picked up if on map
                 if (GUI.auto_text_button('Pick up')) {
@@ -1537,6 +1436,14 @@ function update() {
 
                     done_interaction = true;
                 }
+            }
+        }
+        if (Entity.buy.exists(interact_target)) {
+            var buy = Entity.buy[interact_target];
+            if (GUI.auto_text_button('Buy for ${buy.cost}')) {
+                try_buy_entity(interact_target);
+
+                done_interaction = true;
             }
         }
         if (Entity.locked.exists(interact_target)) {
