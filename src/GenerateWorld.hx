@@ -54,12 +54,10 @@ static var merchant_item_amount = 3;
 
 static var enemy_types_per_level = 4;
 static var empty_room_chance = 10;
-// TODO: static var enemy_room_chance = 90; // subset of non-empty rooms
-static var enemy_room_chance = 10; // subset of non-empty rooms
+static var enemy_room_chance = 90; // subset of non-empty rooms
 static var spell_room_chance = 10; // subset of enemy rooms
 static var locked_room_chance = 10; // subset of rooms with one connection
-// TODO: static var merchant_room_chance = 10; // subset of item-only rooms
-static var merchant_room_chance = 100; // subset of item-only rooms
+static var merchant_room_chance = 10; // subset of item-only rooms
 
 public static function shuffle<T>(array: Array<T>): Array<T> {
     if (array != null) {
@@ -225,9 +223,9 @@ static function fill_rooms_with_entities() {
             // Room with items only
             if (Random.chance(merchant_room_chance)) {
                 // Merchant room
-                // Spawn items in a line starting from 3,3 away from top-left corner
-                var x = r.x + 3;
-                var y = r.y + 3;
+                // Spawn merchant and items in a line starting from 3,3 away from top-left corner
+                Entities.merchant(r.x + 3, r.y + 3);
+
                 var sell_items = new Array<Int>();
                 for (i in 0...merchant_item_amount) {
                     sell_items.push(Pick.value([
@@ -237,13 +235,20 @@ static function fill_rooms_with_entities() {
                         {v: Entities.random_weapon, c: 1.0},
                         {v: Entities.random_ring, c: 1.0},
                         ])
-                    (r.x + 3 + i, r.y + 3));
+                    (r.x + 4 + i, r.y + 3));
                 }
 
+                // Add cost to items
                 for (e in sell_items) {
                     Entity.buy[e] = {
                         cost: Stats.get({min: 3, max: 4, scaling: 1.0}, Main.current_level),
                     };
+                }
+                // For Use entities, increase charges to make them more valuable
+                for (e in sell_items) {
+                    if (Entity.use.exists(e)) {
+                        Entity.use[e].charges += Random.int(2, 3);
+                    }
                 }
             } else {
                 var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));

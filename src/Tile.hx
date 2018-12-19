@@ -67,6 +67,7 @@ class Tile {
     static inline var Sword3 = at(3, 5);
     static inline var Sword4 = at(4, 5);
     static inline var Sword5 = at(5, 5);
+    static inline var Sword6 = at(6, 5);
 
     static inline var KeyRed = at(0, 8);
     static inline var KeyOrange = at(1, 8);

@@ -285,6 +285,9 @@ inline function unscaled_screen_y(y) {
     return (y - player_y + Math.floor(view_height / 2)) * tilesize;
 }
 
+inline function get_view_x(): Int { return player_x - Math.floor(view_width / 2); }
+inline function get_view_y(): Int { return player_y - Math.floor(view_width / 2); }
+
 static inline function out_of_map_bounds(x, y) {
     return x < 0 || y < 0 || x >= map_width || y >= map_height;
 }
@@ -639,18 +642,41 @@ function drop_entity_from_player(e: Int) {
 
 function move_entity(e: Int) {
     var move = Entity.move[e];
+    var pos = Entity.position[e];
+    
+    // Entity must be in same room as player
+    if (pos.room != player_room) {
+        return;
+    }
 
+    // Can't move if attacked this turn or did something else
     if (move.cant_move) {
         move.cant_move = false;
         return;
     }
 
-    var pos = Entity.position[e];
 
-    if (!player_next_to(pos)) {
+    function random_move() {
+        var random_dxdy = Random.pick(four_dxdy);
+        var dx = random_dxdy.x;
+        var dy = random_dxdy.y;
+        var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
 
-        switch (move.type) {
-            case MoveType_Astar: {
+        if (!free_map[1 + Math.sign(dx)][1]) {
+            dx = 0;
+        }
+        if (!free_map[1][1 + Math.sign(dy)]) {
+            dy = 0;
+        }
+
+        if (dx != 0 || dy != 0) {
+            Entity.set_position(e, pos.x + Math.sign(dx), pos.y + Math.sign(dy));
+        }
+    }
+
+    switch (move.type) {
+        case MoveType_Astar: {
+            if (!player_next_to(pos)) {
                 var path = Path.astar_room(pos.x, pos.y, player_x, player_y, rooms[player_room]);
 
                 if (path.length > 2) {
@@ -658,7 +684,9 @@ function move_entity(e: Int) {
                     Entity.set_position(e, path[path.length - 2].x + room.x, path[path.length - 2].y + room.y);
                 }
             }
-            case MoveType_Straight: {
+        }
+        case MoveType_Straight: {
+            if (!player_next_to(pos)) {
                 var dx = player_x - pos.x;
                 var dy = player_y - pos.y;
                 var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
@@ -683,49 +711,85 @@ function move_entity(e: Int) {
                     Entity.set_position(e, pos.x + Math.sign(dx), pos.y + Math.sign(dy));
                 }
             }
-            case MoveType_Random: {
-                if (Random.chance(Entity.random_move_chance)) {
-                    var random_dxdy = Random.pick(four_dxdy);
-                    var dx = random_dxdy.x;
-                    var dy = random_dxdy.y;
-                    var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
+        }
+        case MoveType_Random: {
+            if (Random.chance(Entity.random_move_chance)) {
+                random_move();
+            }
+        }
+        case MoveType_StayAway: {
+            // Randomly move but also stay away from player
+            if (Math.dst(player_x, player_y, pos.x, pos.y) <= 4) {
+                var dx = - (player_x - pos.x);
+                var dy = - (player_y - pos.y);
+                var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
 
-                    if (!free_map[1 + Math.sign(dx)][1]) {
+                if (!free_map[1 + Math.sign(dx)][1]) {
+                    dx = 0;
+                }
+                if (!free_map[1][1 + Math.sign(dy)]) {
+                    dy = 0;
+                }
+
+                // Select dx or dy if need to move diagonally
+                if (dy != 0 && dx != 0) {
+                    if (Random.bool()) {
                         dx = 0;
-                    }
-                    if (!free_map[1][1 + Math.sign(dy)]) {
+                    } else {
                         dy = 0;
                     }
+                }
 
-                    if (dx != 0 || dy != 0) {
-                        Entity.set_position(e, pos.x + Math.sign(dx), pos.y + Math.sign(dy));
-                    }
+                if (dx != 0 || dy != 0) {
+                    Entity.set_position(e, pos.x + Math.sign(dx), pos.y + Math.sign(dy));
+                }
+            } else {
+                if (Random.chance(Entity.random_move_chance)) {
+                    random_move();
                 }
             }
         }
-    } else {
-        // Next to player
     }
 }
 
 function entity_attack_player(e: Int) {
+    var combat = Entity.combat[e];
+    
     // If on map, must be next to player
     if (Entity.position.exists(e)) {
         var pos = Entity.position[e];
-        if (Math.dst2(player_x, player_y, pos.x, pos.y) > 2) {
+
+        // Must be in view and visible, ok to be in another room as long as entity is visible, this way entities can't attack through walls but attacking around corners works the same way as player attacks
+        if (out_of_view_bounds(pos.x, pos.y) || !position_visible(pos.x - get_view_x(), pos.y - get_view_y())) {
+            return;
+        }
+
+        if (Math.dst2(player_x, player_y, pos.x, pos.y) > combat.range_squared) {
             return;
         }
     }
 
-    var combat = Entity.combat[e];
+    // NeutralToAggressive become aggressive on attack and starts chasing
+    if (combat.aggression == AggressionType_NeutralToAggressive && combat.attacked_by_player) {
+        combat.aggression = AggressionType_Aggressive;
+
+        Entity.move[e] = {
+            type: MoveType_Straight,
+            cant_move: false,
+        }
+    }
 
     var should_attack = switch (combat.aggression) {
         case AggressionType_Aggressive: true;
         case AggressionType_Neutral: combat.attacked_by_player;
+        case AggressionType_NeutralToAggressive: combat.attacked_by_player;
         case AggressionType_Passive: false;
     }
-
     combat.attacked_by_player = false;
+
+    if (!should_attack) {
+        return;
+    }
 
     var defense_total = player_defense_total();
 
@@ -984,11 +1048,12 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             copperchance_mod += spell.value;
         }
         case SpellType_AoeDamage: {
+            // AOE affects only entities in same room as player to prevent cheesing
             for (e in Entity.combat.keys()) {
                 if (Entity.position.exists(e)) {
                     var pos = Entity.position[e];
 
-                    if (Math.abs(player_x - pos.x) <= 2 && Math.abs(player_y - pos.y) <= 2) {
+                    if (pos.room == player_room && Math.abs(player_x - pos.x) <= 2 && Math.abs(player_y - pos.y) <= 2) {
                         player_attack_entity(e, [spell.element => spell.value]);
                     }
                 }
@@ -996,6 +1061,36 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModDropLevel: {
             increase_drop_level = true;
+        }
+        case SpellType_ModLevelHealth: {
+            for (e in Entity.combat.keys()) {
+                Entity.combat[e].health += spell.value;
+
+                // Negative mod can't bring health values below 1
+                if (Entity.combat[e].health <= 0) {
+                    Entity.combat[e].health = 1;
+                }
+            }
+        }
+        case SpellType_ModLevelAttack: {
+            for (e in Entity.combat.keys()) {
+                Entity.combat[e].attack[spell.element] += spell.value;
+
+                // Negative mod can't bring attack values below 0
+                if (Entity.combat[e].attack[spell.element] < 0) {
+                    Entity.combat[e].attack[spell.element] = 0;
+                }
+            }
+        }
+        case SpellType_ModLevelAbsorb: {
+            for (e in Entity.combat.keys()) {
+                Entity.combat[e].absorb[spell.element] += spell.value;
+
+                // Negative mod can't bring absorb values below 0
+                if (Entity.combat[e].absorb[spell.element] < 0) {
+                    Entity.combat[e].absorb[spell.element] = 0;
+                }
+            }
         }
     }
 }
@@ -1053,8 +1148,6 @@ function update() {
         }
     }
 
-    function get_view_x(): Int { return player_x - Math.floor(view_width / 2); }
-    function get_view_y(): Int { return player_y - Math.floor(view_width / 2); }
     var view_x = get_view_x();
     var view_y = get_view_y();
 
@@ -1119,18 +1212,6 @@ function update() {
     // TODO: remove this for release
     if (Input.justpressed(Key.P)) {
         Entity.print(hovered_anywhere);
-    }
-
-    //
-    // Attack on left click
-    //
-    if (!player_acted && Mouse.leftclick() && Entity.position.exists(hovered_map)) {
-        var pos = Entity.position[hovered_map];
-        // Attack if entity is on map, visible and has Combat
-        if (player_next_to(Entity.position[hovered_map]) && !los[pos.x - view_x][pos.y - view_y] && Entity.combat.exists(hovered_map)) {
-            attack_target = hovered_map;
-            player_acted = true;
-        }
     }
 
     //
@@ -1347,6 +1428,9 @@ function update() {
                 tooltip += '\n    ' + Spells.get_description(s);
             }
         }
+        if (Entity.buy.exists(e)) {
+            tooltip += '\nCost: ${Entity.buy[e].cost} copper.';
+        }
 
         return tooltip;
     }
@@ -1460,6 +1544,18 @@ function update() {
         } else if (Mouse.leftclick()) {
             // Clicked out of context menu
             interact_target = Entity.NONE;
+        }
+    }
+
+    //
+    // Attack on left click
+    //
+    if (!player_acted && Mouse.leftclick() && Entity.position.exists(hovered_map)) {
+        var pos = Entity.position[hovered_map];
+        // Attack if entity is on map, visible and has Combat
+        if (player_next_to(Entity.position[hovered_map]) && !los[pos.x - view_x][pos.y - view_y] && Entity.combat.exists(hovered_map)) {
+            attack_target = hovered_map;
+            player_acted = true;
         }
     }
 
@@ -1718,10 +1814,7 @@ function update() {
         // Entities chase player if they are in the same room
         for (e in Entity.move.keys()) {
             if (Entity.position.exists(e)) {
-                var pos = Entity.position[e];
-                if (pos.room == player_room) {
-                    move_entity(e);
-                }
+                move_entity(e);
             }
         }
 

@@ -19,6 +19,7 @@ enum ItemType {
 enum AggressionType {
     AggressionType_Aggressive; // attack if player is close
     AggressionType_Neutral; // attack only in response
+    AggressionType_NeutralToAggressive; // attack only in response
     AggressionType_Passive; // never attack
 }
 
@@ -26,6 +27,7 @@ enum MoveType {
     MoveType_Astar;
     MoveType_Straight;
     MoveType_Random;
+    MoveType_StayAway;
 }
 
 enum ElementType {
@@ -48,6 +50,7 @@ typedef Combat = {
     var message: String;
     var aggression: AggressionType;
     var attacked_by_player: Bool;
+    var range_squared: Int;
 }
 
 typedef Use = {
@@ -223,6 +226,7 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
             message: type.combat.message,
             aggression: type.combat.aggression,
             attacked_by_player: type.combat.attacked_by_player,
+            range_squared: type.combat.range_squared,
         };
     }
     if (type.drop_entity != null) {

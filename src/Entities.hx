@@ -372,14 +372,11 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [Spells.safe_teleport()],
+        spells: [Spells.mod_level_attack()],
         charges: 3,
         consumable: true,
     };
     Entity.draw_tile[e] = Tile.PotionPhysical;
-    Entity.buy[e] = {
-        cost: 3,
-    };
 
     Entity.validate(e);
 
@@ -446,13 +443,17 @@ static function random_element_split(element_count: Int, total: Int): Map<Elemen
 }
 
 static function random_weapon(x: Int, y: Int): Int {
+    var level = Main.get_drop_entity_level();
+    
     var e = Entity.make();
     Entity.set_position(e, x, y);
-    Entity.draw_tile[e] = Tile.Sword1;
+
+    var weapon_tiles = [Tile.Sword1, Tile.Sword2, Tile.Sword3, Tile.Sword4, Tile.Sword5, Tile.Sword6];
+    Entity.draw_tile[e] = weapon_tiles[Math.floor(Math.min(5, level / 2))];
+
     var weapon_names = ['copper sword', 'iron shank', 'big hammer'];
     Entity.name[e] = 'Weapon';
 
-    var level = Main.get_drop_entity_level();
 
     var attack_total = Stats.get({min: 1, max: 1, scaling: 1.0}, level); 
 
@@ -499,12 +500,12 @@ static function random_armor(x: Int, y: Int): Int {
     EquipmentType_Legs => 'pants',
     ];
     var armor_tiles = [
-    EquipmentType_Head => Tile.Head1, 
-    EquipmentType_Chest => Tile.Chest1,  
-    EquipmentType_Legs => Tile.Legs1, 
+    EquipmentType_Head => [Tile.Head1, Tile.Head2, Tile.Head3, Tile.Head4, Tile.Head5, Tile.Head6],
+    EquipmentType_Chest => [Tile.Chest1, Tile.Chest2, Tile.Chest3, Tile.Chest4, Tile.Chest5, Tile.Chest6],
+    EquipmentType_Legs => [Tile.Legs1, Tile.Legs2, Tile.Legs3, Tile.Legs4, Tile.Legs5, Tile.Legs6],
     ];
     Entity.name[e] = 'Armor';
-    Entity.draw_tile[e] = armor_tiles[armor_type];
+    Entity.draw_tile[e] = armor_tiles[armor_type][Math.floor(Math.min(5, level / 2))];
 
     var defense_total = Stats.get({min: 3, max: 4, scaling: 1.0}, level);
 
@@ -532,7 +533,7 @@ static function random_armor(x: Int, y: Int): Int {
     return e;
 }
 
-static function random_ring(x: Int, y: Int) {
+static function random_ring(x: Int, y: Int): Int {
     var e = Entity.make();
 
     var level = Main.get_drop_entity_level();
@@ -556,6 +557,8 @@ static function random_ring(x: Int, y: Int) {
     };
 
     Entity.validate(e);
+
+    return e;
 }
 
 static function random_potion(x: Int, y: Int): Int {
@@ -661,17 +664,27 @@ static function random_enemy_type(): EntityType {
     var absorb_physical = Std.int(Math.floor(absorb * (1 - element_ratio)));
     var absorb_elemental = Std.int(Math.floor(absorb * element_ratio));
 
-    var agression_type = Pick.value([
+    var aggression_type = Pick.value([
         {v: AggressionType_Aggressive, c: 4.0},
+        {v: AggressionType_NeutralToAggressive, c: 1.0},
         {v: AggressionType_Neutral, c: (4.0 / (1 + level))},
         {v: AggressionType_Passive, c: (1.0 / (1 + level))},
         ]);
 
-    var move_type = Pick.value([
-        {v: MoveType_Astar, c: 1.0},
-        {v: MoveType_Straight, c: 1.0},
-        {v: MoveType_Random, c: (1.0 / (1 + level))},
-        ]);
+    // NeutralToAggressive start out stationary
+    var move = if (aggression_type == AggressionType_NeutralToAggressive) {
+        null;
+    } else {
+        {
+            type: Pick.value([
+            {v: MoveType_Astar, c: 1.0},
+            {v: MoveType_Straight, c: 1.0},
+            {v: MoveType_StayAway, c: 0.25},
+            {v: MoveType_Random, c: (1.0 / (1 + level))},
+            ]),
+            cant_move: false,
+        }
+    }
 
     var element = Random.pick([ElementType_Fire, ElementType_Ice, ElementType_Light, ElementType_Shadow]);
 
@@ -682,6 +695,13 @@ static function random_enemy_type(): EntityType {
     } else {
         get_element_color(ElementType_Physical);
     }
+
+    // Ranges are squared, this means that each range covers a square area
+    var range: Int = Pick.value([
+        {v: 1, c: 8.0},
+        {v: 2, c: 2.0},
+        {v: 3, c: 1.0},
+        ]);
 
     // trace('ENEMY lvl$level: hp=$health,atk=$attack_physical+$attack_elemental,abs=$absorb_physical+$absorb_elemental');
 
@@ -707,8 +727,9 @@ static function random_enemy_type(): EntityType {
             element => absorb_elemental,
             ], 
             message: '$name defends itself.',
-            aggression: agression_type,
+            aggression: aggression_type,
             attacked_by_player: false,
+            range_squared: range * range,
         },
         // TODO: think about what percentage is good and whether to vary percentages by mob
         drop_entity: {
@@ -721,10 +742,7 @@ static function random_enemy_type(): EntityType {
             min: 1, 
             max: 1,
         },
-        move: {
-            type: move_type,
-            cant_move: false,
-        },
+        move: move,
         locked: null,
         unlocker: null,
         draw_on_minimap: null,
@@ -740,7 +758,11 @@ static function random_statue(x: Int, y: Int): Int {
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Statue';
     Entity.use[e] = {
-        spells: Spells.random_statue_spells(level),
+        spells: Pick.value([
+            {v: Spells.random_statue_spells, c: 1.0},
+            {v: Spells.random_statue_spells_buff_enemies , c: 0.5},
+            {v: Spells.random_statue_spells_curse_enemies , c: 0.5},
+            ]) (level),
         charges: 1,
         consumable: false,
     };
@@ -752,6 +774,25 @@ static function random_statue(x: Int, y: Int): Int {
         case ElementType_Fire: Tile.StatueFire;
         case ElementType_Ice: Tile.StatueIce;
     }
+
+    Entity.validate(e);
+
+    return e;
+}
+
+// TODO: make merchant turn aggressive and start chasing player when hit
+// TODO: make shop items free if merchant is defeated
+static function merchant(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Merchant';
+    Entity.description[e] = 'It\'s a merchant.';
+    Entity.talk[e] = 'Merchant says: "I\'ve got kids to feed".';
+    Entity.draw_char[e] = {
+        char: 'M',
+        color: Col.PINK,
+    };
 
     Entity.validate(e);
 

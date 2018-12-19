@@ -22,6 +22,10 @@ enum SpellType {
     SpellType_ModCopperDrop;
     SpellType_AoeDamage;
     SpellType_ModDropLevel;
+
+    SpellType_ModLevelHealth;
+    SpellType_ModLevelAttack;
+    SpellType_ModLevelAbsorb;
 }
 
 enum SpellDuration {
@@ -61,6 +65,9 @@ SpellType_ModAttack => 2,
 SpellType_ModDefense => 2,
 SpellType_AoeDamage => 2,
 
+SpellType_ModLevelHealth => 3,
+SpellType_ModLevelAttack => 3,
+SpellType_ModLevelAbsorb => 3,
 SpellType_ShowThings => 3,
 SpellType_UncoverMap => 3,
 SpellType_SafeTeleport => 3,
@@ -102,6 +109,10 @@ static function get_description(spell: Spell): String {
         case SpellType_ModMoveSpeed: '$sign${spell.value} move speed';
         case SpellType_ModDropChance: '$sign${spell.value}% item drop chance';
         case SpellType_ModCopperDrop: '$sign${spell.value}% copper drop chance';
+
+        case SpellType_ModLevelHealth: '$sign${spell.value} health to all enemies on the level';
+        case SpellType_ModLevelAttack: '$sign${spell.value} ${element} attack to all enemies on the level';
+        case SpellType_ModLevelAbsorb: '$sign${spell.value} ${element} absorb to all enemies on the level';
 
         case SpellType_ModDropLevel: 'make item drops more powerful';
         case SpellType_UncoverMap: 'uncover map';
@@ -441,6 +452,32 @@ static function uncover_map(): Spell {
     }
 }
 
+static function mod_level_health(): Spell {
+    return {
+        type: SpellType_ModLevelHealth,
+        element: ElementType_Shadow,
+        duration_type: SpellDuration_Permanent,
+        duration: 0,
+        interval: 0,
+        interval_current: 0,
+        value: 2,
+        origin_name: "noname",
+    }
+}
+
+static function mod_level_attack(): Spell {
+    return {
+        type: SpellType_ModLevelAttack,
+        element: ElementType_Shadow,
+        duration_type: SpellDuration_Permanent,
+        duration: 0,
+        interval: 0,
+        interval_current: 0,
+        value: 2,
+        origin_name: "noname",
+    }
+}
+
 static function test(): Spell {
     return {
         type: SpellType_ModCopperDrop,
@@ -643,6 +680,155 @@ static function random_ring_spell(level: Int): Spell {
     }
 }
 
+static function random_statue_spells_curse_enemies(level: Int): Array<Spell> {
+    function statue_curse_spell(): Spell {
+        var type = Pick.value([
+            {v: SpellType_ModLevelHealth, c: 1.0},
+            {v: SpellType_ModLevelAttack, c: 1.0},
+            {v: SpellType_ModLevelAbsorb, c: 1.0},
+            ]);
+
+        var duration_type = SpellDuration_Permanent;
+
+        var interval = 0;
+
+        var duration = 0;
+
+        var value = Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+
+        return {
+            type: type,
+            element: random_element(),
+            duration_type: duration_type,
+            duration: duration,
+            interval: interval,
+            interval_current: 0,
+            value: -1 * value,
+            origin_name: "noname",
+        };
+    }
+
+    function statue_buff_spell(curse_type: SpellType): Spell {
+        // Select buff type that's not the same as curse
+        var type = curse_type;
+        while (type == curse_type) {
+            type = Pick.value([
+                {v: SpellType_ModLevelHealth, c: 1.0},
+                {v: SpellType_ModLevelAttack, c: 1.0},
+                {v: SpellType_ModLevelAbsorb, c: 1.0},
+                ]);
+        }
+
+        var duration_type = SpellDuration_Permanent;
+
+        var interval = 0;
+
+        var duration = 0;
+
+        var value = Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+
+        return {
+            type: type,
+            element: random_element(),
+            duration_type: duration_type,
+            duration: duration,
+            interval: interval,
+            interval_current: 0,
+            value: value,
+            origin_name: "noname",
+        };
+    } 
+
+    var curse = statue_curse_spell();
+    var buff = statue_buff_spell(curse.type);
+
+    return [curse, buff];
+}
+
+// Level statues that give a bonus for a cost of buffing current level enemies
+static function random_statue_spells_buff_enemies(level: Int): Array<Spell> {
+    function statue_buff_spell(): Spell {
+        // Permanent attack bonus or level-wide bonus
+        var type = Pick.value([
+            {v: SpellType_ModAttack, c: 1.0},
+            {v: SpellType_ModDropChance, c: 1.0},
+            {v: SpellType_ModCopperDrop, c: 1.0},
+            {v: SpellType_ModDropLevel, c: 1.0},
+            {v: SpellType_Noclip, c: 1.0},
+            ]);
+
+        var duration_type = switch (type) {
+            case SpellType_ModAttack: SpellDuration_Permanent;
+            default: SpellDuration_EveryTurn;
+        }
+
+        var interval = 1;
+
+        var duration = if (duration_type == SpellDuration_Permanent) {
+            0;
+        } else {
+            Entity.LEVEL_DURATION;
+        }
+
+        var value = switch (type) {
+            case SpellType_ModAttack: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+            case SpellType_ModCopperDrop: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+            case SpellType_ModDropChance: Random.int(4, 6) * 10;
+            case SpellType_ModDropLevel: Random.int(1, 2);
+            default: 0;
+        }
+
+        var element = switch (type) {
+            case SpellType_ModAttack: random_element();
+            default: ElementType_Light;
+        }
+
+        return {
+            type: type,
+            element: element,
+            duration_type: duration_type,
+            duration: duration,
+            interval: interval,
+            interval_current: 0,
+            value: value,
+            origin_name: "noname",
+        };
+    }
+
+    function statue_cost_spell(): Spell {
+        var type = Pick.value([
+            {v: SpellType_ModLevelHealth, c: 1.0},
+            {v: SpellType_ModLevelAttack, c: 1.0},
+            {v: SpellType_ModLevelAbsorb, c: 1.0},
+            ]);
+
+        var duration_type = SpellDuration_Permanent;
+
+        var interval = 0;
+
+        var duration = 0;
+
+        var value = Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+
+        return {
+            type: type,
+            element: random_element(),
+            duration_type: duration_type,
+            duration: duration,
+            interval: interval,
+            interval_current: 0,
+            value: value,
+            origin_name: "noname",
+        };
+    } 
+
+    var buff = statue_buff_spell();
+    var cost = statue_cost_spell();
+
+    return [buff, cost];
+}
+
+// Statues that give some big player bonus for a cost of health
 static function random_statue_spells(level: Int): Array<Spell> {
     function statue_buff_spell(): Spell {
         var type = Pick.value([

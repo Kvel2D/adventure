@@ -1,11 +1,12 @@
 --------------------------------------------------------------------------
 TODO
 
-make merchant sell better things
-    like multi-charge potions/scrolls
-    or higher level equipment/rings
-
-merchant entity
+name statues by type of stuff they do
+    can name them after greek gods
+    change color of statues depending on god not element of buff
+    the health statue could be shadow
+    the buffing enemies could be fire or light
+    the cursing enemies could be ice
 
 --------------------------------------------------------------------------
 DONE
@@ -15,49 +16,14 @@ DONE
 --------------------------------------------------------------------------
 PROBLEMS
 
-entities with random movement can move into other rooms
-    possible feature
-
-speed spell makes it hard to get through connections
-    possible feature
-
 --------------------------------------------------------------------------
 IDEAS
 
-doors opened with buttons
-    can make rooms be one-way entrance by putting a button and a door at the entrance
-    (one way entrance poison room)
-
-pushable blocks ala sokoban
-    use blocks to push a button to open a door
-    but block is surround by enemies, need to clear them to be able to push it
-    pushed by moving next to block
-    can grab block for undoing purposes by holding G
-
-long-range attack for entities
-    attacks player if no LOS(i.e. player can see it)
-
-ranged attacks
-    entities can attack if 2-3-4 away from player
-
-other move types
-    keep distance
-        entity does nothing but when player to entity distance is lower than X it tries to get away
-    chase and keep distance
-        for entities with ranged attacks, they will chase player until reaching attack distance then try to keep distance
-
-vary room geometry
-    cut off walls around edges(keep connections)
-    add walls inside rooms
+buffing all defense/attack is a pain, maybe make ModStatAll that buffs all elements
+    will make it easier to scale down all element buffs to make them be worth as much as one stat buffs
 
 mob that heals itself over time
     new kind of spell ModEntityHealth?
-
-make entities have defense instead of absorb because right now it's inconsistent with what the player sees, better for it to be same to be more easily understandble
-
-attacking always takes prio, might need to disable attack while interact menu is up
-
-browsers need hardware acceleration apparently, need to put a note on game site
 
 find a good font, that doesn't have scaling or offset problems
     also preferably mob chars should be full-width, hard to judge the distance if char not centered
@@ -73,11 +39,6 @@ start with some items?
 
 picking up and dropping friendly enemy is like pokemon
     pick up an enemy like that and drop it and let it fight other enemies for you
-
-show whether mob is friendly or aggressive in tooltip
-    disallow attacking friendly mobs so that player is more likely to check that he can interact and pick it up
-
-decrease attack of EVERYTHING on the level(includes player's stuff)
 
 need to make sure that friendly mobs can't cause a path block
     making it possible to attack them would allow the player to get out of any possible buggy situation
@@ -111,8 +72,18 @@ using items on anything might be needed
 friendly mobs which attack other mobs
     other mobs should attack them as well?
 
+killing merchant makes all shop items pick-upable for free
+    need merchant to start out passive and stationary but turn aggressive and chasing on attack
+    maybe allow stealing, interact option to "steal" which turns merchant hostile
+    merchant is very fast
+
+movetype: chase and keep distance
+    for entities with ranged attacks, they will chase player until reaching attack distance then try to keep distance
+
 --------------------------------------------------------------------------
 SPELL IDEAS
+
+decrease attack of EVERYTHING on the level(includes player's stuff)
 
 crab-hand
     crabs can be attacked but also can be used to gain +X to dmg for a limited time while taking damage periodically
@@ -155,16 +126,6 @@ mod equipment stat
         one that adds element power even if it's 0
         other that only increases existing element
             so enchanting ice on a sword with 1 phys dmg will do nothing 
-
-decrease stat of everything on level
-    includes all entities, items, equipment, in world or carried
-    also all future items dropped/spawned on this level
-    something like -1 to light attack might be good
-        imagine you get to a level with a bunch of light mobs
-        then you can use this spell to make it easier to clear
-        but this will also decrease usefulness of your light weapon for example
-    increase is fun too
-        increase all attack makes item drops more valuable but everything also hits harder
 
 summon friendly enemy spell
 
@@ -211,3 +172,4 @@ cache stat screen/tooltip?
 increase max amount of enemies with levels
 
 prevent movement of all mobs in current room
+
