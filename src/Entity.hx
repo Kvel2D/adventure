@@ -180,6 +180,121 @@ static function make(): Int {
     return e;
 }
 
+static function copy(e: Int, x: Int, y: Int): Int {
+    var copy = make();
+
+    set_position(copy, x, y);
+    if (name.exists(e)) {
+        name[copy] = name[e];
+    }
+    if (description.exists(e)) {
+        description[copy] = description[e];
+    }
+    if (draw_tile.exists(e)) {
+        draw_tile[copy] = draw_tile[e];
+    }
+    if (draw_char.exists(e)) {
+        var e_draw_char = draw_char[e];
+        draw_char[copy] = {
+            char: e_draw_char.char,
+            color: e_draw_char.color,
+        };
+    }
+    if (equipment.exists(e)) {
+        var e_equipment = equipment[e];
+        equipment[copy] = {
+            name: e_equipment.name,
+            type: e_equipment.type,
+            spells: [for (spell in e_equipment.spells) Spells.copy(spell)],
+        };
+    }
+    if (item.exists(e)) {
+        var e_item = item[e];
+        item[copy] = {
+            name: e_item.name,
+            type: e_item.type,
+            spells: [for (spell in e_item.spells) Spells.copy(spell)],
+        };
+    }
+    if (use.exists(e)) {
+        var e_use = use[e];
+        use[copy] = {
+            spells: [for (spell in e_use.spells) Spells.copy(spell)],
+            charges: e_use.charges,
+            consumable: e_use.consumable,
+            flavor_text: e_use.flavor_text,
+            need_target: e_use.need_target,
+        };
+    }
+    if (combat.exists(e)) {
+        var e_combat = combat[e];
+        combat[copy] = {
+            health: e_combat.health,
+            attack: [ for (key in e_combat.attack.keys()) key => e_combat.attack[key]],
+            absorb: [ for (key in e_combat.absorb.keys()) key => e_combat.absorb[key]],
+            message: e_combat.message,
+            aggression: e_combat.aggression,
+            attacked_by_player: e_combat.attacked_by_player,
+            range_squared: e_combat.range_squared,
+        };
+    }
+    if (drop_entity.exists(e)) {
+        var e_drop_entity = drop_entity[e];
+        drop_entity[copy] = {
+            table: e_drop_entity.table,
+            chance: e_drop_entity.chance,
+        };
+    }
+    if (talk.exists(e)) {
+        talk[copy] = talk[e];
+    }
+    if (give_copper_on_death.exists(e)) {
+        var e_give_copper_on_death = give_copper_on_death[e];
+        give_copper_on_death[copy] = {
+            chance: e_give_copper_on_death.chance,
+            min: e_give_copper_on_death.min,
+            max: e_give_copper_on_death.max,
+        };
+    }
+    if (move.exists(e)) {
+        var e_move = move[e];
+        move[copy] = {
+            type: e_move.type,
+            cant_move: e_move.cant_move,
+        };
+    }
+    if (locked.exists(e)) {
+        var e_locked = locked[e];
+        locked[copy] = {
+            color: e_locked.color,
+            need_key: e_locked.need_key,
+        };
+    }
+    if (unlocker.exists(e)) {
+        var e_unlocker = unlocker[e];
+        unlocker[copy] = {
+            color: e_unlocker.color,
+        };
+    }
+    if (draw_on_minimap.exists(e)) {
+        var e_draw_on_minimap = draw_on_minimap[e];
+        draw_on_minimap[copy] = {
+            color: e_draw_on_minimap.color,
+            seen: e_draw_on_minimap.seen,
+        };
+    }
+    if (buy.exists(e)) {
+        var e_buy = buy[e];
+        buy[copy] = {
+            cost: e_buy.cost,
+        };
+    }
+
+    validate(copy);
+
+    return copy;
+}
+
 static function make_type(x: Int, y: Int, type: EntityType): Int {
     var e = make();
 

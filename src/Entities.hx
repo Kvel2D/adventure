@@ -378,7 +378,7 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [Spells.add_charges()],
+        spells: [Spells.copy_item()],
         charges: 3,
         consumable: true,
         flavor_text: '',
@@ -711,11 +711,19 @@ static function random_enemy_type(): EntityType {
     // NeutralToAggressive start out stationary
     var move = if (aggression_type == AggressionType_NeutralToAggressive) {
         null;
-    } else {
+    } else if (aggression_type == AggressionType_Aggressive) {
         {
             type: Pick.value([
                 {v: MoveType_Astar, c: 1.0},
                 {v: MoveType_Straight, c: 1.0},
+                {v: MoveType_StayAway, c: 0.25},
+                {v: MoveType_Random, c: (1.0 / (1 + level))},
+                ]),
+            cant_move: false,
+        }
+    } else {
+        {
+            type: Pick.value([
                 {v: MoveType_StayAway, c: 0.25},
                 {v: MoveType_Random, c: (1.0 / (1 + level))},
                 ]),
@@ -815,10 +823,10 @@ static function random_statue(x: Int, y: Int): Int {
     return e;
 }
 
-// TODO: make merchant turn aggressive and start chasing player when hit
-// TODO: make shop items free if merchant is defeated
 static function merchant(x: Int, y: Int): Int {
     var e = Entity.make();
+
+    var level = Main.current_level;
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Merchant';
@@ -827,6 +835,19 @@ static function merchant(x: Int, y: Int): Int {
     Entity.draw_char[e] = {
         char: 'M',
         color: Col.PINK,
+    };
+    Entity.combat[e] = {
+        health: Stats.get({min: 10, max: 10, scaling: 1.0}, level), 
+        attack: [
+            ElementType_Physical => Stats.get({min: 3, max: 3, scaling: 1.0}, level)
+        ], 
+        absorb: [
+            ElementType_Physical => Stats.get({min: 1, max: 1, scaling: 0.5}, level)
+        ], 
+        message: 'Merchant says: "You will regret this".',
+        aggression: AggressionType_NeutralToAggressive,
+        attacked_by_player: false,
+        range_squared: 1,
     };
 
     Entity.validate(e);

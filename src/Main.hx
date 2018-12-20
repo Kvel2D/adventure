@@ -642,7 +642,7 @@ function move_entity_into_inventory(e: Int) {
     add_message('Inventory is full.');
 }
 
-function drop_entity_from_player(e: Int) {
+function free_position_around_player(): Vec2i {
     // Search for free position around player
     var free_map = get_free_map(player_x - 1, player_y - 1, 3, 3);
 
@@ -653,14 +653,19 @@ function drop_entity_from_player(e: Int) {
             var x = player_x + dx;
             var y = player_y + dy;
             if (!out_of_map_bounds(x, y) && free_map[dx + 1][dy + 1]) {
-                free_x = x;
-                free_y = y;
+                return {x: x, y: y};
                 break;
             }
         }
     }
 
-    if (free_x != -1 && free_y != -1) {
+    return {x: -1, y: -1};
+}
+
+function drop_entity_from_player(e: Int) {
+    var pos = free_position_around_player();
+
+    if (pos.x != -1 && pos.y != -1) {
         var name = 'unnamed_drop_from_player';
 
         if (Entity.item.exists(e)) {
@@ -670,7 +675,7 @@ function drop_entity_from_player(e: Int) {
         }
 
         add_message('You drop ${name}.');
-        Entity.set_position(e, free_x, free_y);
+        Entity.set_position(e, pos.x, pos.y);
     } else {
         add_message('No space to drop item.');
     }
@@ -926,6 +931,16 @@ function player_attack_entity(e: Int, attacks: Map<ElementType, Int>) {
             drop_entity_from_entity(e, target_name);
         }
 
+        // Merchant death makes all items in the room free
+        if (Entity.name.exists(e) && Entity.name[e] == 'Merchant') {
+            var merchant_room = Entity.position[e].room;
+            for (e in Entity.position.keys()) {
+                if (Entity.position[e].room == merchant_room && Entity.buy.exists(e)) {
+                    Entity.buy.remove(e);
+                }
+            }
+        }
+
         Entity.remove(e);
     }
 }
@@ -1159,6 +1174,17 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_ModUseCharges: {
             if (Entity.use.exists(use_target)) {
                 Entity.use[use_target].charges += spell.value;
+            }
+        }
+        case SpellType_CopyItem: {
+            // Copy target must be an item and in inventory
+            if (Entity.item.exists(use_target) && !Entity.position.exists(use_target)) {
+                var pos = free_position_around_player();
+                if (pos.x != -1 && pos.y != -1) {
+                    var copy = Entity.copy(use_target, pos.x, pos.y);
+                } else {
+                    add_message('No space to drop copied item, it disappears into the Void.');
+                }
             }
         }
     }
@@ -1557,8 +1583,9 @@ function update() {
         return tooltip;
     }
     var entity_tooltip = get_tooltip(hovered_anywhere);
+    
+    // Add comparison text to tooltip for equipment on the ground
     if (Entity.equipment.exists(hovered_anywhere) && Entity.position.exists(hovered_anywhere)) {
-        // Show comparison tooltip for equipment on the ground
         var equipped = player_equipment[Entity.equipment[hovered_anywhere].type];
 
         if (Entity.equipment.exists(equipped) && !Entity.position.exists(equipped)) {
@@ -1566,6 +1593,7 @@ function update() {
         }
     }
     
+    // Colored elemental stats
     if (interact_target == Entity.NONE) {
         // Only show tooltip if interact menu isn't open
         Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, hovered_tooltip_wordwrap, Text.height(entity_tooltip), Col.DARKBROWN);
@@ -1577,7 +1605,7 @@ function update() {
             
             var string_so_far = 'Absorb:';
             for (element in Type.allEnums(ElementType)) {
-                if (entity_combat.attack[element] > 0) {
+                if (entity_combat.attack.exists(element) && entity_combat.attack[element] > 0) {
                     var element_num = ' ${entity_combat.attack[element]}';
                     Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n$element_num', Entities.get_element_color(element));
 
@@ -1587,7 +1615,7 @@ function update() {
 
             string_so_far = 'Absorb:';
             for (element in Type.allEnums(ElementType)) {
-                if (entity_combat.absorb[element] > 0) {
+                if (entity_combat.absorb.exists(element) && entity_combat.absorb[element] > 0) {
                     var element_num = ' ${entity_combat.absorb[element]}';
                     Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n\n$element_num', Entities.get_element_color(element));
 
@@ -1818,9 +1846,9 @@ function update() {
         } else {
             targeting_for_use = false;
         }
-        // Perform targeted use
+        // Perform targeted use if the target is an item in inventory
         // NOTE: use target is cleared after spells are done
-        if (use_target != Entity.NONE) {
+        if (Entity.item.exists(use_target) && !Entity.position.exists(use_target)) {
             use_entity(use_entity_that_needs_target);
         }
 

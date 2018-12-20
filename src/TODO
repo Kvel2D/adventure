@@ -1,17 +1,13 @@
 --------------------------------------------------------------------------
 TODO
 
-add invisibility and modcharges onto item drops
-
-copy scroll
-    need a system for spells that target an entity
-    press "Use" and then if spell needs a target, go into targeting mode
-    click on entity to use spell on it
-    click anywhere else to cancel
+add new spells into item rotation
+    modcharges
+    invisibility
+    copyitem
 
 --------------------------------------------------------------------------
 DONE
-
 
 --------------------------------------------------------------------------
 PROBLEMS
@@ -19,23 +15,18 @@ PROBLEMS
 --------------------------------------------------------------------------
 IDEAS
 
-find a good font, that doesn't have scaling or offset problems
-    also preferably mob chars should be full-width, hard to judge the distance if char not centered
-
-scrolling for spell display, at some point spells won't fit in current area
-
 boss mobs
     guaranteed powerful item drop
     big health pool
 
-start with some items?
-    could be like a class system where you start with certain loadouts
-
-picking up and dropping friendly enemy is like pokemon
-    pick up an enemy like that and drop it and let it fight other enemies for you
-
-need to make sure that friendly mobs can't cause a path block
-    making it possible to attack them would allow the player to get out of any possible buggy situation
+friendly mobs
+    make friendly mobs green
+    picking up and dropping friendly enemy is like pokemon
+        pick up an enemy like that and drop it and let it fight other enemies for you
+    can attack friendly to prevent path blocks
+    friendly mobs which attack other mobs
+        other mobs should attack them as well?
+    spell to summon friendly mob
 
 identify system
     only applies to use effects(maybe special armor buffs too?)
@@ -47,47 +38,23 @@ cache map image
     draw player on top of cache
     need to clear transparently
 
-door-button pair
-    button is not a step on button but a touch button
-        can be activated by anything near it, enemies, dropped items, etc
-        combination of a button far away from door
-        door in connection
-        spawn to close an isolated room with one connection that contains something good
-
-make friendly mobs green
-
 armor/weapon use and buff spells
 armor/weapon buff spells
 
-using items on anything might be needed
-    some situations where would want to use heal potion on summoned entity for example
-    "Use on target" interact option?
+find font that's not messed up in html5
 
-friendly mobs which attack other mobs
-    other mobs should attack them as well?
+scrolling for spell display, at some point spells won't fit in current area
 
-killing merchant makes all shop items pick-upable for free
-    need merchant to start out passive and stationary but turn aggressive and chasing on attack
-    maybe allow stealing, interact option to "steal" which turns merchant hostile
-    merchant is very fast
-
-movetype: chase and keep distance
-    for entities with ranged attacks, they will chase player until reaching attack distance then try to keep distance
+start with some items?
+    could be like a class system where you start with certain loadouts
 
 --------------------------------------------------------------------------
 SPELL IDEAS
-
-decrease attack of EVERYTHING on the level(includes player's stuff)
 
 crab-hand
     crabs can be attacked but also can be used to gain +X to dmg for a limited time while taking damage periodically
     this is an aura
     crab disappears on end
-
-swap stats with enemy: health, attacks, defenses
-    swap defense spell should
-    give mob's natural defense to player
-    but give natural+mods defense of player to mob
 
 mod equipment stat
     mod attack doesn't cover all options, it modifies natural attack only
@@ -111,15 +78,9 @@ mod equipment stat
         other that only increases existing element
             so enchanting ice on a sword with 1 phys dmg will do nothing 
 
-summon friendly enemy spell
-
 modhealth everyattack
     something like leech
     most appropriate for weapons
-
-reign of shadow spell
-    remove everything with light element from the level, entities drop items when removed
-    includes player items/equipment?
 
 copy scroll used on copy scroll could spawn a rare hard encounter on next level
     "You hear a distant wail of a Copy Scroll God"

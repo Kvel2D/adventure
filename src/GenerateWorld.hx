@@ -57,7 +57,7 @@ static var empty_room_chance = 10;
 static var enemy_room_chance = 90; // subset of non-empty rooms
 static var spell_room_chance = 10; // subset of enemy rooms
 static var locked_room_chance = 10; // subset of rooms with one connection
-static var merchant_room_chance = 10; // subset of item-only rooms
+static var merchant_room_chance = 100; // subset of item-only rooms
 
 public static function shuffle<T>(array: Array<T>): Array<T> {
     if (array != null) {

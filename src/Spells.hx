@@ -30,6 +30,7 @@ enum SpellType {
     SpellType_ModLevelAbsorb;
 
     SpellType_ModUseCharges;
+    SpellType_CopyItem;
 }
 
 enum SpellDuration {
@@ -59,6 +60,7 @@ class Spells {
 static var prios = [
 SpellType_NextFloor => 0,
 
+SpellType_CopyItem => 1,
 SpellType_ModUseCharges => 1,
 SpellType_Invisibility => 1,
 SpellType_ModDropChance => 1,
@@ -133,6 +135,7 @@ static function get_description(spell: Spell): String {
         case SpellType_NextFloor: 'go to next floor';
         case SpellType_AoeDamage: 'deal ${spell.value} ${element} damage to enemies in the room';
         case SpellType_ModUseCharges: 'add ${spell.value} use charges to item';
+        case SpellType_CopyItem: 'copy item in your inventory and drop it on the ground (must have free space around you or the spell fails)';
     }
 
     var interval = 
@@ -523,6 +526,19 @@ static function add_charges(): Spell {
         interval: 0,
         interval_current: 0,
         value: 2,
+        origin_name: "noname",
+    }
+}
+
+static function copy_item(): Spell {
+    return {
+        type: SpellType_CopyItem,
+        element: ElementType_Light,
+        duration_type: SpellDuration_Permanent,
+        duration: 0,
+        interval: 0,
+        interval_current: 0,
+        value: 0,
         origin_name: "noname",
     }
 }
