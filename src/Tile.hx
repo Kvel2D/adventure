@@ -36,7 +36,6 @@ class Tile {
     static inline var StatueLight = at(2, 9);
     static inline var StatueFire = at(3, 9);
     static inline var StatueIce = at(4, 9);
-    static inline var StatueMixed = at(5, 9);
 
     static inline var Head0 = at(0, 2);
     static inline var Head1 = at(1, 2);

@@ -57,6 +57,8 @@ typedef Use = {
     var spells: Array<Spell>;
     var charges: Int;
     var consumable: Bool;
+    var flavor_text: String;
+    var need_target: Bool;
 }
 
 typedef Equipment = {
@@ -216,6 +218,8 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
             spells: [for (spell in type.use.spells) Spells.copy(spell)],
             charges: type.use.charges,
             consumable: type.use.consumable,
+            flavor_text: type.use.flavor_text,
+            need_target: type.use.need_target,
         };
     }
     if (type.combat != null) {

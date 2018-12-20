@@ -163,10 +163,10 @@ static function generate_name_markov(): String {
 
 static function get_element_color(element: ElementType): Int {
     return switch (element) {
-        case ElementType_Physical: Col.GRAY;
+        case ElementType_Physical: Col.WHITE;
         case ElementType_Fire: Col.RED;
         case ElementType_Ice: Col.BLUE;
-        case ElementType_Shadow: Col.BLACK;
+        case ElementType_Shadow: Col.rgb(75, 72, 138);
         case ElementType_Light: Col.YELLOW;
     }
 }
@@ -191,6 +191,8 @@ static function fountain(x: Int, y: Int): Int {
     //     value: 2, 
     //     charges: 1,
     //     consumable: false,
+    //     flavor_text: 'You drink from the fountain.',
+    //     need_target: false,
     // };
     Entity.draw_char[e] = {
         char: 'F',
@@ -217,6 +219,8 @@ static function health_potion(x: Int, y: Int): Int {
         spells: [Spells.health_instant()],
         charges: 1,
         consumable: true,
+        flavor_text: 'You drink the potion.',
+        need_target: false,
     };
     Entity.draw_tile[e] = Tile.PotionPhysical;
 
@@ -356,6 +360,8 @@ static function stairs(x: Int, y: Int): Int {
         spells: [Spells.next_floor()],
         charges: 1,
         consumable: false,
+        flavor_text: 'You ascend the stairs.',
+        need_target: false,
     };
 
     return e;
@@ -372,9 +378,11 @@ static function test_potion(x: Int, y: Int): Int {
         spells: [],
     };
     Entity.use[e] = {
-        spells: [Spells.mod_level_attack()],
+        spells: [Spells.add_charges()],
         charges: 3,
         consumable: true,
+        flavor_text: '',
+        need_target: true,
     };
     Entity.draw_tile[e] = Tile.PotionPhysical;
 
@@ -578,6 +586,8 @@ static function random_potion(x: Int, y: Int): Int {
         spells: spells,
         charges: 1,
         consumable: true,
+        flavor_text: 'You chug the potion.',
+        need_target: false,
     };
 
     // Count spell elements
@@ -622,6 +632,8 @@ static function random_scroll(x: Int, y: Int): Int {
         spells: spells,
         charges: 1,
         consumable: true,
+        flavor_text: 'You read the scroll aloud.',
+        need_target: false,
     };
 
     Entity.draw_tile[e] = 
@@ -664,29 +676,15 @@ static function random_enemy_type(): EntityType {
     var absorb_physical = Std.int(Math.floor(absorb * (1 - element_ratio)));
     var absorb_elemental = Std.int(Math.floor(absorb * element_ratio));
 
-    var aggression_type = Pick.value([
-        {v: AggressionType_Aggressive, c: 4.0},
-        {v: AggressionType_NeutralToAggressive, c: 1.0},
-        {v: AggressionType_Neutral, c: (4.0 / (1 + level))},
-        {v: AggressionType_Passive, c: (1.0 / (1 + level))},
-        ]);
-
-    // NeutralToAggressive start out stationary
-    var move = if (aggression_type == AggressionType_NeutralToAggressive) {
-        null;
-    } else {
-        {
-            type: Pick.value([
-            {v: MoveType_Astar, c: 1.0},
-            {v: MoveType_Straight, c: 1.0},
-            {v: MoveType_StayAway, c: 0.25},
-            {v: MoveType_Random, c: (1.0 / (1 + level))},
-            ]),
-            cant_move: false,
-        }
-    }
-
     var element = Random.pick([ElementType_Fire, ElementType_Ice, ElementType_Light, ElementType_Shadow]);
+
+    var attacks = [for (element in Type.allEnums(ElementType)) element => 0];
+    attacks[ElementType_Physical] = attack_physical;
+    attacks[element] = attack_elemental;
+
+    var absorbs = [for (element in Type.allEnums(ElementType)) element => 0];
+    absorbs[ElementType_Physical] = absorb_physical;
+    absorbs[element] = absorb_elemental;
 
     // Only color according to element if some stat is non-zero
     var color = 
@@ -703,6 +701,28 @@ static function random_enemy_type(): EntityType {
         {v: 3, c: 1.0},
         ]);
 
+    var aggression_type = Pick.value([
+        {v: AggressionType_Aggressive, c: 4.0},
+        {v: AggressionType_NeutralToAggressive, c: 1.0},
+        {v: AggressionType_Neutral, c: (4.0 / (1 + level))},
+        {v: AggressionType_Passive, c: (1.0 / (1 + level))},
+        ]);
+
+    // NeutralToAggressive start out stationary
+    var move = if (aggression_type == AggressionType_NeutralToAggressive) {
+        null;
+    } else {
+        {
+            type: Pick.value([
+                {v: MoveType_Astar, c: 1.0},
+                {v: MoveType_Straight, c: 1.0},
+                {v: MoveType_StayAway, c: 0.25},
+                {v: MoveType_Random, c: (1.0 / (1 + level))},
+                ]),
+            cant_move: false,
+        }
+    }
+
     // trace('ENEMY lvl$level: hp=$health,atk=$attack_physical+$attack_elemental,abs=$absorb_physical+$absorb_elemental');
 
     return {
@@ -718,14 +738,8 @@ static function random_enemy_type(): EntityType {
         use: null,
         combat: {
             health: health, 
-            attack: [
-            ElementType_Physical => attack_physical,
-            element => attack_elemental,
-            ], 
-            absorb: [
-            ElementType_Physical => absorb_physical,
-            element => absorb_elemental,
-            ], 
+            attack: attacks, 
+            absorb: absorbs, 
             message: '$name defends itself.',
             aggression: aggression_type,
             attacked_by_player: false,
@@ -739,8 +753,8 @@ static function random_enemy_type(): EntityType {
         talk: Entity.NULL_STRING,
         give_copper_on_death: {
             chance: 50, 
-            min: 1, 
-            max: 1,
+            min: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
+            max: Stats.get({min: 2, max: 2, scaling: 1.0}, level),
         },
         move: move,
         locked: null,
@@ -756,18 +770,39 @@ static function random_statue(x: Int, y: Int): Int {
     var level = Main.current_level;
 
     Entity.set_position(e, x, y);
-    Entity.name[e] = 'Statue';
+
+    // NOTE: theme element doesn't affect spell elements, it's just for the name, draw tile and the sets of spells that are picked
+    var theme_element = Random.pick(Type.allEnums(ElementType));
+
+    Entity.name[e] = switch (theme_element) {
+        case ElementType_Physical: 'Altar of Sera';
+        case ElementType_Shadow: 'Statue of Subere';
+        case ElementType_Light: 'Ollopa\'s effigy';
+        case ElementType_Fire: 'Shrine of Suthaephes';
+        case ElementType_Ice: 'Enohik\'s pedestal';
+    }
+
     Entity.use[e] = {
-        spells: Pick.value([
-            {v: Spells.random_statue_spells, c: 1.0},
-            {v: Spells.random_statue_spells_buff_enemies , c: 0.5},
-            {v: Spells.random_statue_spells_curse_enemies , c: 0.5},
-            ]) (level),
+        spells: switch (theme_element) {
+            case ElementType_Physical: Spells.statue_sera(level);
+            case ElementType_Shadow: Spells.statue_subere(level);
+            case ElementType_Light: Spells.statue_ollopa(level);
+            case ElementType_Fire: Spells.statue_suthaephes(level);
+            case ElementType_Ice: Spells.statue_enohik(level);
+        },
         charges: 1,
         consumable: false,
+        flavor_text: switch (theme_element) {
+            case ElementType_Physical: 'Sera\'s war cry echoes around you.';
+            case ElementType_Shadow: 'Subere\'s shadow descends on the tower.';
+            case ElementType_Light: 'You obtain Ollopa\'s blessing.';
+            case ElementType_Fire: 'Suthaephes\' burns and strengthenes you.';
+            case ElementType_Ice: 'You feel Enohik\'s chill run through your bones.';
+        },
+        need_target: false,
     };
 
-    Entity.draw_tile[e] = switch (Entity.use[e].spells[0].element) {
+    Entity.draw_tile[e] = switch (theme_element) {
         case ElementType_Physical: Tile.StatuePhysical;
         case ElementType_Shadow: Tile.StatueShadow;
         case ElementType_Light: Tile.StatueLight;

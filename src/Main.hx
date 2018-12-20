@@ -37,9 +37,9 @@ static inline var room_size_max = 20;
 
 static inline var ui_x = tilesize * view_width * world_scale + 13;
 static inline var player_stats_y = 0;
-static inline var equipment_y = 120;
+static inline var equipment_y = 150;
 static inline var equipment_amount = 4;
-static inline var inventory_y = 180;
+static inline var inventory_y = 210;
 static inline var inventory_width = 4;
 static inline var inventory_height = 2;
 static inline var spells_list_y = 320;
@@ -71,6 +71,7 @@ var movespeed_mod = 0;
 var dropchance_mod = 0;
 var copperchance_mod = 0;
 static var increase_drop_level = false;
+var player_is_invisible = false;
 
 var show_dev_buttons = true;
 var noclip_DEV = false;
@@ -84,8 +85,9 @@ static var player_y = 0;
 var player_x_old = -1;
 var player_y_old = -1;
 var player_health = 10;
-var copper_count = 10;
+var copper_count = 0;
 var player_room = -1;
+var player_pure_absorb = 0;
 
 var stairs_x = 0;
 var stairs_y = 0;
@@ -120,6 +122,20 @@ ElementType_Ice => 0,
 ElementType_Shadow => 0,
 ElementType_Light => 0,
 ];
+var player_attack_total_old = [
+ElementType_Physical => -1,
+ElementType_Fire => -1,
+ElementType_Ice => -1,
+ElementType_Shadow => -1,
+ElementType_Light => -1,
+];
+var player_defense_total_old = [
+ElementType_Physical => -1,
+ElementType_Fire => -1,
+ElementType_Ice => -1,
+ElementType_Shadow => -1,
+ElementType_Light => -1,
+];
 
 var player_equipment = [
 EquipmentType_Head => Entity.NONE,
@@ -144,6 +160,10 @@ static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1},
 // Used by all generation functions, don't need to pass it around everywhere
 static var current_level = 0;
 
+var start_targeting = false;
+var targeting_for_use = false;
+var use_entity_that_needs_target = Entity.NONE;
+var use_target = Entity.NONE;
 
 function init() {
     Gfx.resizescreen(screen_width, screen_height, true);
@@ -153,6 +173,7 @@ function init() {
     Gfx.createimage('tiles_canvas', tilesize * view_width, tilesize * view_height);
     Gfx.createimage('frametime_canvas', 100, 50);
     Gfx.createimage('frametime_canvas2', 100, 50);
+    Gfx.createimage('player_colored_stats', screen_width, screen_height);
 
     Entities.read_name_corpus();
     LOS.calculate_rays();
@@ -312,6 +333,16 @@ function player_next_to(pos: Position): Bool {
 function add_message(message: String) {
     message_history.insert(0, message);
     added_message_this_turn = true;
+}
+
+function element_string(element: ElementType): String {
+    return switch (element) {
+        case ElementType_Physical: 'phys';
+        case ElementType_Fire: 'fire';
+        case ElementType_Ice: 'ice';
+        case ElementType_Shadow: 'shdw';
+        case ElementType_Light: 'lght';
+    }
 }
 
 function add_damage_number(value: Int) {
@@ -476,7 +507,6 @@ function try_open_entity(e: Int) {
     function drop_from_locked() {
         if (Entity.drop_entity.exists(e) && Entity.position.exists(e)) {
             drop_entity_from_entity(e, locked_name);
-            Entity.remove(e);
         }
     }
 
@@ -490,6 +520,7 @@ function try_open_entity(e: Int) {
                     Entity.remove(inventory[x][y]);
 
                     drop_from_locked();
+                    Entity.remove(e);
 
                     return;
                 }
@@ -501,6 +532,7 @@ function try_open_entity(e: Int) {
         // Unlocked lockeds don't need a key
         add_message('You open $locked_name.');
         drop_from_locked();
+        Entity.remove(e);
     }
 }
 
@@ -509,6 +541,10 @@ function use_entity(e: Int) {
 
     if (use.charges > 0) {
         use.charges--;
+
+        if (use.flavor_text.length > 0) {
+            add_message(use.flavor_text);
+        }
 
         // Save name before pushing spell onto player
         for (spell in use.spells) {
@@ -676,7 +712,7 @@ function move_entity(e: Int) {
 
     switch (move.type) {
         case MoveType_Astar: {
-            if (!player_next_to(pos)) {
+            if (!player_next_to(pos) && !player_is_invisible) {
                 var path = Path.astar_room(pos.x, pos.y, player_x, player_y, rooms[player_room]);
 
                 if (path.length > 2) {
@@ -686,7 +722,7 @@ function move_entity(e: Int) {
             }
         }
         case MoveType_Straight: {
-            if (!player_next_to(pos)) {
+            if (!player_next_to(pos) && !player_is_invisible) {
                 var dx = player_x - pos.x;
                 var dy = player_y - pos.y;
                 var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
@@ -719,7 +755,7 @@ function move_entity(e: Int) {
         }
         case MoveType_StayAway: {
             // Randomly move but also stay away from player
-            if (Math.dst(player_x, player_y, pos.x, pos.y) <= 4) {
+            if (Math.dst(player_x, player_y, pos.x, pos.y) <= 4 && !player_is_invisible) {
                 var dx = - (player_x - pos.x);
                 var dy = - (player_y - pos.y);
                 var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
@@ -795,16 +831,27 @@ function entity_attack_player(e: Int) {
 
     var damage_total = 0;
     var absorb_total = 0;
+
     for (element in Type.allEnums(ElementType)) {
         if (combat.attack.exists(element) && combat.attack[element] != 0) {
             var absorb = defense_to_absorb(defense_total[element]);
             var damage = Std.int(Math.max(0, combat.attack[element] - absorb));
 
-            player_health -= damage;
+            // Apply pure absorb
+            if (player_pure_absorb > damage) {
+                player_pure_absorb -= damage;
+                damage = 0;
+            } else {
+                damage -= player_pure_absorb;
+                player_pure_absorb = 0;
+            }
+
             damage_total += damage;
-            absorb_total += Std.int(Math.min(absorb, combat.attack[element]));
+            absorb_total += (combat.attack[element] - damage);
         }
     }
+
+    player_health -= damage_total;
 
     var target_name = 'unnamed_target';
     if (Entity.name.exists(e)) {
@@ -815,7 +862,7 @@ function entity_attack_player(e: Int) {
         add_damage_number(-damage_total);
     }
     if (absorb_total != 0) {
-        add_message('Your armor absorbs ${absorb_total} damage.');
+        add_message('You absorb ${absorb_total} damage.');
     }
 
     // Can't move and attack in same turn
@@ -946,6 +993,17 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 var absorb = defense_to_absorb(defense_total[spell.element]);
                 var damage = Std.int(Math.max(0, (-1 * spell.value) - absorb));
 
+                // Apply pure absorb
+                if (player_pure_absorb > damage) {
+                    player_pure_absorb -= damage;
+                    damage = 0;
+                } else {
+                    damage -= player_pure_absorb;
+                    player_pure_absorb = 0;
+                }
+
+                var absorb_amount = (-1 * spell.value) - damage;
+
                 player_health -= damage;
 
                 if (damage > 0) {
@@ -953,8 +1011,8 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                     add_message('You take ${damage} ${spell.element} damage from ${spell.origin_name}.');
                 }
 
-                if (absorb > 0) {
-                    add_message('Your armor absorbs ${absorb} ${spell.element} damage.');
+                if (absorb_amount > 0) {
+                    add_message('You absorb ${absorb_amount} ${spell.element} damage.');
                 }
             }
         }
@@ -1053,7 +1111,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 if (Entity.position.exists(e)) {
                     var pos = Entity.position[e];
 
-                    if (pos.room == player_room && Math.abs(player_x - pos.x) <= 2 && Math.abs(player_y - pos.y) <= 2) {
+                    if (pos.room == player_room) {
                         player_attack_entity(e, [spell.element => spell.value]);
                     }
                 }
@@ -1090,6 +1148,17 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 if (Entity.combat[e].absorb[spell.element] < 0) {
                     Entity.combat[e].absorb[spell.element] = 0;
                 }
+            }
+        }
+        case SpellType_Invisibility: {
+            player_is_invisible = true;
+        }
+        case SpellType_EnergyShield: {
+            player_pure_absorb += spell.value;
+        }
+        case SpellType_ModUseCharges: {
+            if (Entity.use.exists(use_target)) {
+                Entity.use[use_target].charges += spell.value;
             }
         }
     }
@@ -1217,6 +1286,7 @@ function update() {
     //
     // Render
     //
+
     // Tiles
     Gfx.scale(1, 1, 0, 0);
     Gfx.drawtoimage('tiles_canvas');
@@ -1244,8 +1314,8 @@ function update() {
     }
     Gfx.drawtoscreen();
 
-    Gfx.scale(world_scale, world_scale, 0, 0);
     Gfx.clearscreen(Col.BLACK);
+    Gfx.scale(world_scale, world_scale, 0, 0);
     Gfx.drawimage(0, 0, "tiles_canvas");
 
     // Entities
@@ -1318,17 +1388,63 @@ function update() {
     Gfx.scale(1, 1, 0, 0);
     Text.size = ui_text_size;
 
+    //
     // Player stats
+    //
     var player_stats = "";
     player_stats += 'PLAYER';
     player_stats += '\nPosition: ${player_x} ${player_y}';
     player_stats += '\nHealth: ${player_health}/${player_health_max + player_health_max_mod}';
-    var attack_total = player_attack_total();
-    player_stats += '\nAttack: P:${attack_total[ElementType_Physical]} F:${attack_total[ElementType_Fire]} I:${attack_total[ElementType_Ice]} S:${attack_total[ElementType_Shadow]} L:${attack_total[ElementType_Light]}';
-    var defense_total = player_defense_total();
-    player_stats += '\nDefense: P:${defense_total[ElementType_Physical]} F:${defense_total[ElementType_Fire]} I:${defense_total[ElementType_Ice]} S:${defense_total[ElementType_Shadow]} L:${defense_total[ElementType_Light]}';
+    player_stats += '\nAttack:';
+    player_stats += '\nDefense:';
+    player_stats += '\nEnergy shield: ${player_pure_absorb}';
     player_stats += '\nCopper: ${copper_count}';
     Text.display(ui_x, player_stats_y, player_stats);
+    //
+    // Player colored stats
+    //
+    function stats_changed(old: Map<ElementType, Int>, current: Map<ElementType, Int>) {
+        for (element in Type.allEnums(ElementType)) {
+            if (old[element] != current[element]) {
+                return true;
+            }
+        }
+        return false;
+    }
+    var attack_total = player_attack_total();
+    var defense_total = player_defense_total();
+    if (stats_changed(player_attack_total_old, attack_total) || stats_changed(player_defense_total_old, defense_total)) {
+        // Update old stats
+        for (element in Type.allEnums(ElementType)) {
+            player_attack_total_old[element] = attack_total[element];
+            player_defense_total_old[element] = defense_total[element];
+        }
+        // Redraw the stats cache image
+        Gfx.drawtoimage('player_colored_stats');
+        Gfx.clearscreen(Col.TRANSPARENT);
+
+        // Attacks
+        // NOTE: 'Defense:' is wider than 'Attack:', so use it to match widths, should probably switch to monospaced font here(or everywhere)
+        var string_so_far = 'Defense:'; 
+        for (element in Type.allEnums(ElementType)) {
+            var element_num = ' ${attack_total[element]}';
+            Text.display(ui_x + Text.width(string_so_far), player_stats_y, '\n\n\n$element_num', Entities.get_element_color(element));
+
+            string_so_far += '00';
+        }
+
+        // Defenses
+        string_so_far = 'Defense:';
+        for (element in Type.allEnums(ElementType)) {
+            var element_num = ' ${defense_total[element]}';
+            Text.display(ui_x + Text.width(string_so_far), player_stats_y, '\n\n\n\n$element_num', Entities.get_element_color(element));
+
+            string_so_far += '00';
+        }
+
+        Gfx.drawtoscreen();
+    }
+    Gfx.drawimage(0, 0, 'player_colored_stats');
 
     //
     // Equipment
@@ -1384,6 +1500,11 @@ function update() {
     Text.wordwrap = ui_wordwrap;
     Text.display(ui_x, spells_list_y, active_spells);
 
+    // Use targeting icon
+    if (targeting_for_use) {
+        Text.display(Mouse.x, Mouse.y, 'LEFT CLICK TARGET');
+    }
+
     //
     // Hovered entity tooltip
     //
@@ -1397,8 +1518,9 @@ function update() {
         if (Entity.combat.exists(e)) {
             var entity_combat = Entity.combat[e];
             tooltip += '\nHealth: ${entity_combat.health}';
-            tooltip += '\nAttack: P:${entity_combat.attack[ElementType_Physical]} F:${entity_combat.attack[ElementType_Fire]} I:${entity_combat.attack[ElementType_Ice]} S:${entity_combat.attack[ElementType_Shadow]} L:${entity_combat.attack[ElementType_Light]}';
-            tooltip += '\nAbsorb: P:${entity_combat.absorb[ElementType_Physical]} F:${entity_combat.absorb[ElementType_Fire]} I:${entity_combat.absorb[ElementType_Ice]} S:${entity_combat.absorb[ElementType_Shadow]} L:${entity_combat.absorb[ElementType_Light]}';
+            tooltip += '\nAttack:';
+            tooltip += '\nAbsorb:';
+            // actual numbers drawn later, because they need to be colored
         }
         if (Entity.description.exists(e)) {
             tooltip += '\n${Entity.description[e]}';
@@ -1446,8 +1568,33 @@ function update() {
     
     if (interact_target == Entity.NONE) {
         // Only show tooltip if interact menu isn't open
-        Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, hovered_tooltip_wordwrap, Text.height(entity_tooltip), Col.GRAY);
+        Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, hovered_tooltip_wordwrap, Text.height(entity_tooltip), Col.DARKBROWN);
         Text.display(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, entity_tooltip, Col.WHITE);
+
+        // NOTE: Displaying colored text is tough...
+        if (Entity.combat.exists(hovered_anywhere)) {
+            var entity_combat = Entity.combat[hovered_anywhere];
+            
+            var string_so_far = 'Absorb:';
+            for (element in Type.allEnums(ElementType)) {
+                if (entity_combat.attack[element] > 0) {
+                    var element_num = ' ${entity_combat.attack[element]}';
+                    Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n$element_num', Entities.get_element_color(element));
+
+                    string_so_far += '00';
+                }
+            }
+
+            string_so_far = 'Absorb:';
+            for (element in Type.allEnums(ElementType)) {
+                if (entity_combat.absorb[element] > 0) {
+                    var element_num = ' ${entity_combat.absorb[element]}';
+                    Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n\n$element_num', Entities.get_element_color(element));
+
+                    string_so_far += '00';
+                }
+            }
+        }
     }
 
     //
@@ -1483,9 +1630,14 @@ function update() {
         }
         if (Entity.use.exists(interact_target) && !Entity.buy.exists(interact_target)) {
             if (GUI.auto_text_button('Use')) {
-                use_entity(interact_target);
-
-                done_interaction = true;
+                if (Entity.use[interact_target].need_target) {
+                    use_entity_that_needs_target = interact_target;
+                    start_targeting = true;
+                    done_interaction = true;
+                } else {
+                    use_entity(interact_target);
+                    done_interaction = true;
+                }
             }
         }
         if (Entity.equipment.exists(interact_target) && !Entity.buy.exists(interact_target)) {
@@ -1557,6 +1709,12 @@ function update() {
             attack_target = hovered_map;
             player_acted = true;
         }
+    }
+
+    // Target entity for use, can't target the use entity itself
+    if (targeting_for_use && !player_acted && Mouse.leftclick() && hovered_anywhere != use_entity_that_needs_target) {
+        use_target = hovered_anywhere;
+        player_acted = true;
     }
 
     //
@@ -1653,6 +1811,19 @@ function update() {
         // Clear interact target if done something
         interact_target = Entity.NONE;
 
+        // First turn after the start of use targeting, the flag is set, afterwards, targeting is unset and the mode is exited
+        if (start_targeting) {
+            start_targeting = false;
+            targeting_for_use = true;
+        } else {
+            targeting_for_use = false;
+        }
+        // Perform targeted use
+        // NOTE: use target is cleared after spells are done
+        if (use_target != Entity.NONE) {
+            use_entity(use_entity_that_needs_target);
+        }
+
         // Recalculate player room if room changed
         if (player_room != -1) {
             var old_room = rooms[player_room];
@@ -1684,6 +1855,7 @@ function update() {
         dropchance_mod = 0;
         copperchance_mod = 0;
         increase_drop_level = false;
+        player_is_invisible = false;
 
         //
         // Process spells
@@ -1728,8 +1900,12 @@ function update() {
             }
 
             if (active) {
-                var prio = Spells.prios[spell.type];
-                active_spells[prio].push(spell);
+                if (Spells.prios.exists(spell.type)) {
+                    var prio = Spells.prios[spell.type];
+                    active_spells[prio].push(spell);
+                } else {
+                    trace('no prio defined for ${spell.type}');
+                }
             }
 
             return spell_over;
@@ -1784,6 +1960,9 @@ function update() {
                 do_spell(spell);
             }
         }
+
+        // Clear use target after spells are done
+        use_target = Entity.NONE;
 
         // Limit health to health_max
         if (player_health > player_health_max + player_health_max_mod) {

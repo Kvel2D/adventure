@@ -1,16 +1,16 @@
 --------------------------------------------------------------------------
 TODO
 
-name statues by type of stuff they do
-    can name them after greek gods
-    change color of statues depending on god not element of buff
-    the health statue could be shadow
-    the buffing enemies could be fire or light
-    the cursing enemies could be ice
+add invisibility and modcharges onto item drops
+
+copy scroll
+    need a system for spells that target an entity
+    press "Use" and then if spell needs a target, go into targeting mode
+    click on entity to use spell on it
+    click anywhere else to cancel
 
 --------------------------------------------------------------------------
 DONE
-
 
 
 --------------------------------------------------------------------------
@@ -18,12 +18,6 @@ PROBLEMS
 
 --------------------------------------------------------------------------
 IDEAS
-
-buffing all defense/attack is a pain, maybe make ModStatAll that buffs all elements
-    will make it easier to scale down all element buffs to make them be worth as much as one stat buffs
-
-mob that heals itself over time
-    new kind of spell ModEntityHealth?
 
 find a good font, that doesn't have scaling or offset problems
     also preferably mob chars should be full-width, hard to judge the distance if char not centered
@@ -90,20 +84,10 @@ crab-hand
     this is an aura
     crab disappears on end
 
-spell that buffs entities
-    increase random entity's health and attack
-    increase all entity's health but also drop amount
-
-invisibility, enemies can't chase you
-
-extra life, restore full hp once when dying
-
 swap stats with enemy: health, attacks, defenses
     swap defense spell should
     give mob's natural defense to player
     but give natural+mods defense of player to mob
-
-cure poison
 
 mod equipment stat
     mod attack doesn't cover all options, it modifies natural attack only
@@ -129,13 +113,6 @@ mod equipment stat
 
 summon friendly enemy spell
 
-predict element types of enemies on next level
-    will need to pre-generate to be able to tell
-    not too much info, something like "you will meet many shadowy figures" is enough
-    "many chilling sights"
-    "many burning encounters"
-    "many blinding visages"
-
 modhealth everyattack
     something like leech
     most appropriate for weapons
@@ -144,32 +121,6 @@ reign of shadow spell
     remove everything with light element from the level, entities drop items when removed
     includes player items/equipment?
 
-add use charges spell
-    probably very rare, because can be extremely powerful
-
-"-health by element" spell
-    player burning shouldn't be just -X health, should be X fire damage so defense can come into play
-
-copy scroll
-    need a system for spells that target an entity
-    press "Use" and then if spell needs a target, go into targeting mode
-    click on entity to use spell on it
-    click anywhere else to cancel
-
-    copy scroll used on copy scroll could spawn a rare hard encounter on next level
+copy scroll used on copy scroll could spawn a rare hard encounter on next level
     "You hear a distant wail of a Copy Scroll God"
-
-increase power of spawned items
-    +1 to level of everything for the duration of the spell
-
-pure absorb spell
-    absorb all damage for X attacks
-
-maybe draw attack by colors on stat screen
-
-cache stat screen/tooltip?
-
-increase max amount of enemies with levels
-
-prevent movement of all mobs in current room
 
