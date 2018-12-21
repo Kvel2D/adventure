@@ -1,16 +1,15 @@
 --------------------------------------------------------------------------
 TODO
 
-add new spells into item rotation
-    modcharges
-    invisibility
-    copyitem
 
 --------------------------------------------------------------------------
 DONE
 
+
 --------------------------------------------------------------------------
 PROBLEMS
+
+leg tile wasn't drawn around lvl 3
 
 --------------------------------------------------------------------------
 IDEAS
@@ -28,16 +27,6 @@ friendly mobs
         other mobs should attack them as well?
     spell to summon friendly mob
 
-identify system
-    only applies to use effects(maybe special armor buffs too?)
-    once used a spell once, can see the same type everywhere else
-    identifying a use spell identifies all similar spells everywhere
-
-cache map image
-    redraw on new map rect additions or removals
-    draw player on top of cache
-    need to clear transparently
-
 armor/weapon use and buff spells
 armor/weapon buff spells
 
@@ -47,6 +36,19 @@ scrolling for spell display, at some point spells won't fit in current area
 
 start with some items?
     could be like a class system where you start with certain loadouts
+
+maybe prune levels that are too hard
+    after generation, "weigh" the level by adding together all helpful factors(items/equipment) and all unhelpful factors(enemies) and do a rough calculation of the overall "weight" of the level
+    if it's something real bad like 0.5 helpful to unhelpful, generate the level again
+        to figure out the calculation, generate bad levels on purpose and see what makes them bad
+    if a level is generated with 0 items that's obviously a bad one
+
+boss summon rituals
+    doing some sequence of actions summons a special boss
+        copying a copy scroll spawns copy scroll boss
+        spawning 3 skeletons in same room spawns a necromancer
+        killing 2 merchants spawns a merchant boss
+
 
 --------------------------------------------------------------------------
 SPELL IDEAS
@@ -81,7 +83,4 @@ mod equipment stat
 modhealth everyattack
     something like leech
     most appropriate for weapons
-
-copy scroll used on copy scroll could spawn a rare hard encounter on next level
-    "You hear a distant wail of a Copy Scroll God"
 

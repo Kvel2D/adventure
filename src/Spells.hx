@@ -116,8 +116,8 @@ static function get_description(spell: Spell): String {
         case SpellType_ModAttack: '$sign${spell.value} ${element} attack';
         case SpellType_ModDefense: '$sign${spell.value} ${element} defense';
         case SpellType_ModMoveSpeed: '$sign${spell.value} move speed';
-        case SpellType_ModDropChance: '$sign${spell.value}% item drop chance';
-        case SpellType_ModCopperDrop: '$sign${spell.value}% copper drop chance';
+        case SpellType_ModDropChance: '$sign${spell.value * 10}% item drop chance';
+        case SpellType_ModCopperDrop: '$sign${spell.value * 10}% copper drop chance';
 
         case SpellType_ModLevelHealth: '$sign${spell.value} health to all enemies on the level';
         case SpellType_ModLevelAttack: '$sign${spell.value} ${element} attack to all enemies on the level';
@@ -597,7 +597,7 @@ static function random_potion_spells(level: Int): Array<Spell> {
     }
 
     var value = switch (type) {
-        case SpellType_ModHealth: Stats.get({min: 5, max: 8, scaling: 1.0}, level);
+        case SpellType_ModHealth: Stats.get({min: 5, max: 5, scaling: 1.0}, level);
         case SpellType_ModHealthMax: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
         case SpellType_ModAttack: {
             if (elements.length == 0) 
@@ -636,6 +636,8 @@ static function random_scroll_spell(level: Int): Spell {
         {v: SpellType_ModDefense, c: 1.0},
         {v: SpellType_ShowThings, c: 0.5},
         {v: SpellType_AoeDamage, c: 1.0},
+        {v: SpellType_ModUseCharges, c: 0.5},
+        {v: SpellType_CopyItem, c: 0.5},
         ]);
 
     var duration_type = switch (type) {
@@ -672,6 +674,7 @@ static function random_scroll_spell(level: Int): Spell {
         case SpellType_ModAttack: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         case SpellType_ModDefense: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        case SpellType_ModUseCharges: 1;
         default: 0;
     }
 
@@ -686,6 +689,8 @@ static function random_scroll_spell(level: Int): Spell {
         case SpellType_SafeTeleport: ElementType_Light;
         case SpellType_ShowThings: ElementType_Fire;
         case SpellType_AoeDamage: random_element();
+        case SpellType_ModUseCharges: ElementType_Shadow;
+        case SpellType_CopyItem: ElementType_Light;
         default: ElementType_Physical;
     }
 
@@ -766,7 +771,7 @@ static function statue_enohik(level: Int): Array<Spell> {
 
         var value = switch (type) {
             case SpellType_ModAttack: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
-            case SpellType_ModDefense: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+            case SpellType_ModDefense: Stats.get({min: 4, max: 6, scaling: 1.0}, level);
             case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
             default: 0;
         }
@@ -1088,7 +1093,7 @@ static function ice_room(r: Room) {
         element: ElementType_Ice,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
-        interval: Random.int(2, 3),
+        interval: Random.int(10, 15),
         interval_current: 0,
         value: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level),
         origin_name: "noname",

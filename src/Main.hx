@@ -174,6 +174,7 @@ function init() {
     Gfx.createimage('frametime_canvas', 100, 50);
     Gfx.createimage('frametime_canvas2', 100, 50);
     Gfx.createimage('player_colored_stats', screen_width, screen_height);
+    Gfx.createimage('message_canvas', ui_wordwrap, 320);
 
     Entities.read_name_corpus();
     LOS.calculate_rays();
@@ -266,6 +267,7 @@ function generate_level() {
     }
 
     // Set start position to first room, before generating entities so that generation uses the new player position in collision checks
+    player_room = 0;
     player_x = rooms[0].x;
     player_y = rooms[0].y;
 
@@ -330,9 +332,11 @@ function player_next_to(pos: Position): Bool {
     return Math.abs(player_x - pos.x) <= 1 && Math.abs(player_y - pos.y) <= 1;
 }
 
+var need_to_update_message_canvas = false;
 function add_message(message: String) {
     message_history.insert(0, message);
     added_message_this_turn = true;
+    need_to_update_message_canvas = true;
 }
 
 function element_string(element: ElementType): String {
@@ -977,7 +981,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
 
     function teleport_player_to_room(room_i: Int): Bool {
         // Teleport to random position in a random room
-        // NOTE: in very rare cases teleport location might not have a path to stairs, in which case teleport just fails, for example if the player creates a blockade with dropped items and then fills the inventory so he can't pick any of the items up
+        // NOTE: in very rare cases teleport location might not have a path to stairs, in which case teleport just fails, for example if the player creates a blockade with dropped items
         var r = rooms[room_i];
         var positions = GenerateWorld.room_free_positions_shuffled(r);
         var pos = positions.pop();
@@ -1173,7 +1177,19 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModUseCharges: {
             if (Entity.use.exists(use_target)) {
-                Entity.use[use_target].charges += spell.value;
+                var can_add_charges = true;
+                // Check that use doesn't contain copy or usecharges spells
+                for (s in Entity.use[use_target].spells) {
+                    if (s.type == SpellType_ModUseCharges || s.type == SpellType_CopyItem) {
+                        can_add_charges = false;
+                        break;
+                    }
+                }
+                if (can_add_charges) {
+                    Entity.use[use_target].charges += spell.value;
+                } else {
+                    add_message('Can\'t add charges to this item.');
+                }
             }
         }
         case SpellType_CopyItem: {
@@ -1263,7 +1279,7 @@ function update() {
     // Check for entities on map
     var hovered_map = Entity.NONE;
     if (!out_of_view_bounds(mouse_map_x, mouse_map_y) && !out_of_map_bounds(mouse_map_x, mouse_map_y)) {
-        hovered_map = Entity.at(mouse_map_x, mouse_map_y);
+        hovered_map = Entity.position_map[mouse_map_x][mouse_map_y];
     }
 
     // Check for entities anywhere, map/inventory/equipment
@@ -1456,7 +1472,7 @@ function update() {
             var element_num = ' ${attack_total[element]}';
             Text.display(ui_x + Text.width(string_so_far), player_stats_y, '\n\n\n$element_num', Entities.get_element_color(element));
 
-            string_so_far += '00';
+            string_so_far += '001';
         }
 
         // Defenses
@@ -1465,7 +1481,7 @@ function update() {
             var element_num = ' ${defense_total[element]}';
             Text.display(ui_x + Text.width(string_so_far), player_stats_y, '\n\n\n\n$element_num', Entities.get_element_color(element));
 
-            string_so_far += '00';
+            string_so_far += '001';
         }
 
         Gfx.drawtoscreen();
@@ -1590,6 +1606,44 @@ function update() {
 
         if (Entity.equipment.exists(equipped) && !Entity.position.exists(equipped)) {
             entity_tooltip += '\n\nCURRENTLY EQUIPPED:\n' + get_tooltip(equipped);
+
+            entity_tooltip += '\n\nDIFF:\n';
+
+            var equipped_spells = Entity.equipment[equipped].spells;
+            var hovered_spells = Entity.equipment[hovered_anywhere].spells;
+
+            var equipped_defense = [for (element in Type.allEnums(ElementType)) element => 0];
+            var equipped_attack = [for (element in Type.allEnums(ElementType)) element => 0];
+            var hovered_defense = [for (element in Type.allEnums(ElementType)) element => 0];
+            var hovered_attack = [for (element in Type.allEnums(ElementType)) element => 0];
+            for (s in equipped_spells) {
+                if (s.type == SpellType_ModDefense) {
+                    equipped_defense[s.element] += s.value;
+                } else if (s.type == SpellType_ModAttack) {
+                    equipped_defense[s.element] += s.value;
+                }
+            }
+            for (s in hovered_spells) {
+                if (s.type == SpellType_ModDefense) {
+                    hovered_defense[s.element] += s.value;
+                } else if (s.type == SpellType_ModAttack) {
+                    hovered_defense[s.element] += s.value;
+                }
+            }
+
+            var defense_diff = [for (element in Type.allEnums(ElementType)) element => hovered_defense[element] - equipped_defense[element]];
+            var attack_diff = [for (element in Type.allEnums(ElementType)) element => hovered_attack[element] - equipped_attack[element]];
+
+            for (element in Type.allEnums(ElementType)) {
+                if (defense_diff[element] != 0) {
+                    var sign = if (defense_diff[element] > 0) '+' else '';
+                    entity_tooltip += '$sign${defense_diff[element]} ${element_string(element)} defense\n';
+                }
+                if (attack_diff[element] != 0) {
+                    var sign = if (attack_diff[element] > 0) '+' else '';
+                    entity_tooltip += '$sign${attack_diff[element]} ${element_string(element)} attack\n';
+                }
+            }
         }
     }
     
@@ -1609,7 +1663,7 @@ function update() {
                     var element_num = ' ${entity_combat.attack[element]}';
                     Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n$element_num', Entities.get_element_color(element));
 
-                    string_so_far += '00';
+                    string_so_far += '001';
                 }
             }
 
@@ -1619,7 +1673,7 @@ function update() {
                     var element_num = ' ${entity_combat.absorb[element]}';
                     Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n\n$element_num', Entities.get_element_color(element));
 
-                    string_so_far += '00';
+                    string_so_far += '001';
                 }
             }
         }
@@ -1717,6 +1771,12 @@ function update() {
                 done_interaction = true;
             }
         }
+        if (Entity.combat.exists(interact_target)) {
+            if (GUI.auto_text_button('Attack')) {
+                attack_target = hovered_map;
+                done_interaction = true;
+            }
+        }
 
         if (done_interaction) {
             interact_target = Entity.NONE;
@@ -1728,14 +1788,27 @@ function update() {
     }
 
     //
-    // Attack on left click
+    // Left click action
     //
+    // Attack, pick up or equip, if only one is possible, if multiple are possible, then must pick one through interact menu
     if (!player_acted && Mouse.leftclick() && Entity.position.exists(hovered_map)) {
         var pos = Entity.position[hovered_map];
-        // Attack if entity is on map, visible and has Combat
-        if (player_next_to(Entity.position[hovered_map]) && !los[pos.x - view_x][pos.y - view_y] && Entity.combat.exists(hovered_map)) {
-            attack_target = hovered_map;
-            player_acted = true;
+        // Left-click interaction if entity is on map and is visible
+        if (player_next_to(Entity.position[hovered_map]) && !los[pos.x - view_x][pos.y - view_y]) {
+            var can_attack = Entity.combat.exists(hovered_map);
+            var can_pickup = Entity.item.exists(hovered_map) && !Entity.buy.exists(interact_target);
+            var can_equip = Entity.equipment.exists(hovered_map) && !Entity.buy.exists(interact_target);
+
+            if (can_attack && !can_pickup && !can_equip) {
+                attack_target = hovered_map;
+                player_acted = true;
+            } else if (!can_attack && can_pickup && !can_equip) {
+                move_entity_into_inventory(hovered_map);
+                player_acted = true;
+            } else if (!can_attack && !can_pickup && can_equip) {
+                equip_entity(hovered_map);
+                player_acted = true;
+            } 
         }
     }
 
@@ -1751,12 +1824,19 @@ function update() {
     while (message_history.length > message_history_length_max) {
         message_history.pop();
     }
-    var messages = "";
-    for (message in message_history) {
-        messages = message + '\n' + messages;
-    }
     Text.wordwrap = ui_wordwrap;
-    Text.display(ui_x, message_history_y + 50, messages);
+    if (need_to_update_message_canvas) {
+        need_to_update_message_canvas = false;
+        Gfx.drawtoimage('message_canvas');
+        Gfx.clearscreen();
+        var messages = "";
+        for (message in message_history) {
+            messages = message + '\n' + messages;
+        }
+        Text.display(0, 0, messages);
+        Gfx.drawtoscreen();
+    }
+    Gfx.drawimage(ui_x, message_history_y + 50, 'message_canvas');
 
     //
     // Developer options
@@ -1810,7 +1890,6 @@ function update() {
     //
     // Minimap
     //
-
     // Draw rooms
     for (i in 0...rooms.length) {
         if (visited_room[i] || full_minimap_DEV) {
@@ -2044,5 +2123,6 @@ function update() {
         Gfx.drawtoscreen();
         Gfx.drawimage(400, 100, 'frametime_canvas');
     }
+
 }
 }

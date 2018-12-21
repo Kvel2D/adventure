@@ -52,12 +52,13 @@ static var enemy_room_entity_amount = 5;
 static var item_room_entity_amount = 2;
 static var merchant_item_amount = 3;
 
-static var enemy_types_per_level = 4;
+static var enemy_types_per_level_min = 2;
+static var enemy_types_per_level_max = 5;
 static var empty_room_chance = 10;
 static var enemy_room_chance = 90; // subset of non-empty rooms
 static var spell_room_chance = 10; // subset of enemy rooms
 static var locked_room_chance = 10; // subset of rooms with one connection
-static var merchant_room_chance = 100; // subset of item-only rooms
+static var merchant_room_chance = 10; // subset of item-only rooms
 
 public static function shuffle<T>(array: Array<T>): Array<T> {
     if (array != null) {
@@ -106,21 +107,12 @@ static function room_free_ODD_positions_shuffled(r: Room): Array<Vec2i> {
 }
 
 static function fill_rooms_with_entities() {
-    // Generate enemy types for level
-    // First level only has physical enemies, later levels start having varied elements
-    var enemy_types = [for (i in 0...enemy_types_per_level) Entities.random_enemy_type()];
+    // Reset first chars for new level
+    Entities.generated_first_chars = new Array<String>();
 
-    // Make sure that at least one enemy type is aggressive
-    var at_least_one_enemy_type_is_aggressive = false;
-    for (type in enemy_types) {
-        if (type.combat.aggression == AggressionType_Aggressive) {
-            at_least_one_enemy_type_is_aggressive = true;
-            break;
-        }
-    }
-    if (!at_least_one_enemy_type_is_aggressive) {
-        enemy_types[0].combat.aggression = AggressionType_Aggressive;
-    }
+    // Generate enemy types for level
+    var enemy_types_per_level = Random.int(enemy_types_per_level_min, enemy_types_per_level_max);
+    var enemy_types = [for (i in 0...enemy_types_per_level) Entities.random_enemy_type()];
 
     function random_enemy(x: Int, y: Int): Int {
         return Entity.make_type(x, y, Random.pick(enemy_types));

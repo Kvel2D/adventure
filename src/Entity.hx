@@ -543,9 +543,5 @@ static function remove_position(e: Int) {
     position.remove(e);
 }
 
-static function at(x: Int, y: Int): Int {
-    return position_map[x][y];
-}
-
 function new() {}
 }

@@ -105,12 +105,16 @@ static function read_name_corpus() {
 }
 
 static var generated_names = new Array<String>();
+static var generated_first_chars = new Array<String>();
 
 static function generate_name(): String {
+    // Generate name that wasn't generated before and which starts with a unique char for this level
     var name = '';
-    while (generated_names.indexOf(name) != -1 || name == '') {
+    while (generated_names.indexOf(name) != -1 || generated_first_chars.indexOf(name.charAt(0)) != -1 || name == '') {
         name = generate_name_markov();
     }
+    generated_names.push(name);
+    generated_first_chars.push(name.charAt(0));
     return name;
 }
 
@@ -166,7 +170,7 @@ static function get_element_color(element: ElementType): Int {
         case ElementType_Physical: Col.WHITE;
         case ElementType_Fire: Col.RED;
         case ElementType_Ice: Col.BLUE;
-        case ElementType_Shadow: Col.rgb(75, 72, 138);
+        case ElementType_Shadow: Col.rgb(97, 93, 189);
         case ElementType_Light: Col.YELLOW;
     }
 }
@@ -440,9 +444,6 @@ static function random_element_split(element_count: Int, total: Int): Map<Elemen
 
     var elements = Type.allEnums(ElementType);
     Random.shuffle(elements);
-    while (elements.length > element_count) {
-        elements.pop();
-    }
 
     return [
     for (i in 0...element_count) if (split[i] > 0) 
@@ -702,7 +703,7 @@ static function random_enemy_type(): EntityType {
         ]);
 
     var aggression_type = Pick.value([
-        {v: AggressionType_Aggressive, c: 4.0},
+        {v: AggressionType_Aggressive, c: 1.0},
         {v: AggressionType_NeutralToAggressive, c: 1.0},
         {v: AggressionType_Neutral, c: (4.0 / (1 + level))},
         {v: AggressionType_Passive, c: (1.0 / (1 + level))},
@@ -731,6 +732,13 @@ static function random_enemy_type(): EntityType {
         }
     }
 
+    var message = switch (aggression_type) {
+        case AggressionType_Aggressive: '$name defends itself.';
+        case AggressionType_NeutralToAggressive: '$name angrily defends itself.';
+        case AggressionType_Neutral: '$name reluctantly hits you back.';
+        case AggressionType_Passive: '$name cowers in fear.';
+    };
+
     // trace('ENEMY lvl$level: hp=$health,atk=$attack_physical+$attack_elemental,abs=$absorb_physical+$absorb_elemental');
 
     return {
@@ -748,7 +756,7 @@ static function random_enemy_type(): EntityType {
             health: health, 
             attack: attacks, 
             absorb: absorbs, 
-            message: '$name defends itself.',
+            message: message,
             aggression: aggression_type,
             attacked_by_player: false,
             range_squared: range * range,
@@ -804,7 +812,7 @@ static function random_statue(x: Int, y: Int): Int {
             case ElementType_Physical: 'Sera\'s war cry echoes around you.';
             case ElementType_Shadow: 'Subere\'s shadow descends on the tower.';
             case ElementType_Light: 'You obtain Ollopa\'s blessing.';
-            case ElementType_Fire: 'Suthaephes\' burns and strengthenes you.';
+            case ElementType_Fire: 'Suthaephes\' burns and strengthens you.';
             case ElementType_Ice: 'You feel Enohik\'s chill run through your bones.';
         },
         need_target: false,
@@ -848,6 +856,10 @@ static function merchant(x: Int, y: Int): Int {
         aggression: AggressionType_NeutralToAggressive,
         attacked_by_player: false,
         range_squared: 1,
+    };
+    Entity.draw_on_minimap[e] = {
+        color: Col.PINK,
+        seen: false,
     };
 
     Entity.validate(e);
