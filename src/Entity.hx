@@ -432,6 +432,8 @@ static function print(e: Int) {
     trace('item=${item[e]}');
     trace('use=${use[e]}');
     trace('combat=${combat[e]}');
+    trace('combat.attack=${combat[e].attack}');
+    trace('combat.absorb=${combat[e].absorb}');
     trace('drop_entity=${drop_entity[e]}');
     trace('talk=${talk[e]}');
     trace('give_copper_on_death=${give_copper_on_death[e]}');

@@ -181,18 +181,7 @@ function init() {
 
     generate_level();
 
-    //
-    // Test entities in first room
-    //
-    var first_room = rooms[0];
-    for (i in 0...4) {
-        var x = 3;
-        var y = 3;
-        Entities.random_armor(first_room.x + x + 0, first_room.y + y + i);
-        Entities.random_armor(first_room.x + x + 1, first_room.y + y + i);
-        Entities.random_armor(first_room.x + x + 2, first_room.y + y + i);
-    }
-    Entities.test_potion(first_room.x + 5, first_room.y + 7);
+    // Entities.test_potion(first_room.x + 5, first_room.y + 7);
 }
 
 // Room is good if it's not a connection and isn't locked
@@ -341,11 +330,11 @@ function add_message(message: String) {
 
 function element_string(element: ElementType): String {
     return switch (element) {
-        case ElementType_Physical: 'phys';
+        case ElementType_Physical: 'physical';
         case ElementType_Fire: 'fire';
         case ElementType_Ice: 'ice';
-        case ElementType_Shadow: 'shdw';
-        case ElementType_Light: 'lght';
+        case ElementType_Shadow: 'shadw';
+        case ElementType_Light: 'light';
     }
 }
 
@@ -862,6 +851,8 @@ function entity_attack_player(e: Int) {
 
     player_health -= damage_total;
 
+    add_message(combat.message);
+    
     var target_name = 'unnamed_target';
     if (Entity.name.exists(e)) {
         target_name = Entity.name[e];
@@ -903,7 +894,6 @@ function player_attack_entity(e: Int, attacks: Map<ElementType, Int>) {
         'unnamed_target';
     }
     add_message('You attack $target_name for $damage_to_entity.');
-    add_message(combat.message);
 
     if (combat.health <= 0) {
         add_message('You slay $target_name.');
@@ -1435,7 +1425,7 @@ function update() {
     //
     var player_stats = "";
     player_stats += 'PLAYER';
-    player_stats += '\nPosition: ${player_x} ${player_y}';
+    player_stats += '\nPosition: ${player_x} ${player_y}, Floor: ${current_level}';
     player_stats += '\nHealth: ${player_health}/${player_health_max + player_health_max_mod}';
     player_stats += '\nAttack:';
     player_stats += '\nDefense:';
@@ -1554,8 +1544,8 @@ function update() {
     function get_tooltip(e: Int): String {
         var tooltip = "";
         if (Entity.name.exists(e)) {
-            tooltip += 'Id: ${e}';
-            tooltip += '\nName: ${Entity.name[e]}';
+            // tooltip += 'Id: ${e}';
+            tooltip += '${Entity.name[e]}';
         }
         if (Entity.combat.exists(e)) {
             var entity_combat = Entity.combat[e];
@@ -1565,12 +1555,12 @@ function update() {
             // actual numbers drawn later, because they need to be colored
         }
         if (Entity.description.exists(e)) {
-            tooltip += '\n${Entity.description[e]}';
+            // tooltip += '\n${Entity.description[e]}';
         }
         if (Entity.equipment.exists(e)) {
             var equipment = Entity.equipment[e];
             tooltip += '\nEquipment name: ${equipment.name}';
-            tooltip += '\nEquipment type: ${equipment.type}';
+            // tooltip += '\nEquipment type: ${equipment.type}';
             if (equipment.spells.length > 0) {
                 tooltip += '\nEquip effects:';
                 for (s in equipment.spells) {
@@ -1599,6 +1589,38 @@ function update() {
         return tooltip;
     }
     var entity_tooltip = get_tooltip(hovered_anywhere);
+
+    // Colored elemental stats
+    if (interact_target == Entity.NONE) {
+        // Only show tooltip if interact menu isn't open
+        Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, hovered_tooltip_wordwrap, Text.height(entity_tooltip), Col.DARKBROWN);
+        Text.display(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, entity_tooltip, Col.WHITE);
+
+        // NOTE: Displaying colored text is tough...
+        if (Entity.combat.exists(hovered_anywhere)) {
+            var entity_combat = Entity.combat[hovered_anywhere];
+            
+            var string_so_far = 'Absorb:';
+            for (element in Type.allEnums(ElementType)) {
+                if (entity_combat.attack.exists(element) && entity_combat.attack[element] > 0) {
+                    var element_num = ' ${entity_combat.attack[element]}';
+                    Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n$element_num', Entities.get_element_color(element));
+
+                    string_so_far += '001';
+                }
+            }
+
+            string_so_far = 'Absorb:';
+            for (element in Type.allEnums(ElementType)) {
+                if (entity_combat.absorb.exists(element) && entity_combat.absorb[element] > 0) {
+                    var element_num = ' ${entity_combat.absorb[element]}';
+                    Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n$element_num', Entities.get_element_color(element));
+
+                    string_so_far += '001';
+                }
+            }
+        }
+    }
     
     // Add comparison text to tooltip for equipment on the ground
     if (Entity.equipment.exists(hovered_anywhere) && Entity.position.exists(hovered_anywhere)) {
@@ -1620,14 +1642,14 @@ function update() {
                 if (s.type == SpellType_ModDefense) {
                     equipped_defense[s.element] += s.value;
                 } else if (s.type == SpellType_ModAttack) {
-                    equipped_defense[s.element] += s.value;
+                    equipped_attack[s.element] += s.value;
                 }
             }
             for (s in hovered_spells) {
                 if (s.type == SpellType_ModDefense) {
                     hovered_defense[s.element] += s.value;
                 } else if (s.type == SpellType_ModAttack) {
-                    hovered_defense[s.element] += s.value;
+                    hovered_attack[s.element] += s.value;
                 }
             }
 
@@ -1642,38 +1664,6 @@ function update() {
                 if (attack_diff[element] != 0) {
                     var sign = if (attack_diff[element] > 0) '+' else '';
                     entity_tooltip += '$sign${attack_diff[element]} ${element_string(element)} attack\n';
-                }
-            }
-        }
-    }
-    
-    // Colored elemental stats
-    if (interact_target == Entity.NONE) {
-        // Only show tooltip if interact menu isn't open
-        Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, hovered_tooltip_wordwrap, Text.height(entity_tooltip), Col.DARKBROWN);
-        Text.display(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, entity_tooltip, Col.WHITE);
-
-        // NOTE: Displaying colored text is tough...
-        if (Entity.combat.exists(hovered_anywhere)) {
-            var entity_combat = Entity.combat[hovered_anywhere];
-            
-            var string_so_far = 'Absorb:';
-            for (element in Type.allEnums(ElementType)) {
-                if (entity_combat.attack.exists(element) && entity_combat.attack[element] > 0) {
-                    var element_num = ' ${entity_combat.attack[element]}';
-                    Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n$element_num', Entities.get_element_color(element));
-
-                    string_so_far += '001';
-                }
-            }
-
-            string_so_far = 'Absorb:';
-            for (element in Type.allEnums(ElementType)) {
-                if (entity_combat.absorb.exists(element) && entity_combat.absorb[element] > 0) {
-                    var element_num = ' ${entity_combat.absorb[element]}';
-                    Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n\n$element_num', Entities.get_element_color(element));
-
-                    string_so_far += '001';
                 }
             }
         }

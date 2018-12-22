@@ -634,7 +634,12 @@ static function random_scroll(x: Int, y: Int): Int {
         charges: 1,
         consumable: true,
         flavor_text: 'You read the scroll aloud.',
-        need_target: false,
+        // NOTE: incorrect if there are multiple spells and one of them needs a target, though I can't think of an item like that yet
+        need_target: switch (spells[0].type) {
+            case SpellType_ModUseCharges: true;
+            case SpellType_CopyItem: true;
+            default: false;
+        },
     };
 
     Entity.draw_tile[e] = 
@@ -696,17 +701,21 @@ static function random_enemy_type(): EntityType {
     }
 
     // Ranges are squared, this means that each range covers a square area
-    var range: Int = Pick.value([
+    var range: Int = if (level == 0) {
+        1;
+    } else {
+        Pick.value([
         {v: 1, c: 8.0},
         {v: 2, c: 2.0},
         {v: 3, c: 1.0},
         ]);
+    }
 
     var aggression_type = Pick.value([
         {v: AggressionType_Aggressive, c: 1.0},
-        {v: AggressionType_NeutralToAggressive, c: 1.0},
-        {v: AggressionType_Neutral, c: (4.0 / (1 + level))},
-        {v: AggressionType_Passive, c: (1.0 / (1 + level))},
+        {v: AggressionType_NeutralToAggressive, c: 0.1},
+        {v: AggressionType_Neutral, c: (0.1 / (1 + level))},
+        {v: AggressionType_Passive, c: (0.1 / (1 + level))},
         ]);
 
     // NeutralToAggressive start out stationary

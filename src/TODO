@@ -1,18 +1,28 @@
 --------------------------------------------------------------------------
 TODO
 
+turn empty rooms into corner connections
 
 --------------------------------------------------------------------------
 DONE
 
 
+
 --------------------------------------------------------------------------
 PROBLEMS
+
+copy scroll didnt work
 
 leg tile wasn't drawn around lvl 3
 
 --------------------------------------------------------------------------
 IDEAS
+
+equipment use and buff spells
+    equipment buffs should have weight for each spelltype
+    do buffs first, then do stat stuff with the weight of buffs substracted
+    for example, if armor gets an invisibility buff, that might weigh 10 points, then armor rolls 15 total defense, substract 10 from that and you have 5 defense points left
+    err on the side of generosity, but add at least some weight to all buffs
 
 boss mobs
     guaranteed powerful item drop
@@ -26,9 +36,6 @@ friendly mobs
     friendly mobs which attack other mobs
         other mobs should attack them as well?
     spell to summon friendly mob
-
-armor/weapon use and buff spells
-armor/weapon buff spells
 
 find font that's not messed up in html5
 
@@ -46,9 +53,17 @@ maybe prune levels that are too hard
 boss summon rituals
     doing some sequence of actions summons a special boss
         copying a copy scroll spawns copy scroll boss
-        spawning 3 skeletons in same room spawns a necromancer
+        spawning 3 skeletons in same room spawns a necromancer at stairs
         killing 2 merchants spawns a merchant boss
 
+movement by clicking? maybe attack too
+    moves to the enemy and hits it once, then turns resume
+
+change color scheme every 3 levels, maybe put a boss at every 3rd level too
+
+maybe put a key onto an enemy sometimes
+
+room with enemies where your hp is reduced but your attack is continiously increased
 
 --------------------------------------------------------------------------
 SPELL IDEAS

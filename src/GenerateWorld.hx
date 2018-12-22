@@ -187,7 +187,7 @@ static function fill_rooms_with_entities() {
                 }
                 var pos = positions.pop();
                 Pick.value([
-                    {v: random_enemy, c: 60.0},
+                    {v: random_enemy, c: 50.0},
                     {v: Entities.unlocked_chest, c: 6.0},
                     {v: Entities.random_potion, c: 4.0},
                     {v: Entities.random_armor, c: 3.0},
