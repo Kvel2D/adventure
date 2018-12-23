@@ -22,7 +22,8 @@ class Tile {
     static inline var PotionLight = at(2, 1);
     static inline var PotionFire = at(3, 1);
     static inline var PotionIce = at(4, 1);
-    static inline var PotionMixed = at(5, 1);
+    static inline var PotionHealing = at(5, 1);
+    static inline var PotionMixed = at(6, 1);
 
     static inline var ScrollPhysical = at(0, 7);
     static inline var ScrollShadow = at(1, 7);

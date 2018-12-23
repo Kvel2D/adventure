@@ -133,7 +133,7 @@ static function get_description(spell: Spell): String {
         case SpellType_Noclip: 'go through walls';
         case SpellType_ShowThings: 'see tresure on the map';
         case SpellType_NextFloor: 'go to next floor';
-        case SpellType_AoeDamage: 'deal ${spell.value} ${element} damage to enemies in the room';
+        case SpellType_AoeDamage: 'deal ${spell.value} ${element} damage to all visible enemies';
         case SpellType_ModUseCharges: 'add ${spell.value} use charges to item';
         case SpellType_CopyItem: 'copy item in your inventory and drop it on the ground (must have free space around you or the spell fails)';
     }
@@ -549,7 +549,7 @@ static function test(): Spell {
 
 static function random_potion_spells(level: Int): Array<Spell> {
     var type = Pick.value([
-        {v: SpellType_ModHealth, c: 4.0},
+        {v: SpellType_ModHealth, c: 5.0},
         {v: SpellType_ModAttack, c: 1.0},
         {v: SpellType_ModDefense, c: 1.0},
         {v: SpellType_Invisibility, c: 0.25},
@@ -564,9 +564,9 @@ static function random_potion_spells(level: Int): Array<Spell> {
     }
 
     var duration = switch (type) {
-        case SpellType_ModAttack: Random.int(80, 120);
-        case SpellType_ModDefense: Random.int(80, 120);
-        case SpellType_Invisibility: Random.int(40, 60);
+        case SpellType_ModAttack: Entity.LEVEL_DURATION;
+        case SpellType_ModDefense: Entity.LEVEL_DURATION;
+        case SpellType_Invisibility: Random.int(60, 80);
         default: 0;
     }
 
@@ -611,7 +611,7 @@ static function random_scroll_spell(level: Int): Spell {
         {v: SpellType_ShowThings, c: 0.5},
         {v: SpellType_AoeDamage, c: 1.0},
         {v: SpellType_ModUseCharges, c: 0.5},
-        {v: SpellType_CopyItem, c: 10000},
+        {v: SpellType_CopyItem, c: 1.0},
         ]);
 
     var duration_type = switch (type) {
@@ -690,7 +690,7 @@ static function random_ring_spell(level: Int): Spell {
     var value = switch (type) {
         case SpellType_ModHealthMax: Stats.get({min: 4, max: 7, scaling: 1.0}, level);
         case SpellType_ModAttack: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
-        case SpellType_ModDefense: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+        case SpellType_ModDefense: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
         case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         default: 0;
     }
@@ -700,18 +700,17 @@ static function random_ring_spell(level: Int): Spell {
         default: 1;
     }
 
-    // Figure out when to make elements random
     var element = switch (type) {
         case SpellType_ModHealthMax: ElementType_Physical;
-        case SpellType_ModAttack: ElementType_Physical;
-        case SpellType_ModDefense: ElementType_Physical;
+        case SpellType_ModAttack: random_element();
+        case SpellType_ModDefense: random_element();
         case SpellType_AoeDamage: random_element();
         default: ElementType_Physical;
     }
 
     return {
         type: type,
-        element: ElementType_Physical,
+        element: element,
         duration_type: duration,
         duration: Entity.INFINITE_DURATION,
         interval: interval,
@@ -796,7 +795,7 @@ static function player_buff_spell(): Spell {
     }
 
     var value = switch (type) {
-        case SpellType_ModAttack: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+        case SpellType_ModAttack: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
         case SpellType_ModDefense: Stats.get({min: 4, max: 6, scaling: 1.0}, level);
         case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         default: 0;
@@ -830,22 +829,22 @@ static function statue_enohik(level: Int): Array<Spell> {
 
 // Subere, shadow
 // +enemy curse
-// -random teleport every X turns
+// -no drops(-100%)
 static function statue_subere(level: Int): Array<Spell> {
-    function random_teleport_spell(): Spell {
+    function no_drops_spell(): Spell {
         return {
-            type: SpellType_RandomTeleport,
+            type: SpellType_ModDropChance,
             element: ElementType_Shadow,
             duration_type: SpellDuration_EveryTurn,
             duration: Entity.LEVEL_DURATION,
-            interval: Random.int(100, 150),
+            interval: 1,
             interval_current: 0,
-            value: 0,
+            value: -100,
             origin_name: "noname",
         };
     } 
 
-    return enemy_curse_spells().concat([random_teleport_spell()]);
+    return enemy_curse_spells().concat([no_drops_spell()]);
 }
 
 // Sera, physical
@@ -1012,7 +1011,7 @@ static function teleport_room(r: Room) {
         element: ElementType_Light,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
-        interval: Random.int(40, 60),
+        interval: Math.round(r.width * 1.5),
         interval_current: 0,
         value: 0,
         origin_name: "noname",

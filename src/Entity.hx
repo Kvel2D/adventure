@@ -99,6 +99,7 @@ typedef Move = {
     var type: MoveType;
     var cant_move: Bool;
     var successive_moves: Int;
+    var chase_dst: Int;
 }
 
 typedef Locked = {
@@ -263,6 +264,7 @@ static function copy(e: Int, x: Int, y: Int): Int {
             type: e_move.type,
             cant_move: e_move.cant_move,
             successive_moves: e_move.successive_moves,
+            chase_dst: e_move.chase_dst,
         };
     }
     if (locked.exists(e)) {
@@ -371,6 +373,7 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
             type: type.move.type,
             cant_move: type.move.cant_move,
             successive_moves: type.move.successive_moves,
+            chase_dst: type.move.chase_dst,
         };
     }
     if (type.locked != null) {

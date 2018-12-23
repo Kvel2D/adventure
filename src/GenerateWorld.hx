@@ -119,6 +119,8 @@ static function fill_rooms_with_entities() {
         return Entity.make_type(x, y, Random.pick(enemy_types));
     }
 
+    var spawned_merchant_this_level = false;
+
     var empty_room = [for (i in 0...Main.rooms.length) false];
 
     // NOTE: leave start room(0th) empty
@@ -213,9 +215,9 @@ static function fill_rooms_with_entities() {
                 Pick.value([
                     {v: random_enemy, c: 50.0},
                     {v: Entities.unlocked_chest, c: 12.0},
-                    {v: Entities.random_potion, c: 4.0},
-                    {v: Entities.random_armor, c: 6.0},
-                    {v: Entities.random_scroll, c: 3.0},
+                    {v: Entities.random_potion, c: 6.0},
+                    {v: Entities.random_armor, c: 5.0},
+                    {v: Entities.random_scroll, c: 4.0},
                     {v: Entities.random_weapon, c: 1.0},
                     {v: Entities.random_ring, c: 1.0},
                     {v: Entities.locked_chest, c: 2.0},
@@ -237,11 +239,14 @@ static function fill_rooms_with_entities() {
             }
         } else {
             // Room with items only
-            if (Random.chance(merchant_room_chance)) {
+            if (Random.chance(merchant_room_chance) && !spawned_merchant_this_level) {
                 // Merchant room
                 // Spawn merchant and items in a line starting from 3,3 away from top-left corner
+                spawned_merchant_this_level = true;
                 Entities.merchant(r.x + 1, r.y + 1);
 
+                // Spawn with increased level
+                Main.current_level++;
                 var sell_items = new Array<Int>();
                 for (i in 0...merchant_item_amount) {
                     sell_items.push(Pick.value([
@@ -253,11 +258,12 @@ static function fill_rooms_with_entities() {
                         ])
                     (r.x + 2 + i, r.y + 1));
                 }
+                Main.current_level--;
 
                 // Add cost to items
                 for (e in sell_items) {
                     Entity.buy[e] = {
-                        cost: Stats.get({min: 10, max: 15, scaling: 1.0}, Main.current_level),
+                        cost: Stats.get({min: 10, max: 15, scaling: 2.0}, Main.current_level),
                     };
                 }
                 // For Use entities, increase charges to make them more valuable
@@ -274,8 +280,8 @@ static function fill_rooms_with_entities() {
                     }
                     var pos = positions.pop();
                     Pick.value([
-                        {v: Entities.random_potion, c: 4.0},
-                        {v: Entities.random_armor, c: 6.0},
+                        {v: Entities.random_potion, c: 6.0},
+                        {v: Entities.random_armor, c: 5.0},
                         {v: Entities.random_scroll, c: 3.0},
                         {v: Entities.locked_chest, c: 2.0},
                         {v: Entities.random_weapon, c: 1.0},

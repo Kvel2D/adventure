@@ -1,6 +1,14 @@
 --------------------------------------------------------------------------
 TODO
 
+need to think about defenses for armor
+    the random splits are too confusing
+    need to standardize to 
+        +to all defences
+        or +to one defense but more powerful
+        or +to 2-3 defenses
+    and preferrably same numbers of all elements, the randomly changing numbers are hard to read
+
 --------------------------------------------------------------------------
 DONE
 
@@ -11,8 +19,9 @@ should center equipment(or offset it when drawing on player?)
 
 fat connections still sometimes go out of room bounds
 
-random teleport statue is not threatening, just annoying
-    think about a replacement cost spell
+uncover map uncovered for next level too
+
+somehow picked up item and it still had buy component on
 
 --------------------------------------------------------------------------
 IDEAS
@@ -61,6 +70,8 @@ vary room geometry by level
         also connection factors
 
 make all the room types share their chances, the current layered chance system is confusing
+
+equipment names
 
 --------------------------------------------------------------------------
 SPELL IDEAS

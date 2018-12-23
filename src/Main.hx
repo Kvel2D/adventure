@@ -181,10 +181,6 @@ function init() {
 
     generate_level();
 
-    for (i in 1...1) {
-        trace(1);
-    }
-
     // Entities.test_potion(first_room.x + 5, first_room.y + 7);
 }
 
@@ -736,7 +732,7 @@ function move_entity(e: Int) {
 
     switch (move.type) {
         case MoveType_Astar: {
-            if (!player_next_to(pos) && !player_is_invisible) {
+            if (!player_next_to(pos) && Math.dst(player_x, player_y, pos.x, pos.y) < move.chase_dst && !player_is_invisible) {
                 var path = Path.astar_view(pos.x, pos.y, player_x, player_y);
 
                 if (path.length > 2) {
@@ -746,7 +742,7 @@ function move_entity(e: Int) {
             }
         }
         case MoveType_Straight: {
-            if (!player_next_to(pos) && !player_is_invisible) {
+            if (!player_next_to(pos) && Math.dst(player_x, player_y, pos.x, pos.y) < move.chase_dst && !player_is_invisible) {
                 var dx = player_x - pos.x;
                 var dy = player_y - pos.y;
                 var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
@@ -837,6 +833,7 @@ function entity_attack_player(e: Int) {
             type: MoveType_Straight,
             cant_move: false,
             successive_moves: 0,
+            chase_dst: Main.view_width, // chase forever
         }
     }
 
@@ -1095,8 +1092,6 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             for (i in 0...visited_room.length) {
                 visited_room[i] = true;
             }
-
-            add_message('${spell.origin_name} uncovers the map.');
         }
         case SpellType_RandomTeleport: {
             // Teleport to random room
@@ -1142,12 +1137,14 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             copperchance_mod += spell.value;
         }
         case SpellType_AoeDamage: {
-            // AOE affects only entities in same room as player to prevent cheesing
+            var view_x = get_view_x();
+            var view_y = get_view_y();
+            // AOE affects visible entities
             for (e in Entity.combat.keys()) {
                 if (Entity.position.exists(e)) {
                     var pos = Entity.position[e];
 
-                    if (pos.room == player_room) {
+                    if (!out_of_view_bounds(pos.x, pos.y) && position_visible(pos.x - view_x, pos.y - view_y)) {
                         player_attack_entity(e, [spell.element => spell.value]);
                     }
                 }
@@ -1921,7 +1918,7 @@ function update() {
 
         if ((draw_on_minimap.seen || show_things || full_minimap_DEV) && Entity.position.exists(e)) {
             var pos = Entity.position[e];
-            Gfx.drawbox(minimap_x + pos.x * minimap_scale, minimap_y + pos.y * minimap_scale, minimap_scale, minimap_scale, draw_on_minimap.color);
+            Gfx.fillbox(minimap_x + pos.x * minimap_scale, minimap_y + pos.y * minimap_scale, minimap_scale * 1.5, minimap_scale * 1.5, draw_on_minimap.color);
         }
     }
 

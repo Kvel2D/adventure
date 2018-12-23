@@ -516,7 +516,7 @@ static function random_armor(x: Int, y: Int): Int {
     Entity.name[e] = 'Armor';
     Entity.draw_tile[e] = armor_tiles[armor_type][Math.floor(Math.min(5, level / 2))];
 
-    var defense_total = Stats.get({min: 3, max: 4, scaling: 1.0}, level);
+    var defense_total = Stats.get({min: 6, max: 8, scaling: 1.5}, level);
 
     var element_count: Int = 
     if (level == 0) Random.int(1, 2);
@@ -583,6 +583,13 @@ static function random_potion(x: Int, y: Int): Int {
         spells: [],
     };
     var spells = Spells.random_potion_spells(level);
+    var has_healing_spell = false;
+    for (s in spells) {
+        if (s.type == SpellType_ModHealth && s.value > 0) {
+            has_healing_spell = true;
+            break;
+        }
+    }
     Entity.use[e] = {
         spells: spells,
         charges: 1,
@@ -598,7 +605,9 @@ static function random_potion(x: Int, y: Int): Int {
     }
 
     Entity.draw_tile[e] = 
-    if (spell_element_count(spells) == 1) {
+    if (has_healing_spell) {
+        Tile.PotionHealing;
+    } else if (spell_element_count(spells) == 1) {
         switch(Entity.use[e].spells[0].element) {
             case ElementType_Physical: Tile.PotionPhysical;
             case ElementType_Shadow: Tile.PotionShadow;
@@ -672,7 +681,22 @@ static function random_enemy_type(): EntityType {
     else if (level < 3) Random.float(0, 0.66);
     else Random.float(0, 1);
 
-    var attack = Stats.get({min: 1, max: 1.5, scaling: 1.0}, level); 
+    // Ranges are squared, this means that each range covers a square area
+    var range: Int = if (level == 0) {
+        1;
+    } else {
+        Pick.value([
+        {v: 1, c: 8.0},
+        {v: 2, c: 2.0},
+        {v: 3, c: 1.0},
+        ]);
+    }
+
+    // Long-ranged mobs have weaker attack to compensate
+    // 0.75 of regular for range = 2
+    // 0.5 of regular for range = 3
+    var range_factor = if (range >= 3) 0.5 else if (range >= 2) 0.75 else 1.0;
+    var attack = Stats.get({min: 1 * range_factor, max: 1.5 * range_factor, scaling: 1.0}, level);
     var health = Stats.get({min: 1, max: 3, scaling: 1.0}, level); 
     var absorb = Stats.get({min: 0, max: 0, scaling: 1.0}, level); 
 
@@ -700,17 +724,6 @@ static function random_enemy_type(): EntityType {
         get_element_color(ElementType_Physical);
     }
 
-    // Ranges are squared, this means that each range covers a square area
-    var range: Int = if (level == 0) {
-        1;
-    } else {
-        Pick.value([
-        {v: 1, c: 8.0},
-        {v: 2, c: 2.0},
-        {v: 3, c: 1.0},
-        ]);
-    }
-
     var aggression_type = Pick.value([
         {v: AggressionType_Aggressive, c: 1.0},
         {v: AggressionType_NeutralToAggressive, c: 0.1},
@@ -719,7 +732,7 @@ static function random_enemy_type(): EntityType {
         ]);
 
     // NeutralToAggressive start out stationary
-    var move = if (aggression_type == AggressionType_NeutralToAggressive) {
+    var move: Move = if (aggression_type == AggressionType_NeutralToAggressive) {
         null;
     } else if (aggression_type == AggressionType_Aggressive) {
         {
@@ -731,6 +744,7 @@ static function random_enemy_type(): EntityType {
                 ]),
             cant_move: false,
             successive_moves: 0,
+            chase_dst: Random.int(7, 14),
         }
     } else {
         {
@@ -740,6 +754,7 @@ static function random_enemy_type(): EntityType {
                 ]),
             cant_move: false,
             successive_moves: 0,
+            chase_dst: 0,
         }
     }
 
@@ -856,7 +871,7 @@ static function merchant(x: Int, y: Int): Int {
         color: Col.PINK,
     };
     Entity.combat[e] = {
-        health: Stats.get({min: 10, max: 10, scaling: 1.0}, level), 
+        health: Stats.get({min: 10, max: 20, scaling: 2.0}, level), 
         attack: [
             ElementType_Physical => Stats.get({min: 3, max: 3, scaling: 1.0}, level)
         ], 
