@@ -24,16 +24,16 @@ class Main {
 static inline var screen_width = 1600;
 static inline var screen_height = 1000;
 static inline var tilesize = 8;
-static inline var map_width = 150;
-static inline var map_height = 150;
+static inline var map_width = 125;
+static inline var map_height = 125;
 static inline var view_width = 31;
 static inline var view_height = 31;
 static inline var world_scale = 4;
 static inline var minimap_scale = 2;
 static inline var minimap_x = 0;
 static inline var minimap_y = 100;
-static inline var room_size_min = 10;
-static inline var room_size_max = 20;
+static inline var room_size_min = 5;
+static inline var room_size_max = 15;
 
 static inline var ui_x = tilesize * view_width * world_scale + 13;
 static inline var player_stats_y = 0;
@@ -89,8 +89,8 @@ var copper_count = 0;
 var player_room = -1;
 var player_pure_absorb = 0;
 
-var stairs_x = 0;
-var stairs_y = 0;
+static var stairs_x = 0;
+static var stairs_y = 0;
 
 var player_health_max = 10;
 var player_health_max_mod = 0;
@@ -181,6 +181,10 @@ function init() {
 
     generate_level();
 
+    for (i in 1...1) {
+        trace(1);
+    }
+
     // Entities.test_potion(first_room.x + 5, first_room.y + 7);
 }
 
@@ -234,6 +238,7 @@ function generate_level() {
         }
     }
 
+    // TODO: combine all into one function
     // Generate and connect rooms
     rooms = GenerateWorld.generate_via_digging();
     GenerateWorld.connect_rooms(rooms, Random.float(0.5, 2));
@@ -242,6 +247,7 @@ function generate_level() {
         r.width++;
         r.height++;
     }
+    GenerateWorld.fatten_connections();
 
     visited_room = [for (i in 0...rooms.length) false];
 
@@ -254,6 +260,7 @@ function generate_level() {
             }
         }
     }
+
 
     // Set start position to first room, before generating entities so that generation uses the new player position in collision checks
     player_room = 0;
@@ -297,8 +304,8 @@ inline function unscaled_screen_y(y) {
     return (y - player_y + Math.floor(view_height / 2)) * tilesize;
 }
 
-inline function get_view_x(): Int { return player_x - Math.floor(view_width / 2); }
-inline function get_view_y(): Int { return player_y - Math.floor(view_width / 2); }
+static inline function get_view_x(): Int { return player_x - Math.floor(view_width / 2); }
+static inline function get_view_y(): Int { return player_y - Math.floor(view_width / 2); }
 
 static inline function out_of_map_bounds(x, y) {
     return x < 0 || y < 0 || x >= map_width || y >= map_height;
@@ -411,7 +418,7 @@ function defense_to_absorb(def: Int): Int {
 }
 
 // TODO: make sure that get_free_map() is used to get the min required area, instead of full map. Also try to use a cached free_map instead of creating new one everytime
-static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, include_player: Bool = true, include_entities: Bool = true, free_map: Array<Array<Bool>> = null): Array<Array<Bool>> {
+static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, free_map: Array<Array<Bool>> = null, include_player: Bool = true, include_entities: Bool = true, include_doors: Bool = true): Array<Array<Bool>> {
     // Entities
     if (free_map == null) {
         free_map = Data.create2darray(width, height, true);
@@ -426,6 +433,15 @@ static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, include_
     if (include_entities) {
         for (pos in Entity.position) {
             if (Math.point_box_intersect(pos.x, pos.y, x1, y1, width, height)) {
+                free_map[pos.x - x1][pos.y - y1] = false;
+            }
+        }
+    }
+
+    if (include_doors) {
+        for (locked in Entity.locked.keys()) {
+            var pos = Entity.position[locked];
+            if (Math.point_box_intersect(pos.x, pos.y, x1, y1, width, height) && Entity.name[locked] == 'Door') {
                 free_map[pos.x - x1][pos.y - y1] = false;
             }
         }
@@ -677,9 +693,12 @@ function drop_entity_from_player(e: Int) {
 function move_entity(e: Int) {
     var move = Entity.move[e];
     var pos = Entity.position[e];
+
+    var prev_successive_moves = move.successive_moves;
+    move.successive_moves = 0;
     
-    // Entity must be in same room as player
-    if (pos.room != player_room) {
+    // Entity must be in view to chase
+    if (out_of_view_bounds(pos.x, pos.y)) {
         return;
     }
 
@@ -689,6 +708,13 @@ function move_entity(e: Int) {
         return;
     }
 
+    // Skip moving sometimes as the number of successive moves goes up, this is so that monsters don't follow the player forever
+    if (Random.chance(Math.min(100, prev_successive_moves * prev_successive_moves * prev_successive_moves))) {
+        return;
+    }
+
+    // Moved, so increment successive moves count
+    move.successive_moves = prev_successive_moves + 1;
 
     function random_move() {
         var random_dxdy = Random.pick(four_dxdy);
@@ -711,11 +737,11 @@ function move_entity(e: Int) {
     switch (move.type) {
         case MoveType_Astar: {
             if (!player_next_to(pos) && !player_is_invisible) {
-                var path = Path.astar_room(pos.x, pos.y, player_x, player_y, rooms[player_room]);
+                var path = Path.astar_view(pos.x, pos.y, player_x, player_y);
 
                 if (path.length > 2) {
                     var room = rooms[player_room];
-                    Entity.set_position(e, path[path.length - 2].x + room.x, path[path.length - 2].y + room.y);
+                    Entity.set_position(e, path[path.length - 2].x + get_view_x(), path[path.length - 2].y + get_view_y());
                 }
             }
         }
@@ -810,6 +836,7 @@ function entity_attack_player(e: Int) {
         Entity.move[e] = {
             type: MoveType_Straight,
             cant_move: false,
+            successive_moves: 0,
         }
     }
 
@@ -1590,38 +1617,6 @@ function update() {
     }
     var entity_tooltip = get_tooltip(hovered_anywhere);
 
-    // Colored elemental stats
-    if (interact_target == Entity.NONE) {
-        // Only show tooltip if interact menu isn't open
-        Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, hovered_tooltip_wordwrap, Text.height(entity_tooltip), Col.DARKBROWN);
-        Text.display(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, entity_tooltip, Col.WHITE);
-
-        // NOTE: Displaying colored text is tough...
-        if (Entity.combat.exists(hovered_anywhere)) {
-            var entity_combat = Entity.combat[hovered_anywhere];
-            
-            var string_so_far = 'Absorb:';
-            for (element in Type.allEnums(ElementType)) {
-                if (entity_combat.attack.exists(element) && entity_combat.attack[element] > 0) {
-                    var element_num = ' ${entity_combat.attack[element]}';
-                    Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n$element_num', Entities.get_element_color(element));
-
-                    string_so_far += '001';
-                }
-            }
-
-            string_so_far = 'Absorb:';
-            for (element in Type.allEnums(ElementType)) {
-                if (entity_combat.absorb.exists(element) && entity_combat.absorb[element] > 0) {
-                    var element_num = ' ${entity_combat.absorb[element]}';
-                    Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n$element_num', Entities.get_element_color(element));
-
-                    string_so_far += '001';
-                }
-            }
-        }
-    }
-    
     // Add comparison text to tooltip for equipment on the ground
     if (Entity.equipment.exists(hovered_anywhere) && Entity.position.exists(hovered_anywhere)) {
         var equipped = player_equipment[Entity.equipment[hovered_anywhere].type];
@@ -1664,6 +1659,38 @@ function update() {
                 if (attack_diff[element] != 0) {
                     var sign = if (attack_diff[element] > 0) '+' else '';
                     entity_tooltip += '$sign${attack_diff[element]} ${element_string(element)} attack\n';
+                }
+            }
+        }
+    }
+
+    // Colored elemental stats
+    if (interact_target == Entity.NONE) {
+        // Only show tooltip if interact menu isn't open
+        Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, hovered_tooltip_wordwrap, Text.height(entity_tooltip), Col.DARKBROWN);
+        Text.display(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, entity_tooltip, Col.WHITE);
+
+        // NOTE: Displaying colored text is tough...
+        if (Entity.combat.exists(hovered_anywhere)) {
+            var entity_combat = Entity.combat[hovered_anywhere];
+            
+            var string_so_far = 'Absorb:';
+            for (element in Type.allEnums(ElementType)) {
+                if (entity_combat.attack.exists(element) && entity_combat.attack[element] > 0) {
+                    var element_num = ' ${entity_combat.attack[element]}';
+                    Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n$element_num', Entities.get_element_color(element));
+
+                    string_so_far += '001';
+                }
+            }
+
+            string_so_far = 'Absorb:';
+            for (element in Type.allEnums(ElementType)) {
+                if (entity_combat.absorb.exists(element) && entity_combat.absorb[element] > 0) {
+                    var element_num = ' ${entity_combat.absorb[element]}';
+                    Text.display(hovered_anywhere_x + tilesize * world_scale + Text.width(string_so_far), hovered_anywhere_y, '\n\n\n$element_num', Entities.get_element_color(element));
+
+                    string_so_far += '001';
                 }
             }
         }
@@ -2087,7 +2114,6 @@ function update() {
             add_message('You died.');
         }
 
-        // Entities chase player if they are in the same room
         for (e in Entity.move.keys()) {
             if (Entity.position.exists(e)) {
                 move_entity(e);

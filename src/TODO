@@ -1,19 +1,18 @@
 --------------------------------------------------------------------------
 TODO
 
-turn empty rooms into corner connections
-
 --------------------------------------------------------------------------
 DONE
-
-
 
 --------------------------------------------------------------------------
 PROBLEMS
 
-copy scroll didnt work
+should center equipment(or offset it when drawing on player?)
 
-leg tile wasn't drawn around lvl 3
+fat connections still sometimes go out of room bounds
+
+random teleport statue is not threatening, just annoying
+    think about a replacement cost spell
 
 --------------------------------------------------------------------------
 IDEAS
@@ -41,29 +40,27 @@ find font that's not messed up in html5
 
 scrolling for spell display, at some point spells won't fit in current area
 
-start with some items?
-    could be like a class system where you start with certain loadouts
-
-maybe prune levels that are too hard
-    after generation, "weigh" the level by adding together all helpful factors(items/equipment) and all unhelpful factors(enemies) and do a rough calculation of the overall "weight" of the level
-    if it's something real bad like 0.5 helpful to unhelpful, generate the level again
-        to figure out the calculation, generate bad levels on purpose and see what makes them bad
-    if a level is generated with 0 items that's obviously a bad one
-
 boss summon rituals
     doing some sequence of actions summons a special boss
         copying a copy scroll spawns copy scroll boss
         spawning 3 skeletons in same room spawns a necromancer at stairs
         killing 2 merchants spawns a merchant boss
 
-movement by clicking? maybe attack too
-    moves to the enemy and hits it once, then turns resume
-
 change color scheme every 3 levels, maybe put a boss at every 3rd level too
 
-maybe put a key onto an enemy sometimes
-
 room with enemies where your hp is reduced but your attack is continiously increased
+
+insert random patterns in rooms sometimes
+    cross-sections
+    columns(series of one-off blocks)
+    hole in middle
+
+vary room geometry by level
+    restrict sizes to certain ranges
+        all small rooms or all big rooms
+        also connection factors
+
+make all the room types share their chances, the current layered chance system is confusing
 
 --------------------------------------------------------------------------
 SPELL IDEAS
@@ -74,6 +71,8 @@ crab-hand
     crab disappears on end
 
 mod equipment stat
+    the use item should be separate from scroll
+        "enchanting stone" or something
     mod attack doesn't cover all options, it modifies natural attack only
     mod attack of weapon would only modify the weapon which presents an interesting choice of whether to enchant weapon now to get power now or save it for later to enchant a more powerful item
 

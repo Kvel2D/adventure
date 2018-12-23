@@ -71,7 +71,7 @@ class LOS {
         var start_x = Main.player_x - Math.floor(Main.view_width / 2);
         var start_y = Main.player_y - Math.floor(Main.view_height / 2);
 
-        Main.get_free_map(start_x, start_y, Main.view_width, Main.view_height, false, false, free_map);
+        Main.get_free_map(start_x, start_y, Main.view_width, Main.view_height, free_map, false, false, true);
 
         for (ray in rays) {
             var obstruction = false;
@@ -81,7 +81,7 @@ class LOS {
                     los[p.x][p.y] = true;
                 } else {
                     if (!Main.out_of_map_bounds(start_x + p.x, start_y + p.y) && !free_map[p.x][p.y]) {
-                        los[p.x][p.y] = true;
+                        // los[p.x][p.y] = true;
                         obstruction = true;
                     } else {
                         los[p.x][p.y] = false;

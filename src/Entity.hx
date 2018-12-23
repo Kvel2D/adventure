@@ -98,6 +98,7 @@ typedef DrawChar = {
 typedef Move = {
     var type: MoveType;
     var cant_move: Bool;
+    var successive_moves: Int;
 }
 
 typedef Locked = {
@@ -261,6 +262,7 @@ static function copy(e: Int, x: Int, y: Int): Int {
         move[copy] = {
             type: e_move.type,
             cant_move: e_move.cant_move,
+            successive_moves: e_move.successive_moves,
         };
     }
     if (locked.exists(e)) {
@@ -368,6 +370,7 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
         move[e] = {
             type: type.move.type,
             cant_move: type.move.cant_move,
+            successive_moves: type.move.successive_moves,
         };
     }
     if (type.locked != null) {
@@ -432,8 +435,10 @@ static function print(e: Int) {
     trace('item=${item[e]}');
     trace('use=${use[e]}');
     trace('combat=${combat[e]}');
-    trace('combat.attack=${combat[e].attack}');
-    trace('combat.absorb=${combat[e].absorb}');
+    if (Entity.combat.exists(e)) {
+        trace('combat.attack=${combat[e].attack}');
+        trace('combat.absorb=${combat[e].absorb}');
+    }
     trace('drop_entity=${drop_entity[e]}');
     trace('talk=${talk[e]}');
     trace('give_copper_on_death=${give_copper_on_death[e]}');

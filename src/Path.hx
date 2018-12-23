@@ -35,7 +35,7 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
     y1 -= area_y;
     y2 -= area_y;
     
-    Main.get_free_map(area_x, area_y, area_width, area_height, true, true, free_map);
+    Main.get_free_map(area_x, area_y, area_width, area_height, free_map, true, true);
     // destination and origin need to be "free" for the algorithm to find paths correctly
     free_map[x2][y2] = true; 
     free_map[x1][y1] = true; 
@@ -137,22 +137,22 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
     return new Array<Vec2i>();
 }
 
-static var room_closed = Data.create2darray(Main.room_size_max, Main.room_size_max, false);
-static var room_open = Data.create2darray(Main.room_size_max, Main.room_size_max, false);
-static var room_g_score = Data.create2darray(Main.room_size_max, Main.room_size_max, 0);
-static var room_f_score = Data.create2darray(Main.room_size_max, Main.room_size_max, 0);
-static var room_prev = [for (x in 0...Main.room_size_max) [for (y in 0...Main.room_size_max) {x: -1, y: -1}]];
-static var room_free_map = Data.create2darray(Main.room_size_max, Main.room_size_max, false);
+static var view_closed = Data.create2darray(Main.view_width, Main.view_height, false);
+static var view_open = Data.create2darray(Main.view_width, Main.view_height, false);
+static var view_g_score = Data.create2darray(Main.view_width, Main.view_height, 0);
+static var view_f_score = Data.create2darray(Main.view_width, Main.view_height, 0);
+static var view_prev = [for (x in 0...Main.view_width) [for (y in 0...Main.view_height) {x: -1, y: -1}]];
+static var view_free_map = Data.create2darray(Main.view_width, Main.view_height, false);
 
-static function astar_room(x1:Int, y1:Int, x2:Int, y2:Int, room: Room): Array<Vec2i> {
-    closed = room_closed;
-    open = room_open;
-    g_score = room_g_score;
-    f_score = room_f_score;
-    prev = room_prev;
-    free_map = room_free_map;
+static function astar_view(x1:Int, y1:Int, x2:Int, y2:Int): Array<Vec2i> {
+    closed = view_closed;
+    open = view_open;
+    g_score = view_g_score;
+    f_score = view_f_score;
+    prev = view_prev;
+    free_map = view_free_map;
 
-    return astar_internal(x1, y1, x2, y2, room.x, room.y, room.width, room.height);
+    return astar_internal(x1, y1, x2, y2, Main.get_view_x(), Main.get_view_y(), Main.view_width, Main.view_height);
 }
 
 static var map_closed = Data.create2darray(Main.map_width, Main.map_height, false);

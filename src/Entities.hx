@@ -401,7 +401,7 @@ static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
         case DropTable_Default: {
             return (Pick.value([
                 {v: Entities.random_weapon, c: 1.0},
-                {v: Entities.random_armor, c: 3.0},
+                {v: Entities.random_armor, c: 6.0},
                 {v: Entities.random_potion, c: 6.0},
                 {v: Entities.random_ring, c: 2.0},
                 ])(x, y));
@@ -410,7 +410,7 @@ static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
         case DropTable_LockedChest: {
             return (Pick.value([
                 {v: Entities.random_weapon, c: 1.0},
-                {v: Entities.random_armor, c: 3.0},
+                {v: Entities.random_armor, c: 6.0},
                 {v: Entities.random_ring, c: 1.0},
                 ])(x, y));
         }
@@ -730,6 +730,7 @@ static function random_enemy_type(): EntityType {
                 {v: MoveType_Random, c: (1.0 / (1 + level))},
                 ]),
             cant_move: false,
+            successive_moves: 0,
         }
     } else {
         {
@@ -738,6 +739,7 @@ static function random_enemy_type(): EntityType {
                 {v: MoveType_Random, c: (1.0 / (1 + level))},
                 ]),
             cant_move: false,
+            successive_moves: 0,
         }
     }
 
