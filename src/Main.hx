@@ -146,6 +146,7 @@ EquipmentType_Weapon => Entity.NONE,
 var player_spells = new Array<Spell>();
 static var location_spells = [for (x in 0...map_width) [for (y in 0...map_height) new Array<Spell>()]];
 var inventory = Data.create2darray(inventory_width, inventory_height, Entity.NONE);
+var spells_this_turn = [for (i in 0...(Spells.last_prio + 1)) new Array<Spell>()];
 
 var attack_target = Entity.NONE;
 var interact_target = Entity.NONE;
@@ -164,6 +165,8 @@ var start_targeting = false;
 var targeting_for_use = false;
 var use_entity_that_needs_target = Entity.NONE;
 var use_target = Entity.NONE;
+
+
 
 function init() {
     Gfx.resizescreen(screen_width, screen_height, true);
@@ -206,15 +209,28 @@ function generate_level() {
         Entity.remove(e);
     }
 
-    var removed_spells = new Array<Spell>();
-    // Remove level-specific spells
-    for (spell in player_spells) {
-        if (spell.duration == Entity.LEVEL_DURATION) {
-            removed_spells.push(spell);
+    // Remove level-specific spells from current spells and spells about to be casted
+    {
+        var removed_spells = new Array<Spell>();
+        for (spell in player_spells) {
+            if (spell.duration == Entity.LEVEL_DURATION) {
+                removed_spells.push(spell);
+            }
+        }
+        for (spell in removed_spells) {
+            player_spells.remove(spell);
         }
     }
-    for (spell in removed_spells) {
-        player_spells.remove(spell);
+    for (list in spells_this_turn) {
+        var removed_spells = new Array<Spell>();
+        for (s in list) {
+            if (s.duration == Entity.LEVEL_DURATION) {
+                removed_spells.push(s);
+            }
+        }
+        for (spell in removed_spells) {
+            list.remove(spell);
+        }
     }
 
     // Remove location spells
@@ -830,7 +846,7 @@ function entity_attack_player(e: Int) {
         combat.aggression = AggressionType_Aggressive;
 
         Entity.move[e] = {
-            type: MoveType_Straight,
+            type: MoveType_Astar,
             cant_move: false,
             successive_moves: 0,
             chase_dst: Main.view_width, // chase forever
@@ -949,13 +965,15 @@ function player_attack_entity(e: Int, attacks: Map<ElementType, Int>) {
             drop_entity_from_entity(e, target_name);
         }
 
-        // Merchant death makes all items in the room free
+        // Merchant death makes all buy items free
         if (Entity.name.exists(e) && Entity.name[e] == 'Merchant') {
             var merchant_room = Entity.position[e].room;
-            for (e in Entity.position.keys()) {
-                if (Entity.position[e].room == merchant_room && Entity.buy.exists(e)) {
-                    Entity.buy.remove(e);
-                }
+            var removed_buys = new Array<Int>();
+            for (e in Entity.buy.keys()) {
+                removed_buys.push(e);
+            }
+            for (e in removed_buys) {
+                Entity.buy.remove(e);
             }
         }
 
@@ -1407,8 +1425,14 @@ function update() {
             0;
         }
 
+        var y_offset = switch (equipment_type) {
+            case EquipmentType_Head: -2 * world_scale;
+            case EquipmentType_Legs: 3 * world_scale;
+            default: 0;
+        }
+
         if (equipment_tile != Tile.None) {
-            Gfx.drawtile(screen_x(player_x) + x_offset, screen_y(player_y), 'tiles', equipment_tile); 
+            Gfx.drawtile(screen_x(player_x) + x_offset, screen_y(player_y) + y_offset, 'tiles', equipment_tile); 
         }
     }
 
@@ -1981,7 +2005,7 @@ function update() {
         //
         // Process spells
         //
-        var active_spells = [for (i in 0...(Spells.last_prio + 1)) new Array<Spell>()];
+        spells_this_turn = [for (i in 0...(Spells.last_prio + 1)) new Array<Spell>()];
 
         function process_spell(spell: Spell): Bool {
             var spell_over = false;
@@ -2023,7 +2047,7 @@ function update() {
             if (active) {
                 if (Spells.prios.exists(spell.type)) {
                     var prio = Spells.prios[spell.type];
-                    active_spells[prio].push(spell);
+                    spells_this_turn[prio].push(spell);
                 } else {
                     trace('no prio defined for ${spell.type}');
                 }
@@ -2077,7 +2101,7 @@ function update() {
 
         // Do spells in order of their priority, first 0th prio spells, then 1st, etc...
         for (i in 0...(Spells.last_prio + 1)) {
-            for (spell in active_spells[i]) {
+            for (spell in spells_this_turn[i]) {
                 do_spell(spell);
             }
         }

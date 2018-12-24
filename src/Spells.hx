@@ -582,7 +582,6 @@ static function random_potion_spells(level: Int): Array<Spell> {
 
     var value = switch (type) {
         case SpellType_ModHealth: Stats.get({min: 5, max: 5, scaling: 1.0}, level);
-        case SpellType_ModHealthMax: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
         case SpellType_ModAttack: Stats.get({min: 2, max: 3, scaling: 0.5}, level);
         case SpellType_ModDefense: Stats.get({min: 10, max: 15, scaling: 1.0}, level);
         default: 0;

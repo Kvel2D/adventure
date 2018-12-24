@@ -185,54 +185,6 @@ static function spell_element_count(spells: Array<Spell>): Int {
     return spell_elements.length;
 }
 
-static function fountain(x: Int, y: Int): Int {
-    var e = Entity.make();
-
-    Entity.set_position(e, x, y);
-    Entity.name[e] = 'Fountain';
-    // Entity.use[e] = {
-    //     type: UseType_Heal,
-    //     value: 2, 
-    //     charges: 1,
-    //     consumable: false,
-    //     flavor_text: 'You drink from the fountain.',
-    //     need_target: false,
-    // };
-    Entity.draw_char[e] = {
-        char: 'F',
-        color: Col.WHITE
-    };
-    Entity.description[e] = 'A beautiful fountain. Water flowing through it looks magical.';
-
-    Entity.validate(e);
-
-    return e;
-}
-
-static function health_potion(x: Int, y: Int): Int {
-    var e = Entity.make();
-
-    Entity.set_position(e, x, y);
-    Entity.name[e] = 'Potion';
-    Entity.item[e] = {
-        name: "Healing potion",
-        type: ItemType_Normal,
-        spells: [],
-    };
-    Entity.use[e] = {
-        spells: [Spells.health_instant()],
-        charges: 1,
-        consumable: true,
-        flavor_text: 'You drink the potion.',
-        need_target: false,
-    };
-    Entity.draw_tile[e] = Tile.PotionPhysical;
-
-    Entity.validate(e);
-
-    return e;
-}
-
 static function key(x: Int, y: Int, color: Int): Int {
     var e = Entity.make();
 
@@ -463,7 +415,6 @@ static function random_weapon(x: Int, y: Int): Int {
     var weapon_names = ['copper sword', 'iron shank', 'big hammer'];
     Entity.name[e] = 'Weapon';
 
-
     var attack_total = Stats.get({min: 1, max: 1, scaling: 1.0}, level); 
 
     var element_count: Int = 
@@ -479,11 +430,11 @@ static function random_weapon(x: Int, y: Int): Int {
         Spells.attack_buff(element, attack_split[element])
     ];
 
-    var buff_count: Int = 
-    if (level == 0) 0;
-    else if (level < 2) Random.int(0, 1);
-    else Random.int(1, 3);
 
+    // var buff_count: Int = 
+    // if (level == 0) 0;
+    // else if (level < 2) Random.int(0, 1);
+    // else Random.int(1, 3);
 
     Entity.equipment[e] = {
         name: Random.pick(weapon_names),
@@ -686,10 +637,10 @@ static function random_enemy_type(): EntityType {
         1;
     } else {
         Pick.value([
-        {v: 1, c: 8.0},
-        {v: 2, c: 2.0},
-        {v: 3, c: 1.0},
-        ]);
+            {v: 1, c: 8.0},
+            {v: 2, c: 2.0},
+            {v: 3, c: 1.0},
+            ]);
     }
 
     // Long-ranged mobs have weaker attack to compensate
@@ -698,7 +649,11 @@ static function random_enemy_type(): EntityType {
     var range_factor = if (range >= 3) 0.5 else if (range >= 2) 0.75 else 1.0;
     var attack = Stats.get({min: 1 * range_factor, max: 1.5 * range_factor, scaling: 1.0}, level);
     var health = Stats.get({min: 1, max: 3, scaling: 1.0}, level); 
-    var absorb = Stats.get({min: 0, max: 0, scaling: 1.0}, level); 
+    var absorb = if (level < 2) {
+        0;
+    } else {
+        Stats.get({min: 0, max: 0, scaling: 1.0}, level); 
+    }
 
     var attack_physical = Std.int(Math.floor(attack * (1 - element_ratio)));
     var attack_elemental = Std.int(Math.floor(attack * element_ratio));
@@ -873,10 +828,10 @@ static function merchant(x: Int, y: Int): Int {
     Entity.combat[e] = {
         health: Stats.get({min: 10, max: 20, scaling: 2.0}, level), 
         attack: [
-            ElementType_Physical => Stats.get({min: 3, max: 3, scaling: 1.0}, level)
+        ElementType_Physical => Stats.get({min: 3, max: 3, scaling: 1.0}, level)
         ], 
         absorb: [
-            ElementType_Physical => Stats.get({min: 1, max: 1, scaling: 0.5}, level)
+        ElementType_Physical => Stats.get({min: 1, max: 1, scaling: 0.5}, level)
         ], 
         message: 'Merchant says: "You will regret this".',
         aggression: AggressionType_NeutralToAggressive,

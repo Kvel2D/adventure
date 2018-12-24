@@ -1,6 +1,8 @@
 --------------------------------------------------------------------------
 TODO
 
+try removing elements, make everything just physical
+
 need to think about defenses for armor
     the random splits are too confusing
     need to standardize to 
@@ -12,14 +14,14 @@ need to think about defenses for armor
 --------------------------------------------------------------------------
 DONE
 
+
+
 --------------------------------------------------------------------------
 PROBLEMS
 
 should center equipment(or offset it when drawing on player?)
 
 fat connections still sometimes go out of room bounds
-
-uncover map uncovered for next level too
 
 somehow picked up item and it still had buy component on
 
