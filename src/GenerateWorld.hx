@@ -49,7 +49,7 @@ static var spacing = 3;
 static var iterations = 300;
 static var max_rooms = 15;
 
-static var enemy_room_entity_amount = 5;
+static var enemy_room_entity_amount = 2;
 static var item_room_entity_amount = 2;
 static var merchant_item_amount = 3;
 
@@ -197,9 +197,9 @@ static function fill_rooms_with_entities() {
                 }
                 var pos = positions.pop();
                 Pick.value([
-                    {v: Entities.random_armor, c: 1.0},
+                    {v: Entities.random_armor, c: 3.0},
+                    {v: Entities.random_ring, c: 3.0},
                     {v: Entities.random_weapon, c: 1.0},
-                    {v: Entities.random_ring, c: 1.0},
                     {v: Entities.random_statue, c: 1.0},
                     ])
                 (pos.x, pos.y);
@@ -216,7 +216,7 @@ static function fill_rooms_with_entities() {
                     {v: random_enemy, c: 50.0},
                     {v: Entities.unlocked_chest, c: 12.0},
                     {v: Entities.random_potion, c: 6.0},
-                    {v: Entities.random_armor, c: 5.0},
+                    {v: Entities.random_armor, c: 6.0},
                     {v: Entities.random_scroll, c: 4.0},
                     {v: Entities.random_weapon, c: 1.0},
                     {v: Entities.random_ring, c: 1.0},
@@ -281,7 +281,7 @@ static function fill_rooms_with_entities() {
                     var pos = positions.pop();
                     Pick.value([
                         {v: Entities.random_potion, c: 6.0},
-                        {v: Entities.random_armor, c: 5.0},
+                        {v: Entities.random_armor, c: 6.0},
                         {v: Entities.random_scroll, c: 3.0},
                         {v: Entities.locked_chest, c: 2.0},
                         {v: Entities.random_weapon, c: 1.0},

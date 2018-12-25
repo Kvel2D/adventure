@@ -1,15 +1,37 @@
 --------------------------------------------------------------------------
 TODO
 
-try removing elements, make everything just physical
+need to decrease merchant prices because less enemies can be killed
 
-need to think about defenses for armor
-    the random splits are too confusing
-    need to standardize to 
-        +to all defences
-        or +to one defense but more powerful
-        or +to 2-3 defenses
-    and preferrably same numbers of all elements, the randomly changing numbers are hard to read
+need to draw health / max health
+
+unique icons for weapons
+
+enemy encounters should be rare
+    most of the level is picking up items and preparing for the next fight
+    rooms with 2 enemies are a rare challenge
+    with 3 is like a special encounter, even rarer
+
+balancing
+    enemy hp
+        never too low so that enemies take at least some hits to kill
+    player armor
+        not too high - enemies should always deal at least some damage
+        enemy attack    = 1-1.5, scaled by 1.0
+        armor defense   = 1-2(3-6), scaled by 1.0
+
+        also armor bonuses from potions and rings are important
+    player attack
+        never so high that enemies are one-shot
+    max health bonuses should be important
+        with no max health bonus, a single mob in a fight would deal more than hp's worth of damage, which means the player has to heal and take an extra hit
+    attack bonus pot should only decrease the fight length, not make you oneshot enemies
+
+
+passive/neutral should never chase
+    only aggressive
+ok to have too many potions
+    balanced by the fact that i want to carry other items so have to leave some potions behind
 
 --------------------------------------------------------------------------
 DONE
@@ -18,8 +40,6 @@ DONE
 
 --------------------------------------------------------------------------
 PROBLEMS
-
-should center equipment(or offset it when drawing on player?)
 
 fat connections still sometimes go out of room bounds
 

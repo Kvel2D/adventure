@@ -91,14 +91,6 @@ static inline var last_prio = 3;
 // the interval thing is only for heal over time/dmg over time
 // attack bonuses/ health max bonuses are applied every turn
 static function get_description(spell: Spell): String {
-    var element = switch (spell.element) {
-        case ElementType_Physical: 'physical';
-        case ElementType_Fire: 'fire';
-        case ElementType_Ice: 'ice';
-        case ElementType_Shadow: 'shadow';
-        case ElementType_Light: 'light';
-    }
-
     // effect + interval (if not 1) + duration
     // +2 fire attack
     // +2 fire attack for 30 turns
@@ -113,15 +105,15 @@ static function get_description(spell: Spell): String {
     var effect = switch (spell.type) {
         case SpellType_ModHealth: '$sign${spell.value} health';
         case SpellType_ModHealthMax: '$sign${spell.value} max health';
-        case SpellType_ModAttack: '$sign${spell.value} ${element} attack';
-        case SpellType_ModDefense: '$sign${spell.value} ${element} defense';
+        case SpellType_ModAttack: '$sign${spell.value} attack';
+        case SpellType_ModDefense: '$sign${spell.value} defense';
         case SpellType_ModMoveSpeed: '$sign${spell.value} move speed';
         case SpellType_ModDropChance: '$sign${spell.value}% item drop chance';
         case SpellType_ModCopperDrop: '$sign${spell.value}% copper drop chance';
 
         case SpellType_ModLevelHealth: '$sign${spell.value} health to all enemies on the level';
-        case SpellType_ModLevelAttack: '$sign${spell.value} ${element} attack to all enemies on the level';
-        case SpellType_ModLevelAbsorb: '$sign${spell.value} ${element} absorb to all enemies on the level';
+        case SpellType_ModLevelAttack: '$sign${spell.value} attack to all enemies on the level';
+        case SpellType_ModLevelAbsorb: '$sign${spell.value} absorb to all enemies on the level';
 
         case SpellType_EnergyShield: 'energy shield that absorbs ${spell.value} damage';
         case SpellType_Invisibility: 'turn invisible';
@@ -133,7 +125,7 @@ static function get_description(spell: Spell): String {
         case SpellType_Noclip: 'go through walls';
         case SpellType_ShowThings: 'see tresure on the map';
         case SpellType_NextFloor: 'go to next floor';
-        case SpellType_AoeDamage: 'deal ${spell.value} ${element} damage to all visible enemies';
+        case SpellType_AoeDamage: 'deal ${spell.value} damage to all visible enemies';
         case SpellType_ModUseCharges: 'add ${spell.value} use charges to item';
         case SpellType_CopyItem: 'copy item in your inventory and drop it on the ground (must have free space around you or the spell fails)';
     }
@@ -570,26 +562,16 @@ static function random_potion_spells(level: Int): Array<Spell> {
         default: 0;
     }
 
-    var elements = switch (type) {
-        case SpellType_ModHealth: [ElementType_Light];
-        case SpellType_ModHealthMax: [ElementType_Shadow];
-        case SpellType_UncoverMap: [ElementType_Light];
-        case SpellType_ModAttack: [random_element()];
-        case SpellType_ModDefense: all_elements();
-        case SpellType_Invisibility: [ElementType_Shadow];
-        default: [ElementType_Physical];
-    }
-
     var value = switch (type) {
         case SpellType_ModHealth: Stats.get({min: 5, max: 5, scaling: 1.0}, level);
-        case SpellType_ModAttack: Stats.get({min: 2, max: 3, scaling: 0.5}, level);
-        case SpellType_ModDefense: Stats.get({min: 10, max: 15, scaling: 1.0}, level);
+        case SpellType_ModAttack: Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+        case SpellType_ModDefense: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
         default: 0;
     }
 
-    return [for (element in elements) {
+    return [{
         type: type,
-        element: element,
+        element: ElementType_Physical,
         duration_type: duration_type,
         duration: duration,
         interval: 1,
@@ -647,23 +629,9 @@ static function random_scroll_spell(level: Int): Spell {
         default: 0;
     }
 
-    var element = switch (type) {
-        case SpellType_ModHealthMax: ElementType_Shadow;
-        case SpellType_UncoverMap: ElementType_Light;
-        case SpellType_Nolos: ElementType_Light;
-        case SpellType_Noclip: ElementType_Shadow;
-        case SpellType_RandomTeleport: ElementType_Shadow;
-        case SpellType_SafeTeleport: ElementType_Light;
-        case SpellType_ShowThings: ElementType_Fire;
-        case SpellType_AoeDamage: random_element();
-        case SpellType_ModUseCharges: ElementType_Shadow;
-        case SpellType_CopyItem: ElementType_Light;
-        default: ElementType_Physical;
-    }
-
     return {
         type: type,
-        element: element,
+        element: ElementType_Physical,
         duration_type: duration_type,
         duration: duration,
         interval: 1,
@@ -699,17 +667,9 @@ static function random_ring_spell(level: Int): Spell {
         default: 1;
     }
 
-    var element = switch (type) {
-        case SpellType_ModHealthMax: ElementType_Physical;
-        case SpellType_ModAttack: random_element();
-        case SpellType_ModDefense: random_element();
-        case SpellType_AoeDamage: random_element();
-        default: ElementType_Physical;
-    }
-
     return {
         type: type,
-        element: element,
+        element: ElementType_Physical,
         duration_type: duration,
         duration: Entity.INFINITE_DURATION,
         interval: interval,
@@ -728,16 +688,9 @@ static function enemy_curse_spells(): Array<Spell> {
         {v: SpellType_ModLevelAbsorb, c: 1.0},
         ]);
 
-    var elements = switch (type) {
-        case SpellType_ModLevelAbsorb: all_elements();
-        case SpellType_ModLevelHealth: [ElementType_Shadow];
-        case SpellType_ModLevelAttack: all_elements();
-        default: [ElementType_Shadow];
-    }
-
-    return [for (element in elements) {
+    return [{
         type: type,
-        element: element,
+        element: ElementType_Physical,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -760,16 +713,9 @@ static function enemy_buff_spells(avoid_type: SpellType = null): Array<Spell> {
             ]);
     }
 
-    var elements = switch (type) {
-        case SpellType_ModLevelAbsorb: all_elements();
-        case SpellType_ModLevelHealth: [ElementType_Shadow];
-        case SpellType_ModLevelAttack: [random_element()];
-        default: [ElementType_Shadow];
-    }
-
-    return [for (element in elements) {
+    return [{
         type: type,
-        element: element,
+        element: ElementType_Physical,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -800,16 +746,9 @@ static function player_buff_spell(): Spell {
         default: 0;
     }
 
-    var element = switch (type) {
-        case SpellType_ModAttack: random_element();
-        case SpellType_ModDefense: random_element();
-        case SpellType_AoeDamage: random_element();
-        default: ElementType_Physical;
-    }
-
     return {
         type: type,
-        element: element,
+        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.LEVEL_DURATION,
         interval: interval,
@@ -919,7 +858,7 @@ static function statue_suthaephes(level: Int): Array<Spell> {
 
         return {
             type: SpellType_ModHealth,
-            element: ElementType_Fire,
+            element: ElementType_Physical,
             duration_type: duration_type,
             duration: duration,
             interval: interval,
@@ -938,7 +877,7 @@ static function poison_room(r: Room) {
     // NOTE: all locations get a shared reference to spell so that duration is shared between them, otherwise the spell wouldn't tick unless you stood in the same place 
     var poison_spell = {
         type: SpellType_ModHealth,
-        element: ElementType_Shadow,
+        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: Random.int(10, 15),
@@ -960,7 +899,7 @@ static function lava_room(r: Room) {
     
     var lava_spell = {
         type: SpellType_ModHealth,
-        element: ElementType_Fire,
+        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: Random.int(2, 3),
@@ -985,7 +924,7 @@ static function ice_room(r: Room) {
 
     var ice_spell = {
         type: SpellType_ModHealth,
-        element: ElementType_Ice,
+        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: Random.int(10, 15),
@@ -1028,23 +967,20 @@ static function ailment_room(r: Room) {
     var level = Main.current_level;
     
     // TODO: decrease all defences
-    var decrease_def_spells = 
-    [for (element in Type.allEnums(ElementType)) {
+    var decrease_def_spell = {
         type: SpellType_ModDefense,
-        element: element,
+        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: 1,
         interval_current: 0,
         value: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level),
         origin_name: "noname",
-    }];
+    };
 
     for (x in r.x...r.x + r.width) {
         for (y in r.y...r.y + r.height) {
-            for (spell in decrease_def_spells) {
-                Main.location_spells[x][y].push(spell);
-            }
+            Main.location_spells[x][y].push(decrease_def_spell);
             Main.tiles[x][y] = Tile.Ice;
         }
     }

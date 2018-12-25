@@ -425,9 +425,12 @@ static function random_weapon(x: Int, y: Int): Int {
 
     var attack_split = random_element_split(element_count, attack_total);
     
+    // var attack_spells = [
+    // for (element in attack_split.keys())
+    //     Spells.attack_buff(element, attack_split[element])
+    // ];
     var attack_spells = [
-    for (element in attack_split.keys())
-        Spells.attack_buff(element, attack_split[element])
+    Spells.attack_buff(ElementType_Physical, attack_total)
     ];
 
 
@@ -467,7 +470,7 @@ static function random_armor(x: Int, y: Int): Int {
     Entity.name[e] = 'Armor';
     Entity.draw_tile[e] = armor_tiles[armor_type][Math.floor(Math.min(5, level / 2))];
 
-    var defense_total = Stats.get({min: 6, max: 8, scaling: 1.5}, level);
+    var defense_total = Stats.get({min: 1, max: 2, scaling: 1.0}, level);
 
     var element_count: Int = 
     if (level == 0) Random.int(1, 2);
@@ -477,9 +480,12 @@ static function random_armor(x: Int, y: Int): Int {
 
     var defense_split = random_element_split(element_count, defense_total);
 
+    // var defense_spells = [
+    // for (element in defense_split.keys())
+    //     Spells.defense_buff(element, defense_split[element])
+    // ];
     var defense_spells = [
-    for (element in defense_split.keys())
-        Spells.defense_buff(element, defense_split[element])
+    Spells.defense_buff(ElementType_Physical, defense_total)
     ];
 
     Entity.equipment[e] = {
@@ -625,13 +631,6 @@ static function random_enemy_type(): EntityType {
 
     var level = Main.current_level;
 
-    // Higher floors have more elemental enemies, with possibility of full elementals
-    var element_ratio: Float = 
-    if (level == 0) 0;
-    else if (level < 2) Random.float(0, 0.33);
-    else if (level < 3) Random.float(0, 0.66);
-    else Random.float(0, 1);
-
     // Ranges are squared, this means that each range covers a square area
     var range: Int = if (level == 0) {
         1;
@@ -646,38 +645,25 @@ static function random_enemy_type(): EntityType {
     // Long-ranged mobs have weaker attack to compensate
     // 0.75 of regular for range = 2
     // 0.5 of regular for range = 3
-    var range_factor = if (range >= 3) 0.5 else if (range >= 2) 0.75 else 1.0;
+    // var range_factor = if (range >= 3) 0.5 else if (range >= 2) 0.75 else 1.0;
+    var range_factor = 1.0;
     var attack = Stats.get({min: 1 * range_factor, max: 1.5 * range_factor, scaling: 1.0}, level);
-    var health = Stats.get({min: 1, max: 3, scaling: 1.0}, level); 
-    var absorb = if (level < 2) {
-        0;
-    } else {
-        Stats.get({min: 0, max: 0, scaling: 1.0}, level); 
-    }
-
-    var attack_physical = Std.int(Math.floor(attack * (1 - element_ratio)));
-    var attack_elemental = Std.int(Math.floor(attack * element_ratio));
-
-    var absorb_physical = Std.int(Math.floor(absorb * (1 - element_ratio)));
-    var absorb_elemental = Std.int(Math.floor(absorb * element_ratio));
+    var health = Stats.get({min: 4, max: 5, scaling: 1.0}, level); 
 
     var element = Random.pick([ElementType_Fire, ElementType_Ice, ElementType_Light, ElementType_Shadow]);
 
-    var attacks = [for (element in Type.allEnums(ElementType)) element => 0];
-    attacks[ElementType_Physical] = attack_physical;
-    attacks[element] = attack_elemental;
+    var attacks = [ElementType_Physical => attack];
 
-    var absorbs = [for (element in Type.allEnums(ElementType)) element => 0];
-    absorbs[ElementType_Physical] = absorb_physical;
-    absorbs[element] = absorb_elemental;
+    // var absorb = if (level < 2) {
+    //     0;
+    // } else {
+    //     Stats.get({min: 0, max: 0, scaling: 1.0}, level); 
+    // }
+    var absorb = 0;
+    var absorbs = [ElementType_Physical => absorb];
 
     // Only color according to element if some stat is non-zero
-    var color = 
-    if (attack_elemental > 0 || absorb_elemental > 0) {
-        get_element_color(element);
-    } else {
-        get_element_color(ElementType_Physical);
-    }
+    var color = get_element_color(ElementType_Physical);
 
     var aggression_type = Pick.value([
         {v: AggressionType_Aggressive, c: 1.0},
@@ -830,9 +816,7 @@ static function merchant(x: Int, y: Int): Int {
         attack: [
         ElementType_Physical => Stats.get({min: 3, max: 3, scaling: 1.0}, level)
         ], 
-        absorb: [
-        ElementType_Physical => Stats.get({min: 1, max: 1, scaling: 0.5}, level)
-        ], 
+        absorb: [ElementType_Physical => 0],
         message: 'Merchant says: "You will regret this".',
         aggression: AggressionType_NeutralToAggressive,
         attacked_by_player: false,

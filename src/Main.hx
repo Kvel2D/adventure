@@ -176,7 +176,6 @@ function init() {
     Gfx.createimage('tiles_canvas', tilesize * view_width, tilesize * view_height);
     Gfx.createimage('frametime_canvas', 100, 50);
     Gfx.createimage('frametime_canvas2', 100, 50);
-    Gfx.createimage('player_colored_stats', screen_width, screen_height);
     Gfx.createimage('message_canvas', ui_wordwrap, 320);
 
     Entities.read_name_corpus();
@@ -1475,56 +1474,13 @@ function update() {
     player_stats += 'PLAYER';
     player_stats += '\nPosition: ${player_x} ${player_y}, Floor: ${current_level}';
     player_stats += '\nHealth: ${player_health}/${player_health_max + player_health_max_mod}';
-    player_stats += '\nAttack:';
-    player_stats += '\nDefense:';
+    var attack_total = player_attack_total();
+    player_stats += '\nAttack: ${attack_total[ElementType_Physical]}';
+    var defense_total = player_defense_total();
+    player_stats += '\nDefense: ${defense_total[ElementType_Physical]}';
     player_stats += '\nEnergy shield: ${player_pure_absorb}';
     player_stats += '\nCopper: ${copper_count}';
     Text.display(ui_x, player_stats_y, player_stats);
-    //
-    // Player colored stats
-    //
-    function stats_changed(old: Map<ElementType, Int>, current: Map<ElementType, Int>) {
-        for (element in Type.allEnums(ElementType)) {
-            if (old[element] != current[element]) {
-                return true;
-            }
-        }
-        return false;
-    }
-    var attack_total = player_attack_total();
-    var defense_total = player_defense_total();
-    if (stats_changed(player_attack_total_old, attack_total) || stats_changed(player_defense_total_old, defense_total)) {
-        // Update old stats
-        for (element in Type.allEnums(ElementType)) {
-            player_attack_total_old[element] = attack_total[element];
-            player_defense_total_old[element] = defense_total[element];
-        }
-        // Redraw the stats cache image
-        Gfx.drawtoimage('player_colored_stats');
-        Gfx.clearscreen(Col.TRANSPARENT);
-
-        // Attacks
-        // NOTE: 'Defense:' is wider than 'Attack:', so use it to match widths, should probably switch to monospaced font here(or everywhere)
-        var string_so_far = 'Defense:'; 
-        for (element in Type.allEnums(ElementType)) {
-            var element_num = ' ${attack_total[element]}';
-            Text.display(ui_x + Text.width(string_so_far), player_stats_y, '\n\n\n$element_num', Entities.get_element_color(element));
-
-            string_so_far += '001';
-        }
-
-        // Defenses
-        string_so_far = 'Defense:';
-        for (element in Type.allEnums(ElementType)) {
-            var element_num = ' ${defense_total[element]}';
-            Text.display(ui_x + Text.width(string_so_far), player_stats_y, '\n\n\n\n$element_num', Entities.get_element_color(element));
-
-            string_so_far += '001';
-        }
-
-        Gfx.drawtoscreen();
-    }
-    Gfx.drawimage(0, 0, 'player_colored_stats');
 
     //
     // Equipment
