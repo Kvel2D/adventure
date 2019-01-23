@@ -165,26 +165,6 @@ static function generate_name_markov(): String {
     return str;
 }
 
-static function get_element_color(element: ElementType): Int {
-    return switch (element) {
-        case ElementType_Physical: Col.WHITE;
-        case ElementType_Fire: Col.RED;
-        case ElementType_Ice: Col.BLUE;
-        case ElementType_Shadow: Col.rgb(97, 93, 189);
-        case ElementType_Light: Col.YELLOW;
-    }
-}
-
-static function spell_element_count(spells: Array<Spell>): Int {
-    var spell_elements = new Array<ElementType>();
-    for (spell in spells) {
-        if (spell_elements.indexOf(spell.element) == -1) {
-            spell_elements.push(spell.element);
-        }
-    }
-    return spell_elements.length;
-}
-
 static function key(x: Int, y: Int, color: Int): Int {
     var e = Entity.make();
 
@@ -369,40 +349,6 @@ static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
     };
 }
 
-static function random_element_split(element_count: Int, total: Int): Map<ElementType, Int> {
-    function split2(x: Int): Array<Array<Int>> {
-        return [for (i in 0...(x + 1)) [i, x - i]];
-    }
-    function split3(x: Int): Array<Array<Int>> {
-        return [for (i in 0...(x + 1)) for (split in split2(x - i)) [i].concat(split)];
-    }
-    function split4(x: Int): Array<Array<Int>> {
-        return [for (i in 0...(x + 1)) for (split in split3(x - i)) [i].concat(split)];
-    }
-    function split5(x: Int): Array<Array<Int>> {
-        return [for (i in 0...(x + 1)) for (split in split4(x - i)) [i].concat(split)];
-    }
-
-    var all_splits = switch (element_count) {
-        case 1: [[total]];
-        case 2: split2(total);
-        case 3: split3(total);
-        case 4: split4(total);
-        case 5: split5(total);
-        default: [[0]];
-    }
-
-    var split = Random.pick(all_splits);
-
-    var elements = Type.allEnums(ElementType);
-    Random.shuffle(elements);
-
-    return [
-    for (i in 0...element_count) if (split[i] > 0) 
-        elements[i] => split[i]
-    ];
-}
-
 static function random_weapon(x: Int, y: Int): Int {
     var level = Main.get_drop_entity_level();
     
@@ -417,27 +363,45 @@ static function random_weapon(x: Int, y: Int): Int {
 
     var attack_total = Stats.get({min: 1, max: 1, scaling: 1.0}, level); 
 
-    var element_count: Int = 
-    if (level == 0) 1;
-    else if (level < 2) Random.int(1, 2);
-    else if (level < 3) Random.int(1, 3);
-    else Random.int(1, 4);
-
-    var attack_split = random_element_split(element_count, attack_total);
-    
-    // var attack_spells = [
-    // for (element in attack_split.keys())
-    //     Spells.attack_buff(element, attack_split[element])
-    // ];
     var attack_spells = [
-    Spells.attack_buff(ElementType_Physical, attack_total)
+    Spells.attack_buff(attack_total)
     ];
 
+    /*
+    SpellType_RandomTeleport
+    SpellType_SafeTeleport
+    SpellType_AoeDamage
+    SpellType_Invisibility
+    everyattack +SpellType_ModHealth (leech)
+    everyattack -SpellType_ModHealth (damages player)
+    everyattack SpellType_EnergyShield (infrequent)
 
-    // var buff_count: Int = 
-    // if (level == 0) 0;
-    // else if (level < 2) Random.int(0, 1);
-    // else Random.int(1, 3);
+    need to make weapon usable if it got usable spells
+    */
+
+    // Need to split spells into use/buff??
+    // i guess for single pick randomly between use or buff
+    // for double do use + buff or 2 buffs
+    
+    // var buff_count: Int = Pick.value([
+    //     {v: 0, c: 1,
+    //     {v: 1, c: 0.5 * level,
+    //     {v: 2, c: Math.max(0, 0.55 * (level - 1)),
+    //     ]);
+    var buff_count = 1;
+
+    var buff_spells = new Array<Spell>();
+    for (i in 0...buff_count) {
+        buff_spells.push(Spells.random_weapon_buff());
+    }
+
+    Entity.use[e] = {
+        spells: buff_spells,
+        charges: 3,
+        consumable: false,
+        flavor_text: 'You use weapon.',
+        need_target: false,
+    };
 
     Entity.equipment[e] = {
         name: Random.pick(weapon_names),
@@ -471,21 +435,32 @@ static function random_armor(x: Int, y: Int): Int {
     Entity.draw_tile[e] = armor_tiles[armor_type][Math.floor(Math.min(5, level / 2))];
 
     var defense_total = Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+    
+    /*
+    SpellType_ModHealthMax
+    ModAttack
+    ModDefense
 
-    var element_count: Int = 
-    if (level == 0) Random.int(1, 2);
-    else if (level < 2) Random.int(1, 3);
-    else if (level < 3) Random.int(1, 4);
-    else Random.int(1, 5);
+    helmet only
+    SpellType_UncoverMap
+    SpellType_Nolos
+    SpellType_ShowThings
 
-    var defense_split = random_element_split(element_count, defense_total);
+    legs only
+    SpellType_RandomTeleport
+    SpellType_SafeTeleport
+    SpellType_Noclip
+    SpellType_NextFloor
+    SpellType_ModMoveSpeed
 
-    // var defense_spells = [
-    // for (element in defense_split.keys())
-    //     Spells.defense_buff(element, defense_split[element])
-    // ];
+    chest only
+    SpellType_Invisibility
+    SpellType_EnergyShield
+
+    */
+
     var defense_spells = [
-    Spells.defense_buff(ElementType_Physical, defense_total)
+    Spells.defense_buff(defense_total)
     ];
 
     Entity.equipment[e] = {
@@ -555,27 +530,8 @@ static function random_potion(x: Int, y: Int): Int {
         need_target: false,
     };
 
-    // Count spell elements
-    var spell_elements = new Map<ElementType, Bool>();
-    for (spell in spells) {
-        spell_elements[spell.element] = true;
-    }
-
-    Entity.draw_tile[e] = 
-    if (has_healing_spell) {
-        Tile.PotionHealing;
-    } else if (spell_element_count(spells) == 1) {
-        switch(Entity.use[e].spells[0].element) {
-            case ElementType_Physical: Tile.PotionPhysical;
-            case ElementType_Shadow: Tile.PotionShadow;
-            case ElementType_Light: Tile.PotionLight;
-            case ElementType_Fire: Tile.PotionFire;
-            case ElementType_Ice: Tile.PotionIce;
-        }
-    } else {
-        Tile.PotionMixed;
-    }
-
+    // TODO: diversify potion icons based on potion spell
+    Entity.draw_tile[e] = Tile.PotionHealing;
 
     Entity.validate(e);
 
@@ -608,18 +564,8 @@ static function random_scroll(x: Int, y: Int): Int {
         },
     };
 
-    Entity.draw_tile[e] = 
-    if (spell_element_count(spells) == 1) {
-        switch(Entity.use[e].spells[0].element) {
-            case ElementType_Physical: Tile.ScrollPhysical;
-            case ElementType_Shadow: Tile.ScrollShadow;
-            case ElementType_Light: Tile.ScrollLight;
-            case ElementType_Fire: Tile.ScrollFire;
-            case ElementType_Ice: Tile.ScrollIce;
-        }
-    } else {
-        Tile.ScrollMixed;
-    }
+    // TODO: diversify scroll icons based on scroll spell
+    Entity.draw_tile[e] = Tile.ScrollPhysical;
 
     Entity.validate(e);
 
@@ -650,20 +596,10 @@ static function random_enemy_type(): EntityType {
     var attack = Stats.get({min: 1 * range_factor, max: 1.5 * range_factor, scaling: 1.0}, level);
     var health = Stats.get({min: 4, max: 5, scaling: 1.0}, level); 
 
-    var element = Random.pick([ElementType_Fire, ElementType_Ice, ElementType_Light, ElementType_Shadow]);
-
-    var attacks = [ElementType_Physical => attack];
-
-    // var absorb = if (level < 2) {
-    //     0;
-    // } else {
-    //     Stats.get({min: 0, max: 0, scaling: 1.0}, level); 
-    // }
     var absorb = 0;
-    var absorbs = [ElementType_Physical => absorb];
 
-    // Only color according to element if some stat is non-zero
-    var color = get_element_color(ElementType_Physical);
+    // TODO: diversify enemy colors
+    var color = Col.GRAY;
 
     var aggression_type = Pick.value([
         {v: AggressionType_Aggressive, c: 1.0},
@@ -706,8 +642,6 @@ static function random_enemy_type(): EntityType {
         case AggressionType_Passive: '$name cowers in fear.';
     };
 
-    // trace('ENEMY lvl$level: hp=$health,atk=$attack_physical+$attack_elemental,abs=$absorb_physical+$absorb_elemental');
-
     return {
         name: name,
         description: 'It\'s a $name.',
@@ -721,8 +655,8 @@ static function random_enemy_type(): EntityType {
         use: null,
         combat: {
             health: health, 
-            attack: attacks, 
-            absorb: absorbs, 
+            attack: attack, 
+            absorb: absorb, 
             message: message,
             aggression: aggression_type,
             attacked_by_player: false,
@@ -754,43 +688,42 @@ static function random_statue(x: Int, y: Int): Int {
 
     Entity.set_position(e, x, y);
 
-    // NOTE: theme element doesn't affect spell elements, it's just for the name, draw tile and the sets of spells that are picked
-    var theme_element = Random.pick(Type.allEnums(ElementType));
+    var statue_god = Random.pick(Type.allEnums(StatueGod));
 
-    Entity.name[e] = switch (theme_element) {
-        case ElementType_Physical: 'Altar of Sera';
-        case ElementType_Shadow: 'Statue of Subere';
-        case ElementType_Light: 'Ollopa\'s effigy';
-        case ElementType_Fire: 'Shrine of Suthaephes';
-        case ElementType_Ice: 'Enohik\'s pedestal';
+    Entity.name[e] = switch (statue_god) {
+        case StatueGod_Sera: 'Altar of Sera';
+        case StatueGod_Subere: 'Statue of Subere';
+        case StatueGod_Ollopa: 'Ollopa\'s effigy';
+        case StatueGod_Suthaephes: 'Shrine of Suthaephes';
+        case StatueGod_Enohik: 'Enohik\'s pedestal';
     }
 
     Entity.use[e] = {
-        spells: switch (theme_element) {
-            case ElementType_Physical: Spells.statue_sera(level);
-            case ElementType_Shadow: Spells.statue_subere(level);
-            case ElementType_Light: Spells.statue_ollopa(level);
-            case ElementType_Fire: Spells.statue_suthaephes(level);
-            case ElementType_Ice: Spells.statue_enohik(level);
+        spells: switch (statue_god) {
+            case StatueGod_Sera: Spells.statue_sera(level);
+            case StatueGod_Subere: Spells.statue_subere(level);
+            case StatueGod_Ollopa: Spells.statue_ollopa(level);
+            case StatueGod_Suthaephes: Spells.statue_suthaephes(level);
+            case StatueGod_Enohik: Spells.statue_enohik(level);
         },
         charges: 1,
         consumable: false,
-        flavor_text: switch (theme_element) {
-            case ElementType_Physical: 'Sera\'s war cry echoes around you.';
-            case ElementType_Shadow: 'Subere\'s shadow descends on the tower.';
-            case ElementType_Light: 'You obtain Ollopa\'s blessing.';
-            case ElementType_Fire: 'Suthaephes\' burns and strengthens you.';
-            case ElementType_Ice: 'You feel Enohik\'s chill run through your bones.';
+        flavor_text: switch (statue_god) {
+            case StatueGod_Sera: 'Sera\'s war cry echoes around you.';
+            case StatueGod_Subere: 'Subere\'s shadow descends on the tower.';
+            case StatueGod_Ollopa: 'You obtain Ollopa\'s blessing.';
+            case StatueGod_Suthaephes: 'Suthaephes\' burns and strengthens you.';
+            case StatueGod_Enohik: 'You feel Enohik\'s chill run through your bones.';
         },
         need_target: false,
     };
 
-    Entity.draw_tile[e] = switch (theme_element) {
-        case ElementType_Physical: Tile.StatuePhysical;
-        case ElementType_Shadow: Tile.StatueShadow;
-        case ElementType_Light: Tile.StatueLight;
-        case ElementType_Fire: Tile.StatueFire;
-        case ElementType_Ice: Tile.StatueIce;
+    Entity.draw_tile[e] = switch (statue_god) {
+        case StatueGod_Sera: Tile.StatueSera;
+        case StatueGod_Subere: Tile.StatueSubere;
+        case StatueGod_Ollopa: Tile.StatueOllopa;
+        case StatueGod_Suthaephes: Tile.StatueSuthaephes;
+        case StatueGod_Enohik: Tile.StatueEnohik;
     }
 
     Entity.validate(e);
@@ -813,10 +746,8 @@ static function merchant(x: Int, y: Int): Int {
     };
     Entity.combat[e] = {
         health: Stats.get({min: 10, max: 20, scaling: 2.0}, level), 
-        attack: [
-        ElementType_Physical => Stats.get({min: 3, max: 3, scaling: 1.0}, level)
-        ], 
-        absorb: [ElementType_Physical => 0],
+        attack: Stats.get({min: 3, max: 3, scaling: 1.0}, level), 
+        absorb: 0,
         message: 'Merchant says: "You will regret this".',
         aggression: AggressionType_NeutralToAggressive,
         attacked_by_player: false,

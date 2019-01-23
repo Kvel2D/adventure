@@ -32,11 +32,11 @@ class Tile {
     static inline var ScrollIce = at(4, 7);
     static inline var ScrollMixed = at(5, 7);
 
-    static inline var StatuePhysical = at(0, 9);
-    static inline var StatueShadow = at(1, 9);
-    static inline var StatueLight = at(2, 9);
-    static inline var StatueFire = at(3, 9);
-    static inline var StatueIce = at(4, 9);
+    static inline var StatueSera = at(0, 9);
+    static inline var StatueSubere = at(1, 9);
+    static inline var StatueOllopa = at(2, 9);
+    static inline var StatueSuthaephes = at(3, 9);
+    static inline var StatueEnohik = at(4, 9);
 
     static inline var Head0 = at(0, 2);
     static inline var Head1 = at(1, 2);

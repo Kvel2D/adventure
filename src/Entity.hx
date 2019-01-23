@@ -30,14 +30,6 @@ enum MoveType {
     MoveType_StayAway;
 }
 
-enum ElementType {
-    ElementType_Physical;
-    ElementType_Fire;
-    ElementType_Ice;
-    ElementType_Shadow;
-    ElementType_Light;
-}
-
 enum DropTable {
     DropTable_Default;
     DropTable_LockedChest;
@@ -45,8 +37,8 @@ enum DropTable {
 
 typedef Combat = {
     var health: Int;
-    var attack: Map<ElementType, Int>;
-    var absorb: Map<ElementType, Int>;
+    var attack: Int;
+    var absorb: Int;
     var message: String;
     var aggression: AggressionType;
     var attacked_by_player: Bool;
@@ -232,8 +224,8 @@ static function copy(e: Int, x: Int, y: Int): Int {
         var e_combat = combat[e];
         combat[copy] = {
             health: e_combat.health,
-            attack: [ for (key in e_combat.attack.keys()) key => e_combat.attack[key]],
-            absorb: [ for (key in e_combat.absorb.keys()) key => e_combat.absorb[key]],
+            attack: e_combat.attack,
+            absorb: e_combat.absorb,
             message: e_combat.message,
             aggression: e_combat.aggression,
             attacked_by_player: e_combat.attacked_by_player,
@@ -344,8 +336,8 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
     if (type.combat != null) {
         combat[e] = {
             health: type.combat.health,
-            attack: [ for (key in type.combat.attack.keys()) key => type.combat.attack[key]],
-            absorb: [ for (key in type.combat.absorb.keys()) key => type.combat.absorb[key]],
+            attack: type.combat.attack,
+            absorb: type.combat.absorb,
             message: type.combat.message,
             aggression: type.combat.aggression,
             attacked_by_player: type.combat.attacked_by_player,

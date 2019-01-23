@@ -8,7 +8,7 @@ using MathExtensions;
 typedef PreRoom = {
     x: Float,
     y: Float,
-    width: Float,
+    width: Float, 
     height: Float
 }
 
@@ -250,7 +250,7 @@ static function fill_rooms_with_entities() {
                 var sell_items = new Array<Int>();
                 for (i in 0...merchant_item_amount) {
                     sell_items.push(Pick.value([
-                        {v: Entities.random_potion, c: 1.0},
+                        {v: Entities.random_potion, c: 3.0},
                         {v: Entities.random_armor, c: 2.0},
                         {v: Entities.random_scroll, c: 1.0},
                         {v: Entities.random_weapon, c: 1.0},
@@ -263,7 +263,7 @@ static function fill_rooms_with_entities() {
                 // Add cost to items
                 for (e in sell_items) {
                     Entity.buy[e] = {
-                        cost: Stats.get({min: 10, max: 15, scaling: 2.0}, Main.current_level),
+                        cost: Stats.get({min: 5, max: 10, scaling: 2.0}, Main.current_level),
                     };
                 }
                 // For Use entities, increase charges to make them more valuable

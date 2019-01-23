@@ -39,9 +39,16 @@ enum SpellDuration {
     SpellDuration_EveryAttack;
 }
 
+enum StatueGod {
+    StatueGod_Sera;
+    StatueGod_Subere;
+    StatueGod_Ollopa;
+    StatueGod_Suthaephes;
+    StatueGod_Enohik;
+}
+
 typedef Spell = {
     var type: SpellType;
-    var element: ElementType;
     var duration_type: SpellDuration;
     var duration: Int;
     var interval: Int;
@@ -167,18 +174,9 @@ static function get_description(spell: Spell): String {
     return '$effect$interval$duration';
 }
 
-static function random_element(): ElementType {
-    return Random.pick(Type.allEnums(ElementType));
-}
-
-static function all_elements(): Array<ElementType> {
-    return return Type.allEnums(ElementType);
-}
-
 static function copy(spell: Spell): Spell {
     return {
         type: spell.type,
-        element: spell.element,
         duration_type: spell.duration_type,
         duration: spell.duration,
         interval: spell.interval,
@@ -188,10 +186,9 @@ static function copy(spell: Spell): Spell {
     };
 }
 
-static function attack_buff(element: ElementType, value: Int): Spell {
+static function attack_buff(value: Int): Spell {
     return {
         type: SpellType_ModAttack,
-        element: element,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: 1,
@@ -201,10 +198,9 @@ static function attack_buff(element: ElementType, value: Int): Spell {
     }
 }
 
-static function defense_buff(element: ElementType, value: Int): Spell {
+static function defense_buff(value: Int): Spell {
     return {
         type: SpellType_ModDefense,
-        element: element,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: 1,
@@ -217,7 +213,6 @@ static function defense_buff(element: ElementType, value: Int): Spell {
 static function health_instant(): Spell {
     return {
         type: SpellType_ModHealth,
-        element: ElementType_Light,
         duration_type: SpellDuration_Permanent,
         duration: 10,
         interval: 0,
@@ -230,7 +225,6 @@ static function health_instant(): Spell {
 static function heal_overtime(): Spell {
     return {
         type: SpellType_ModHealth,
-        element: ElementType_Light,
         duration_type: SpellDuration_EveryTurn,
         duration: 4,
         interval: 1,
@@ -243,7 +237,6 @@ static function heal_overtime(): Spell {
 static function heal_overattack(): Spell {
     return {
         type: SpellType_ModHealth,
-        element: ElementType_Light,
         duration_type: SpellDuration_EveryAttack,
         duration: 4,
         interval: 1,
@@ -256,7 +249,6 @@ static function heal_overattack(): Spell {
 static function increase_healthmax_forever(): Spell {
     return {
         type: SpellType_ModHealthMax,
-        element: ElementType_Light,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -269,7 +261,6 @@ static function increase_healthmax_forever(): Spell {
 static function increase_healthmax_everyturn(): Spell {
     return {
         type: SpellType_ModHealthMax,
-        element: ElementType_Light,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: 1,
@@ -282,7 +273,6 @@ static function increase_healthmax_everyturn(): Spell {
 static function poison(): Spell {
     return {
         type: SpellType_ModHealth,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: 4,
@@ -295,7 +285,6 @@ static function poison(): Spell {
 static function safe_teleport(): Spell {
     return {
         type: SpellType_SafeTeleport,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_Permanent,
         duration: Entity.INFINITE_DURATION,
         interval: 0,
@@ -308,7 +297,6 @@ static function safe_teleport(): Spell {
 static function random_teleport(): Spell {
     return {
         type: SpellType_RandomTeleport,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_Permanent,
         duration: Entity.INFINITE_DURATION,
         interval: 0,
@@ -321,7 +309,6 @@ static function random_teleport(): Spell {
 static function nolos(): Spell {
     return {
         type: SpellType_Nolos,
-        element: ElementType_Light,
         duration_type: SpellDuration_EveryTurn,
         duration: 100,
         interval: 1,
@@ -334,7 +321,6 @@ static function nolos(): Spell {
 static function noclip(): Spell {
     return {
         type: SpellType_Noclip,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_EveryTurn,
         duration: 100,
         interval: 1,
@@ -347,7 +333,6 @@ static function noclip(): Spell {
 static function show_things(): Spell {
     return {
         type: SpellType_ShowThings,
-        element: ElementType_Fire,
         duration_type: SpellDuration_EveryTurn,
         duration: 30,
         interval: 1,
@@ -360,7 +345,6 @@ static function show_things(): Spell {
 static function next_floor(): Spell {
     return {
         type: SpellType_NextFloor,
-        element: ElementType_Physical,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -373,7 +357,6 @@ static function next_floor(): Spell {
 static function increase_movespeed(): Spell {
     return {
         type: SpellType_ModMoveSpeed,
-        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: 100,
         interval: 1,
@@ -386,7 +369,6 @@ static function increase_movespeed(): Spell {
 static function increase_droprate(): Spell {
     return {
         type: SpellType_ModDropChance,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_EveryTurn,
         duration: 100,
         interval: 1,
@@ -399,7 +381,6 @@ static function increase_droprate(): Spell {
 static function chance_copper_drop(): Spell {
     return {
         type: SpellType_ModCopperDrop,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_EveryTurn,
         duration: 100,
         interval: 1,
@@ -412,7 +393,6 @@ static function chance_copper_drop(): Spell {
 static function fire_aoe(): Spell {
     return {
         type: SpellType_AoeDamage,
-        element: ElementType_Fire,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -425,7 +405,6 @@ static function fire_aoe(): Spell {
 static function drop_level(): Spell {
     return {
         type: SpellType_ModDropLevel,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.LEVEL_DURATION,
         interval: 1,
@@ -438,7 +417,6 @@ static function drop_level(): Spell {
 static function uncover_map(): Spell {
     return {
         type: SpellType_UncoverMap,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.LEVEL_DURATION,
         interval: 1,
@@ -451,7 +429,6 @@ static function uncover_map(): Spell {
 static function mod_level_health(): Spell {
     return {
         type: SpellType_ModLevelHealth,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -464,7 +441,6 @@ static function mod_level_health(): Spell {
 static function mod_level_attack(): Spell {
     return {
         type: SpellType_ModLevelAttack,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -477,7 +453,6 @@ static function mod_level_attack(): Spell {
 static function invisibility(): Spell {
     return {
         type: SpellType_Invisibility,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_EveryTurn,
         duration: 100,
         interval: 1,
@@ -490,7 +465,6 @@ static function invisibility(): Spell {
 static function energy_shield(): Spell {
     return {
         type: SpellType_EnergyShield,
-        element: ElementType_Light,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -503,7 +477,6 @@ static function energy_shield(): Spell {
 static function add_charges(): Spell {
     return {
         type: SpellType_ModUseCharges,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -516,7 +489,6 @@ static function add_charges(): Spell {
 static function copy_item(): Spell {
     return {
         type: SpellType_CopyItem,
-        element: ElementType_Light,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -529,7 +501,6 @@ static function copy_item(): Spell {
 static function test(): Spell {
     return {
         type: SpellType_ModCopperDrop,
-        element: ElementType_Shadow,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.LEVEL_DURATION,
         interval: 1,
@@ -571,7 +542,6 @@ static function random_potion_spells(level: Int): Array<Spell> {
 
     return [{
         type: type,
-        element: ElementType_Physical,
         duration_type: duration_type,
         duration: duration,
         interval: 1,
@@ -593,14 +563,12 @@ static function random_scroll_spell(level: Int): Spell {
         {v: SpellType_AoeDamage, c: 1.0},
         {v: SpellType_ModUseCharges, c: 0.5},
         {v: SpellType_CopyItem, c: 1.0},
+        {v: SpellType_EnergyShield, c: 1.0},
         ]);
 
     var duration_type = switch (type) {
         case SpellType_Nolos: SpellDuration_EveryTurn;
         case SpellType_Noclip: SpellDuration_EveryTurn;
-        case SpellType_RandomTeleport: SpellDuration_Permanent;
-        case SpellType_SafeTeleport: SpellDuration_Permanent;
-        case SpellType_ModHealthMax: SpellDuration_Permanent;
         case SpellType_UncoverMap: SpellDuration_EveryTurn;
         case SpellType_ShowThings: SpellDuration_EveryTurn;
         case SpellType_AoeDamage: Pick.value([
@@ -626,12 +594,12 @@ static function random_scroll_spell(level: Int): Spell {
         case SpellType_ModHealthMax: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_ModUseCharges: 1;
+        case SpellType_EnergyShield: Stats.get({min: 3, max: 5, scaling: 1.0}, level);
         default: 0;
     }
 
     return {
         type: type,
-        element: ElementType_Physical,
         duration_type: duration_type,
         duration: duration,
         interval: 1,
@@ -669,7 +637,6 @@ static function random_ring_spell(level: Int): Spell {
 
     return {
         type: type,
-        element: ElementType_Physical,
         duration_type: duration,
         duration: Entity.INFINITE_DURATION,
         interval: interval,
@@ -690,7 +657,6 @@ static function enemy_curse_spells(): Array<Spell> {
 
     return [{
         type: type,
-        element: ElementType_Physical,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -715,7 +681,6 @@ static function enemy_buff_spells(avoid_type: SpellType = null): Array<Spell> {
 
     return [{
         type: type,
-        element: ElementType_Physical,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
@@ -748,7 +713,6 @@ static function player_buff_spell(): Spell {
 
     return {
         type: type,
-        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.LEVEL_DURATION,
         interval: interval,
@@ -772,7 +736,6 @@ static function statue_subere(level: Int): Array<Spell> {
     function no_drops_spell(): Spell {
         return {
             type: SpellType_ModDropChance,
-            element: ElementType_Shadow,
             duration_type: SpellDuration_EveryTurn,
             duration: Entity.LEVEL_DURATION,
             interval: 1,
@@ -816,7 +779,6 @@ static function statue_ollopa(level: Int): Array<Spell> {
 
         return {
             type: type,
-            element: ElementType_Light,
             duration_type: SpellDuration_EveryTurn,
             duration: Entity.LEVEL_DURATION,
             interval: 1,
@@ -858,7 +820,6 @@ static function statue_suthaephes(level: Int): Array<Spell> {
 
         return {
             type: SpellType_ModHealth,
-            element: ElementType_Physical,
             duration_type: duration_type,
             duration: duration,
             interval: interval,
@@ -877,7 +838,6 @@ static function poison_room(r: Room) {
     // NOTE: all locations get a shared reference to spell so that duration is shared between them, otherwise the spell wouldn't tick unless you stood in the same place 
     var poison_spell = {
         type: SpellType_ModHealth,
-        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: Random.int(10, 15),
@@ -899,7 +859,6 @@ static function lava_room(r: Room) {
     
     var lava_spell = {
         type: SpellType_ModHealth,
-        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: Random.int(2, 3),
@@ -924,7 +883,6 @@ static function ice_room(r: Room) {
 
     var ice_spell = {
         type: SpellType_ModHealth,
-        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: Random.int(10, 15),
@@ -946,7 +904,6 @@ static function teleport_room(r: Room) {
     
     var teleport_spell = {
         type: SpellType_RandomTeleport,
-        element: ElementType_Light,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: Math.round(r.width * 1.5),
@@ -966,10 +923,8 @@ static function teleport_room(r: Room) {
 static function ailment_room(r: Room) {
     var level = Main.current_level;
     
-    // TODO: decrease all defences
     var decrease_def_spell = {
         type: SpellType_ModDefense,
-        element: ElementType_Physical,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.INFINITE_DURATION,
         interval: 1,
@@ -984,6 +939,46 @@ static function ailment_room(r: Room) {
             Main.tiles[x][y] = Tile.Ice;
         }
     }
+}
+
+static function random_weapon_buff(): Spell {
+    var level = Main.current_level;
+
+    var type = Pick.value([
+        {v: SpellType_RandomTeleport, c: 0.25},
+        {v: SpellType_SafeTeleport, c: 0.25},
+        // {v: SpellType_AoeDamage, c: 1.0},
+        // {v: SpellType_Invisibility, c: 0.5},
+        // {v: SpellType_ModHealth, c: 1.0},
+        // {v: SpellType_EnergyShield, c: 1.0},
+        ]);
+
+    var duration_type = switch (type) {
+        case SpellType_Invisibility: SpellDuration_EveryTurn;
+        default: SpellDuration_Permanent;
+    }
+
+    var duration = switch (type) {
+        case SpellType_Invisibility: Random.int(60, 80);
+        default: 0;
+    }
+
+    var value = switch (type) {
+        // case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        // case SpellType_EnergyShield: Stats.get({min: 3, max: 4, scaling: 1.0}, level);
+        // case SpellType_ModHealth: Stats.get({min: 3, max: 4, scaling: 1.0}, level);
+        default: 0;
+    }
+
+    return {
+        type: type,
+        duration_type: duration_type,
+        duration: duration,
+        interval: 1,
+        interval_current: 0,
+        value: value,
+        origin_name: "noname",
+    };
 }
 
 }

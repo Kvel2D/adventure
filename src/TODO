@@ -1,17 +1,6 @@
 --------------------------------------------------------------------------
 TODO
-
-need to decrease merchant prices because less enemies can be killed
-
-need to draw health / max health
-
-unique icons for weapons
-
-enemy encounters should be rare
-    most of the level is picking up items and preparing for the next fight
-    rooms with 2 enemies are a rare challenge
-    with 3 is like a special encounter, even rarer
-
+    
 balancing
     enemy hp
         never too low so that enemies take at least some hits to kill
@@ -28,14 +17,8 @@ balancing
     attack bonus pot should only decrease the fight length, not make you oneshot enemies
 
 
-passive/neutral should never chase
-    only aggressive
-ok to have too many potions
-    balanced by the fact that i want to carry other items so have to leave some potions behind
-
 --------------------------------------------------------------------------
 DONE
-
 
 
 --------------------------------------------------------------------------
@@ -43,7 +26,7 @@ PROBLEMS
 
 fat connections still sometimes go out of room bounds
 
-somehow picked up item and it still had buy component on
+killed merchant but picked up item and still had buy component on
 
 --------------------------------------------------------------------------
 IDEAS
@@ -130,4 +113,10 @@ mod equipment stat
 modhealth everyattack
     something like leech
     most appropriate for weapons
+
+charm
+    turn enemy into friendly
+
+passify
+    turn aggressive enemy into passive
 

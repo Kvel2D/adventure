@@ -130,7 +130,7 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
             prev[neighbor_x][neighbor_y].x = current.x;
             prev[neighbor_x][neighbor_y].y = current.y;
             g_score[neighbor_x][neighbor_y] = tentative_g_score;
-            f_score[neighbor_x][neighbor_y] = g_score[neighbor_x][neighbor_y] + heuristic_score(neighbor_x, neighbor_y, x2, y2);
+            f_score[neighbor_x][neighbor_y] = tentative_g_score + heuristic_score(neighbor_x, neighbor_y, x2, y2);
         }
     }
 
