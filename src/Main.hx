@@ -67,9 +67,9 @@ var damage_numbers = new Array<DamageNumber>();
 var noclip = false;
 var nolos = false;
 var show_things = false;
-var movespeed_mod = 0;
-var dropchance_mod = 0;
-var copperchance_mod = 0;
+var movespeed_mod: Int = 0;
+var dropchance_mod: Int = 0;
+var copper_drop_mod: Int = 0;
 static var increase_drop_level = false;
 var player_is_invisible = false;
 
@@ -80,26 +80,26 @@ var full_minimap_DEV = false;
 var frametime_graph_DEV = false;
 var draw_invisible_entities = true;
 
-static var player_x = 0;
-static var player_y = 0;
-var player_x_old = -1;
-var player_y_old = -1;
-var player_health = 10;
-var copper_count = 0;
-var player_room = -1;
-var player_pure_absorb = 0;
+static var player_x: Int = 0;
+static var player_y: Int = 0;
+var player_x_old: Int = -1;
+var player_y_old: Int = -1;
+var player_health: Int = 10;
+var copper_count: Int = 0;
+var player_room: Int = -1;
+var player_pure_absorb: Int = 0;
 
-static var stairs_x = 0;
-static var stairs_y = 0;
+static var stairs_x: Int = 0;
+static var stairs_y: Int = 0;
 
-var player_health_max = 10;
-var player_health_max_mod = 0;
-var player_attack = 1;
-var player_attack_mod = 0;
-var player_defense = 0;
-var player_defense_mod = 0;
-var player_attack_total_old = -1;
-var player_defense_total_old = -1;
+var player_health_max: Int = 10;
+var player_health_max_mod: Int = 0;
+var player_attack: Int = 1;
+var player_attack_mod: Int = 0;
+var player_defense: Int = 0;
+var player_defense_mod: Int = 0;
+var player_attack_total_old: Int = -1;
+var player_defense_total_old: Int = -1;
 
 var player_equipment = [
 EquipmentType_Head => Entity.NONE,
@@ -244,6 +244,7 @@ function generate_level() {
     for (dx in 1...6) {
         // Entities.random_weapon(player_x + dx, player_y);
         // Entities.random_armor(player_x + dx, player_y);
+        Entities.random_scroll(player_x + dx, player_y);
     }
 
     // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
@@ -854,19 +855,10 @@ function player_attack_entity(e: Int, attack: Int) {
         if (Entity.give_copper_on_death.exists(e)) {
             var give_copper = Entity.give_copper_on_death[e];
 
-            var chance = give_copper.chance + copperchance_mod;
-            if (chance < 0) {
-                chance = 0;
-            } else if (chance > 100) {
-                chance = 100;
-            }
-
-            if (Random.chance(chance)) {
-                var drop_amount = Random.int(give_copper.min, give_copper.max);
-                if (drop_amount > 0) {
-                    copper_count += drop_amount;
-                    add_message('$target_name drops $drop_amount copper.');
-                }
+            var drop_amount = Math.round(Random.int(give_copper.min, give_copper.max) * (1.0 + (copper_drop_mod / 100.0)));
+            if (drop_amount > 0) {
+                copper_count += drop_amount;
+                add_message('$target_name drops $drop_amount copper.');
             }
         }
     }
@@ -1061,7 +1053,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             dropchance_mod += spell.value;
         }
         case SpellType_ModCopperDrop: {
-            copperchance_mod += spell.value;
+            copper_drop_mod += spell.value;
         }
         case SpellType_AoeDamage: {
             var view_x = get_view_x();
@@ -1144,6 +1136,26 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 }
             }
         }
+        case SpellType_Passify: {
+            // Copy target must be an item and in inventory
+            if (Entity.combat.exists(use_target)) {
+                Entity.combat[use_target].aggression = AggressionType_Passive;
+                add_message('You passify the enemy.');
+            }
+        }
+    }
+}
+
+function can_use_entity_on_target(e: Int): Bool {
+    if (Entity.use.exists(use_entity_that_needs_target)) {
+        return switch (Entity.use[use_entity_that_needs_target].spells[0].type) {
+            case SpellType_ModUseCharges: Entity.item.exists(e) && !Entity.position.exists(e);
+            case SpellType_CopyItem: Entity.item.exists(e) && !Entity.position.exists(e);
+            case SpellType_Passify: Entity.combat.exists(e);
+            default: false;
+        }
+    } else {
+        return false;
     }
 }
 
@@ -1667,6 +1679,15 @@ function update() {
     //
     // Left click action
     //
+    // Target entity for use, can't target the use entity itself
+    // If entity is on the map, it must be next to player
+    if (targeting_for_use && !player_acted && Mouse.leftclick() && hovered_anywhere != use_entity_that_needs_target) {
+        if (can_use_entity_on_target(hovered_anywhere)) {
+            use_target = hovered_anywhere;
+            player_acted = true;
+        }
+    }
+
     // Attack, pick up or equip, if only one is possible, if multiple are possible, then must pick one through interact menu
     if (!player_acted && Mouse.leftclick() && Entity.position.exists(hovered_map)) {
         var pos = Entity.position[hovered_map];
@@ -1687,12 +1708,6 @@ function update() {
                 player_acted = true;
             } 
         }
-    }
-
-    // Target entity for use, can't target the use entity itself
-    if (targeting_for_use && !player_acted && Mouse.leftclick() && hovered_anywhere != use_entity_that_needs_target) {
-        use_target = hovered_anywhere;
-        player_acted = true;
     }
 
     //
@@ -1804,7 +1819,7 @@ function update() {
         }
         // Perform targeted use if the target is an item in inventory
         // NOTE: use target is cleared after spells are done
-        if (Entity.item.exists(use_target) && !Entity.position.exists(use_target)) {
+        if (can_use_entity_on_target(use_target)) {
             use_entity(use_entity_that_needs_target);
         }
 
@@ -1835,7 +1850,7 @@ function update() {
         show_things = false;
         movespeed_mod = 0;
         dropchance_mod = 0;
-        copperchance_mod = 0;
+        copper_drop_mod = 0;
         increase_drop_level = false;
         player_is_invisible = false;
 
@@ -1997,6 +2012,6 @@ function update() {
         Gfx.drawtoscreen();
         Gfx.drawimage(400, 100, 'frametime_canvas');
     }
-
 }
+
 }

@@ -60,7 +60,6 @@ typedef Equipment = {
 }
 
 typedef GiveCopper = {
-    var chance: Int;
     var min: Int;
     var max: Int;
 }
@@ -245,7 +244,6 @@ static function copy(e: Int, x: Int, y: Int): Int {
     if (give_copper_on_death.exists(e)) {
         var e_give_copper_on_death = give_copper_on_death[e];
         give_copper_on_death[copy] = {
-            chance: e_give_copper_on_death.chance,
             min: e_give_copper_on_death.min,
             max: e_give_copper_on_death.max,
         };
@@ -355,7 +353,6 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
     }
     if (type.give_copper_on_death != null) {
         give_copper_on_death[e] = {
-            chance: type.give_copper_on_death.chance,
             min: type.give_copper_on_death.min,
             max: type.give_copper_on_death.max,
         };

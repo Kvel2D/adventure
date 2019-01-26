@@ -1,15 +1,21 @@
 --------------------------------------------------------------------------
 TODO
 
-energyshield equip effect on armor can work if it absorbs damage every N attacks
-    
-moving lava room
+friendly mobs
+    make friendly mobs green
+    picking up and dropping friendly enemy is like pokemon
+        pick up an enemy like that and drop it and let it fight other enemies for you
+    can attack friendly to prevent path blocks
+    friendly mobs which attack other mobs
+        other mobs should attack them as well? logic is, enemies select whoever is closer, friendly mobs or player
+    spell to summon friendly mob
 
-make all stationary or passive enemies attack on proximity, otherwise they have no point
-not fun to guess if enemy will attack or not, should just always attack
+    charm spell makes mobs friendly
 
 --------------------------------------------------------------------------
 DONE
+
+
 
 --------------------------------------------------------------------------
 PROBLEMS
@@ -25,15 +31,6 @@ boss mobs
     guaranteed powerful item drop
     big health pool
 
-friendly mobs
-    make friendly mobs green
-    picking up and dropping friendly enemy is like pokemon
-        pick up an enemy like that and drop it and let it fight other enemies for you
-    can attack friendly to prevent path blocks
-    friendly mobs which attack other mobs
-        other mobs should attack them as well?
-    spell to summon friendly mob
-
 find font that's not messed up in html5
 
 scrolling for spell display, at some point spells won't fit in current area
@@ -45,8 +42,6 @@ boss summon rituals
         killing 2 merchants spawns a merchant boss
 
 change color scheme every 3 levels, maybe put a boss at every 3rd level too
-
-room with enemies where your hp is reduced but your attack is continiously increased
 
 insert random patterns in rooms sometimes
     cross-sections
@@ -60,36 +55,17 @@ vary room geometry by level
 
 equipment names
 
+cursed equipment
+    both positive and negative bonuses are outside of normal range, so it gives very high positives and negatives
+    don't want to affect normal equipment though, it should be a completely separate range of weights
+    making the normal weight range extend higher won't work
+
+statue that converts your copper into stats
+
 --------------------------------------------------------------------------
 SPELL IDEAS
 
-mod equipment stat
-    the use item should be separate from scroll
-        "enchanting stone" or something
-    mod attack doesn't cover all options, it modifies natural attack only
-    mod attack of weapon would only modify the weapon which presents an interesting choice of whether to enchant weapon now to get power now or save it for later to enchant a more powerful item
-
-    mod attack should affect a specific element
-    ex: enchant weapon with ice -> +1 ice attack
-
-    could make it general: enchant equipment's ice power:
-    increases attack or defense
-
-    enchanting works like this:
-        use the enchant item => set enchant flag
-        if enchant flag => add "enchant" option in interact
-
-    enchanting items/rings?
-        could be fun
-
-    two types of enchant:
-        one that adds element power even if it's 0
-        other that only increases existing element
-            so enchanting ice on a sword with 1 phys dmg will do nothing 
-
-charm
-    turn enemy into friendly
-
-passify
-    turn aggressive enemy into passive
+enchanting equipment
+    increase attack/defense of equipped weapon/armor
+    only affects certain slot
 

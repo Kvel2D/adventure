@@ -527,6 +527,7 @@ static function random_scroll(x: Int, y: Int): Int {
         need_target: switch (spells[0].type) {
             case SpellType_ModUseCharges: true;
             case SpellType_CopyItem: true;
+            case SpellType_Passify: true;
             default: false;
         },
     };
@@ -544,10 +545,10 @@ static function random_enemy_type(): EntityType {
 
     var level = Main.current_level;
 
-    // Ranges are squared, this means that each range covers a square area
-    var range: Int = if (level == 0) {
+    var range: Int = if (level <= 1) {
         1;
     } else {
+        // NOTE: Ranges are squared, this means that each range covers a square area
         Pick.value([
             {v: 1, c: 8.0},
             {v: 2, c: 2.0},
@@ -556,11 +557,17 @@ static function random_enemy_type(): EntityType {
     }
 
     // Long-ranged mobs have weaker attack to compensate
-    // 0.75 of regular for range = 2
-    // 0.5 of regular for range = 3
-    // var range_factor = if (range >= 3) 0.5 else if (range >= 2) 0.75 else 1.0;
-    var range_factor = 1.0;
+    var range_factor = 
+    if (range == 1) 
+        1.0;
+    else if (range <= 2) 
+        0.5;
+    else 
+        0.25;
     var attack = Stats.get({min: 1 * range_factor, max: 1.5 * range_factor, scaling: 1.0}, level);
+    if (attack == 0) {
+        attack = 1;
+    }
     var health = Stats.get({min: 4, max: 5, scaling: 1.0}, level); 
 
     var absorb = 0;
@@ -572,7 +579,6 @@ static function random_enemy_type(): EntityType {
         {v: AggressionType_Aggressive, c: 1.0},
         {v: AggressionType_NeutralToAggressive, c: 0.1},
         {v: AggressionType_Neutral, c: (0.1 / (1 + level))},
-        {v: AggressionType_Passive, c: (0.1 / (1 + level))},
         ]);
 
     // NeutralToAggressive start out stationary
@@ -636,9 +642,8 @@ static function random_enemy_type(): EntityType {
         },
         talk: Entity.NULL_STRING,
         give_copper_on_death: {
-            chance: 50, 
-            min: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
-            max: Stats.get({min: 2, max: 2, scaling: 1.0}, level),
+            min: Stats.get({min: 1, max: 1, scaling: 0.25}, level), 
+            max: Stats.get({min: 2, max: 2, scaling: 0.25}, level),
         },
         move: move,
         locked: null,
