@@ -213,7 +213,6 @@ function generate_level() {
         }
     }
 
-    // TODO: combine all into one function
     // Generate and connect rooms
     rooms = GenerateWorld.generate_via_digging();
     GenerateWorld.connect_rooms(rooms, Random.float(0.5, 2));
@@ -243,7 +242,8 @@ function generate_level() {
     player_y = rooms[0].y;
     
     for (dx in 1...6) {
-        Entities.random_weapon(player_x + dx, player_y);
+        // Entities.random_weapon(player_x + dx, player_y);
+        // Entities.random_armor(player_x + dx, player_y);
     }
 
     // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
@@ -345,10 +345,11 @@ inline function position_visible(x: Int, y: Int): Bool {
     return !los[x][y] || nolos || nolos_DEV;
 }
 
-function defense_to_absorb(def: Int): Int {
+function defense_to_absorb(): Int {
     // 82 def = absorb at least 8, absorb 9 20% of the time
-    var absorb: Int = Math.floor(def / 10);
-    if (Random.chance((def % 10) * 10)) {
+    var total_defense = player_defense + player_defense_mod;
+    var absorb: Int = Math.floor(total_defense / 10);
+    if (Random.chance((total_defense % 10) * 10)) {
         absorb++;
     }
     return absorb;
@@ -793,7 +794,7 @@ function entity_attack_player(e: Int) {
     var damage_taken = 0;
     var damage_absorbed = 0;
 
-    var absorb = defense_to_absorb(player_defense);
+    var absorb = defense_to_absorb();
     var damage = Std.int(Math.max(0, combat.attack - absorb));
 
     // Apply pure absorb
@@ -905,15 +906,13 @@ function draw_entity(e: Int, x: Float, y: Float) {
         Gfx.drawtile(x, y, 'tiles', Tile.None);
     }
 
-    // Draw use charges if more than one charge
+    // Draw use charges
     if (Entity.use.exists(e)) {
         var use = Entity.use[e];
 
-        if (use.charges > 1) {
-            Text.size = charges_text_size;
-            Text.display(x, y, '${use.charges}', Col.WHITE);
-            Text.size = draw_char_size;
-        }
+        Text.size = charges_text_size;
+        Text.display(x, y, '${use.charges}', Col.WHITE);
+        Text.size = draw_char_size;
     }
 }
 
@@ -951,7 +950,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 add_message('${spell.origin_name} heals you for ${spell.value} health.');
                 add_damage_number(spell.value);
             } else {
-                var absorb = defense_to_absorb(player_defense);
+                var absorb = defense_to_absorb();
                 var damage = Std.int(Math.max(0, (-1 * spell.value) - absorb));
 
                 // Apply pure absorb
@@ -1385,8 +1384,8 @@ function update() {
     player_stats += 'PLAYER';
     player_stats += '\nPosition: ${player_x} ${player_y}, Floor: ${current_level}';
     player_stats += '\nHealth: ${player_health}/${player_health_max + player_health_max_mod}';
-    player_stats += '\nAttack: ${player_attack}';
-    player_stats += '\nDefense: ${player_defense}';
+    player_stats += '\nAttack: ${player_attack + player_attack_mod}';
+    player_stats += '\nDefense: ${player_defense + player_defense_mod}';
     player_stats += '\nEnergy shield: ${player_pure_absorb}';
     player_stats += '\nCopper: ${copper_count}';
     Text.display(ui_x, player_stats_y, player_stats);
@@ -1954,7 +1953,7 @@ function update() {
 
         // Player attacks entity
         if (attack_target != Entity.NONE) {
-            player_attack_entity(attack_target, player_attack);
+            player_attack_entity(attack_target, player_attack + player_attack_mod);
             attack_target = Entity.NONE;
         }
 

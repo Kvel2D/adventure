@@ -361,52 +361,32 @@ static function random_weapon(x: Int, y: Int): Int {
     var weapon_names = ['copper sword', 'iron shank', 'big hammer'];
     Entity.name[e] = 'Weapon';
 
-    var attack_total = Stats.get({min: 1, max: 1, scaling: 1.0}, level); 
+    var attack_buff_value = Stats.get({min: 1, max: 1, scaling: 1.0}, level); 
 
-    var attack_spells = [
-    Spells.attack_buff(attack_total)
-    ];
+    var equip_plus_use_spells = Spells.random_equipment_spells(EquipmentType_Weapon);
 
-    /*
-    SpellType_RandomTeleport
-    SpellType_SafeTeleport
-    SpellType_AoeDamage
-    SpellType_Invisibility
-    everyattack +SpellType_ModHealth (leech)
-    everyattack -SpellType_ModHealth (damages player)
-    everyattack SpellType_EnergyShield (infrequent)
+    var equip_spells = equip_plus_use_spells[0];
+    var use_spells = equip_plus_use_spells[1];
 
-    need to make weapon usable if it got usable spells
-    */
+    equip_spells.push(Spells.attack_buff(attack_buff_value));
 
-    // Need to split spells into use/buff??
-    // i guess for single pick randomly between use or buff
-    // for double do use + buff or 2 buffs
-    
-    // var buff_count: Int = Pick.value([
-    //     {v: 0, c: 1,
-    //     {v: 1, c: 0.5 * level,
-    //     {v: 2, c: Math.max(0, 0.55 * (level - 1)),
-    //     ]);
-    var buff_count = 1;
+    if (use_spells.length > 0) {
+        // NOTE: charge amount currently only depends on first use spell type, because only one use spell is allowed
+        var use_charges = Spells.get_equipment_spell_use_charges(use_spells[0]);
 
-    var buff_spells = new Array<Spell>();
-    for (i in 0...buff_count) {
-        buff_spells.push(Spells.random_weapon_buff());
+        Entity.use[e] = {
+            spells: use_spells,
+            charges: use_charges,
+            consumable: false,
+            flavor_text: 'You use weapon\'s spell.',
+            need_target: false,
+        };
     }
-
-    Entity.use[e] = {
-        spells: buff_spells,
-        charges: 3,
-        consumable: false,
-        flavor_text: 'You use weapon.',
-        need_target: false,
-    };
 
     Entity.equipment[e] = {
         name: Random.pick(weapon_names),
         type: EquipmentType_Weapon,
-        spells: attack_spells,
+        spells: equip_spells,
     };
 
     Entity.validate(e);
@@ -435,38 +415,31 @@ static function random_armor(x: Int, y: Int): Int {
     Entity.draw_tile[e] = armor_tiles[armor_type][Math.floor(Math.min(5, level / 2))];
 
     var defense_total = Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+
+    var equip_plus_use_spells = Spells.random_equipment_spells(armor_type);
+
+    var equip_spells = equip_plus_use_spells[0];
+    var use_spells = equip_plus_use_spells[1];
     
-    /*
-    SpellType_ModHealthMax
-    ModAttack
-    ModDefense
+    equip_spells.push(Spells.defense_buff(defense_total));
 
-    helmet only
-    SpellType_UncoverMap
-    SpellType_Nolos
-    SpellType_ShowThings
+    if (use_spells.length > 0) {
+        // NOTE: charge amount currently only depends on first use spell type, because only one use spell is allowed
+        var use_charges = Spells.get_equipment_spell_use_charges(use_spells[0]);
 
-    legs only
-    SpellType_RandomTeleport
-    SpellType_SafeTeleport
-    SpellType_Noclip
-    SpellType_NextFloor
-    SpellType_ModMoveSpeed
-
-    chest only
-    SpellType_Invisibility
-    SpellType_EnergyShield
-
-    */
-
-    var defense_spells = [
-    Spells.defense_buff(defense_total)
-    ];
+        Entity.use[e] = {
+            spells: use_spells,
+            charges: use_charges,
+            consumable: false,
+            flavor_text: 'You use armor\'s spell.',
+            need_target: false,
+        };
+    }
 
     Entity.equipment[e] = {
         name: armor_names[armor_type],
         type: armor_type,
-        spells: defense_spells,
+        spells: equip_spells,
     };
 
     Entity.validate(e);
@@ -486,12 +459,6 @@ static function random_ring(x: Int, y: Int): Int {
         type: ItemType_Ring,
         spells: [Spells.random_ring_spell(level)],
     };
-    // TODO: make some rings have a use
-    // Entity.use[e] = {
-    //     spells: [],
-    //     charges: 1,
-    //     consumable: false,
-    // };
     Entity.draw_char[e] = {
         char: 'R',
         color: Col.YELLOW

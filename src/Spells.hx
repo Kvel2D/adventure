@@ -134,7 +134,7 @@ static function get_description(spell: Spell): String {
         case SpellType_NextFloor: 'go to next floor';
         case SpellType_AoeDamage: 'deal ${spell.value} damage to all visible enemies';
         case SpellType_ModUseCharges: 'add ${spell.value} use charges to item';
-        case SpellType_CopyItem: 'copy item in your inventory and drop it on the ground (must have free space around you or the spell fails)';
+        case SpellType_CopyItem: 'copy item in your inventory(copy is placed on the ground, must have free space around you or the spell fails and scroll disappears)';
     }
 
     var interval = 
@@ -941,32 +941,174 @@ static function ailment_room(r: Room) {
     }
 }
 
-static function random_weapon_buff(): Spell {
+static function random_equipment_spell_equip_negative(equipment_type: EquipmentType): Spell {
     var level = Main.current_level;
 
-    var type = Pick.value([
-        {v: SpellType_RandomTeleport, c: 0.25},
-        {v: SpellType_SafeTeleport, c: 0.25},
-        // {v: SpellType_AoeDamage, c: 1.0},
-        // {v: SpellType_Invisibility, c: 0.5},
-        // {v: SpellType_ModHealth, c: 1.0},
-        // {v: SpellType_EnergyShield, c: 1.0},
-        ]);
+    var type = switch (equipment_type) {
+        case EquipmentType_Weapon: Pick.value([
+            {v: SpellType_ModHealth, c: 1.0},
+            {v: SpellType_ModDefense, c: 1.0},
+            {v: SpellType_ModHealthMax, c: 1.0},
+            ]);
+        case EquipmentType_Head: Pick.value([
+            {v: SpellType_ModHealthMax, c: 1.0},
+            ]);
+        case EquipmentType_Chest: Pick.value([
+            {v: SpellType_ModHealthMax, c: 1.0},
+            ]);
+        case EquipmentType_Legs: Pick.value([
+            {v: SpellType_ModHealthMax, c: 1.0},
+            ]);
+    }
+
+    var duration_type = switch (type) {
+        case SpellType_ModHealth: SpellDuration_EveryAttack;
+        default: SpellDuration_Permanent;
+    }
+
+    var duration = switch (type) {
+        case SpellType_ModHealth: Entity.INFINITE_DURATION;
+        default: 0;
+    }
+
+    var interval = switch (type) {
+        case SpellType_ModHealth: Random.int(10, 15);
+        default: 0;
+    }
+
+    var value = switch (type) {
+        case SpellType_ModHealth: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        case SpellType_ModDefense: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        case SpellType_ModHealthMax: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        default: 0;
+    }
+
+    return {
+        type: type,
+        duration_type: duration_type,
+        duration: duration,
+        interval: interval,
+        interval_current: 0,
+        value: value,
+        origin_name: "noname",
+    };
+}
+
+static function random_equipment_spell_equip(equipment_type: EquipmentType): Spell {
+    var level = Main.current_level;
+
+    var type = switch (equipment_type) {
+        case EquipmentType_Weapon: Pick.value([
+            {v: SpellType_AoeDamage, c: 1.0},
+            {v: SpellType_ModHealth, c: 1.0},
+            {v: SpellType_EnergyShield, c: 1.0},
+            ]);
+        case EquipmentType_Head: Pick.value([
+            {v: SpellType_ModHealthMax, c: 1.0},
+            {v: SpellType_UncoverMap, c: 1.0},
+            {v: SpellType_ShowThings, c: 1.0},
+            ]);
+        case EquipmentType_Chest: Pick.value([
+            {v: SpellType_ModDropChance, c: 1.0},
+            {v: SpellType_ModCopperDrop, c: 1.0},
+            {v: SpellType_ModHealthMax, c: 1.0},
+            ]);
+        case EquipmentType_Legs: Pick.value([
+            {v: SpellType_ModHealthMax, c: 1.0},
+            ]);
+    }
+
+    var duration_type = switch (type) {
+        case SpellType_AoeDamage: SpellDuration_EveryAttack;
+        case SpellType_ModHealth: SpellDuration_EveryAttack;
+        case SpellType_EnergyShield: SpellDuration_EveryAttack;
+        default: SpellDuration_Permanent;
+    }
+
+    var interval = switch (type) {
+        case SpellType_AoeDamage: Random.int(5, 8);
+        case SpellType_EnergyShield: Random.int(5, 8);
+        case SpellType_ModHealth: Random.int(5, 8);
+        default: 0;
+    }
+
+    var value = switch (type) {
+        case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        case SpellType_EnergyShield: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        case SpellType_ModHealth: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        case SpellType_ModHealthMax: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+        case SpellType_ModDropChance: Random.int(10, 20);
+        case SpellType_ModCopperDrop: Random.int(10, 20);
+        default: 0;
+    }
+
+    return {
+        type: type,
+        duration_type: duration_type,
+        duration: Entity.INFINITE_DURATION,
+        interval: interval,
+        interval_current: 0,
+        value: value,
+        origin_name: "noname",
+    };
+}
+
+// NOTE: update this when adding new types to random_equipment_spell_use()
+static function get_equipment_spell_use_charges(s: Spell): Int {
+    return switch (s.type) {
+        case SpellType_AoeDamage: Random.int(6, 8);
+        case SpellType_Invisibility: Random.int(1, 3);
+        case SpellType_EnergyShield: Random.int(2, 4);
+        case SpellType_Nolos: Random.int(3, 5);
+        case SpellType_ModHealth: Random.int(2, 4);
+        case SpellType_ModMoveSpeed: Random.int(2, 4);
+        default: 100;
+    }
+}
+
+static function random_equipment_spell_use(equipment_type: EquipmentType): Spell {
+    var level = Main.current_level;
+
+    var type = switch (equipment_type) {
+        case EquipmentType_Weapon: Pick.value([
+            {v: SpellType_AoeDamage, c: 1.0},
+            {v: SpellType_Invisibility, c: 0.5},
+            {v: SpellType_EnergyShield, c: 1.0},
+            ]);
+        case EquipmentType_Head: Pick.value([
+            {v: SpellType_Nolos, c: 1.0},
+            {v: SpellType_EnergyShield, c: 1.0},
+            ]);
+        case EquipmentType_Chest: Pick.value([
+            {v: SpellType_ModHealth, c: 1.0},
+            {v: SpellType_AoeDamage, c: 1.0},
+            {v: SpellType_Invisibility, c: 1.0},
+            ]);
+        case EquipmentType_Legs: Pick.value([
+            {v: SpellType_ModMoveSpeed, c: 1.0},
+            {v: SpellType_EnergyShield, c: 1.0},
+            ]);
+    }
 
     var duration_type = switch (type) {
         case SpellType_Invisibility: SpellDuration_EveryTurn;
+        case SpellType_Nolos: SpellDuration_EveryTurn;
+        case SpellType_ModMoveSpeed: SpellDuration_EveryTurn;
         default: SpellDuration_Permanent;
     }
 
     var duration = switch (type) {
         case SpellType_Invisibility: Random.int(60, 80);
+        case SpellType_Nolos: Random.int(60, 80);
+        case SpellType_ModMoveSpeed: Random.int(60, 80);
         default: 0;
     }
 
     var value = switch (type) {
-        // case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
-        // case SpellType_EnergyShield: Stats.get({min: 3, max: 4, scaling: 1.0}, level);
-        // case SpellType_ModHealth: Stats.get({min: 3, max: 4, scaling: 1.0}, level);
+        case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        case SpellType_EnergyShield: Stats.get({min: 3, max: 4, scaling: 1.0}, level);
+        case SpellType_ModHealth: Stats.get({min: 3, max: 4, scaling: 1.0}, level);
+        case SpellType_ModMoveSpeed: 1;
         default: 0;
     }
 
@@ -979,6 +1121,124 @@ static function random_weapon_buff(): Spell {
         value: value,
         origin_name: "noname",
     };
+}
+
+// NOTE: returns [equip spells, use spells]
+static function random_equipment_spells(equipment_type: EquipmentType): Array<Array<Spell>> {
+    var level = Main.get_drop_entity_level();
+    
+    var total_spell_count: Int = Pick.value([
+        {v: 0, c: 1},
+        {v: 1, c: 0.5 * level},
+        {v: 2, c: Math.max(0, 0.55 * (level - 1))},
+        {v: 3, c: Math.max(0, 0.55 * (level - 3))},
+        ]);
+    var spell_equip_count = 0;
+    var spell_use_count = 0;
+    var spell_equip_negative_count = 0;
+
+    if (equipment_type == EquipmentType_Weapon) { 
+        if (total_spell_count == 1) {
+            Pick.value([
+                {v: function() {
+                    spell_equip_count = 1;
+                }, c: 1.0},
+                {v: function() {
+                    spell_use_count = 1;
+                }, c: 1.0},
+                ])
+            ();
+        } else if (total_spell_count == 2) {
+            Pick.value([
+                {v: function() {
+                    spell_equip_negative_count = 1;
+                    spell_equip_count = 1;
+                }, c: 1.0},
+                {v: function() {
+                    spell_equip_negative_count = 1;
+                    spell_use_count = 1;
+                }, c: 1.0},
+                {v: function() {
+                    spell_equip_count = 1;
+                    spell_use_count = 1;
+                }, c: 0.5},
+                {v: function() {
+                    spell_equip_count = 2;
+                }, c: 0.5},
+                ])
+            ();
+        } else if (total_spell_count == 3) {
+            Pick.value([
+                {v: function() {
+                    spell_equip_negative_count = 1;
+                    spell_equip_count = 1;
+                    spell_use_count = 1;
+                }, c: 1.0},
+                {v: function() {
+                    spell_equip_negative_count = 1;
+                    spell_equip_count = 2;
+                }, c: 1.0},
+                {v: function() {
+                    spell_use_count = 1;
+                    spell_equip_count = 2;
+                }, c: 0.25},
+                {v: function() {
+                    spell_equip_count = 3;
+                }, c: 0.25},
+                ])
+            ();
+        }
+    } else { 
+        if (total_spell_count == 1) {
+            Pick.value([
+                {v: function() {
+                    spell_equip_count = 1;
+                }, c: 1.0},
+                {v: function() {
+                    spell_use_count = 1;
+                }, c: 0.5},
+                ])
+            ();
+        } else if (total_spell_count == 2) {
+            Pick.value([
+                {v: function() {
+                    spell_equip_count = 1;
+                    spell_use_count = 1;
+                }, c: 0.5},
+                {v: function() {
+                    spell_equip_count = 2;
+                }, c: 0.5},
+                ])
+            ();
+        } else if (total_spell_count == 3) {
+            Pick.value([
+                {v: function() {
+                    spell_use_count = 1;
+                    spell_equip_count = 2;
+                }, c: 0.25},
+                {v: function() {
+                    spell_equip_count = 3;
+                }, c: 0.25},
+                ])
+            ();
+        }
+    }
+
+
+    var equip_spells = new Array<Spell>();
+    for (i in 0...spell_equip_count) {
+        equip_spells.push(Spells.random_equipment_spell_equip(equipment_type));
+    }
+    for (i in 0...spell_equip_negative_count) {
+        equip_spells.push(Spells.random_equipment_spell_equip_negative(equipment_type));
+    }
+
+    var use_spells = new Array<Spell>();
+    for (i in 0...spell_use_count) {
+        use_spells.push(Spells.random_equipment_spell_use(equipment_type));
+    }
+
+    return [equip_spells, use_spells];
 }
 
 }
