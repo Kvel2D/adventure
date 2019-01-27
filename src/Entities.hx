@@ -528,6 +528,7 @@ static function random_scroll(x: Int, y: Int): Int {
             case SpellType_ModUseCharges: true;
             case SpellType_CopyItem: true;
             case SpellType_Passify: true;
+            case SpellType_EnchantEquipment: true;
             default: false;
         },
     };

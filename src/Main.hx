@@ -9,6 +9,7 @@ import GUI;
 import Path;
 
 using MathExtensions;
+using Lambda;
 
 typedef DamageNumber = {
     value: Int,
@@ -67,9 +68,9 @@ var damage_numbers = new Array<DamageNumber>();
 var noclip = false;
 var nolos = false;
 var show_things = false;
-var movespeed_mod: Int = 0;
-var dropchance_mod: Int = 0;
-var copper_drop_mod: Int = 0;
+var movespeed_mod = 0;
+var dropchance_mod = 0;
+var copper_drop_mod = 0;
 static var increase_drop_level = false;
 var player_is_invisible = false;
 
@@ -80,26 +81,26 @@ var full_minimap_DEV = false;
 var frametime_graph_DEV = false;
 var draw_invisible_entities = true;
 
-static var player_x: Int = 0;
-static var player_y: Int = 0;
-var player_x_old: Int = -1;
-var player_y_old: Int = -1;
-var player_health: Int = 10;
-var copper_count: Int = 0;
-var player_room: Int = -1;
-var player_pure_absorb: Int = 0;
+static var player_x = 0;
+static var player_y = 0;
+var player_x_old = -1;
+var player_y_old = -1;
+var player_health = 10;
+var copper_count = 0;
+var player_room = -1;
+var player_pure_absorb = 0;
+var player_damage_shield = 0;
 
-static var stairs_x: Int = 0;
-static var stairs_y: Int = 0;
+static var stairs_x = 0;
+static var stairs_y = 0;
 
-var player_health_max: Int = 10;
-var player_health_max_mod: Int = 0;
-var player_attack: Int = 1;
-var player_attack_mod: Int = 0;
-var player_defense: Int = 0;
-var player_defense_mod: Int = 0;
-var player_attack_total_old: Int = -1;
-var player_defense_total_old: Int = -1;
+var player_health_max = 10;
+var player_health_max_mod = 0;
+var player_attack = 1;
+var player_attack_mod = 0;
+var player_defense = 0;
+var player_defense_mod = 0;
+var player_damage_shield_mod = 0;
 
 var player_equipment = [
 EquipmentType_Head => Entity.NONE,
@@ -146,8 +147,6 @@ function init() {
     LOS.calculate_rays();
 
     generate_level();
-
-    // Entities.test_potion(first_room.x + 5, first_room.y + 7);
 }
 
 // Room is good if it's not a connection and isn't locked
@@ -161,14 +160,15 @@ static function random_good_room(): Int {
     return Random.pick(room_indices);
 }
 
+// NOTE: creates a copy of ids so can safely modify Entity components while iterating
+static function entities_with(map: Map<Int, Dynamic>): Array<Int> {
+    return [for (key in map.keys()) key];
+}
+
 function generate_level() {
     // Remove all entities, except inventory items and equipped equipment
     // NOTE: if new entities are added which don't have a position need to change this
-    var removed_entities = new Array<Int>();
-    for (e in Entity.position.keys()) {
-        removed_entities.push(e);
-    }
-    for (e in removed_entities) {
+    for (e in entities_with(Entity.position)) {
         Entity.remove(e);
     }
 
@@ -242,9 +242,9 @@ function generate_level() {
     player_y = rooms[0].y;
     
     for (dx in 1...6) {
-        // Entities.random_weapon(player_x + dx, player_y);
-        // Entities.random_armor(player_x + dx, player_y);
-        Entities.random_scroll(player_x + dx, player_y);
+        Entities.random_weapon(player_x + dx, player_y);
+        Entities.random_armor(player_x + dx, player_y + 1);
+        Entities.random_scroll(player_x + dx, player_y + 2);
     }
 
     // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
@@ -378,7 +378,7 @@ static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, free_map
     }
 
     if (include_doors) {
-        for (locked in Entity.locked.keys()) {
+        for (locked in entities_with(Entity.locked)) {
             var pos = Entity.position[locked];
             if (Math.point_box_intersect(pos.x, pos.y, x1, y1, width, height) && Entity.name[locked] == 'Door') {
                 free_map[pos.x - x1][pos.y - y1] = false;
@@ -751,7 +751,7 @@ function move_entity(e: Int) {
     }
 }
 
-function entity_attack_player(e: Int) {
+function entity_attack_player(e: Int): Bool {
     var combat = Entity.combat[e];
     
     // If on map, must be next to player
@@ -760,11 +760,11 @@ function entity_attack_player(e: Int) {
 
         // Must be in view and visible, ok to be in another room as long as entity is visible, this way entities can't attack through walls but attacking around corners works the same way as player attacks
         if (out_of_view_bounds(pos.x, pos.y) || !position_visible(pos.x - get_view_x(), pos.y - get_view_y())) {
-            return;
+            return false;
         }
 
         if (Math.dst2(player_x, player_y, pos.x, pos.y) > combat.range_squared) {
-            return;
+            return false;
         }
     }
 
@@ -789,7 +789,7 @@ function entity_attack_player(e: Int) {
     combat.attacked_by_player = false;
 
     if (!should_attack) {
-        return;
+        return false;
     }
 
     var damage_taken = 0;
@@ -831,6 +831,8 @@ function entity_attack_player(e: Int) {
         var move = Entity.move[e];
         move.cant_move = true;
     }
+
+    return true;
 }
 
 function player_attack_entity(e: Int, attack: Int) {
@@ -873,7 +875,7 @@ function player_attack_entity(e: Int, attack: Int) {
         if (Entity.name.exists(e) && Entity.name[e] == 'Merchant') {
             var merchant_room = Entity.position[e].room;
             var removed_buys = new Array<Int>();
-            for (e in Entity.buy.keys()) {
+            for (e in entities_with(Entity.buy)) {
                 removed_buys.push(e);
             }
             for (e in removed_buys) {
@@ -1059,7 +1061,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             var view_x = get_view_x();
             var view_y = get_view_y();
             // AOE affects visible entities
-            for (e in Entity.combat.keys()) {
+            for (e in entities_with(Entity.combat)) {
                 if (Entity.position.exists(e)) {
                     var pos = Entity.position[e];
 
@@ -1073,7 +1075,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             increase_drop_level = true;
         }
         case SpellType_ModLevelHealth: {
-            for (e in Entity.combat.keys()) {
+            for (e in entities_with(Entity.combat)) {
                 Entity.combat[e].health += spell.value;
 
                 // Negative mod can't bring health values below 1
@@ -1083,7 +1085,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
         }
         case SpellType_ModLevelAttack: {
-            for (e in Entity.combat.keys()) {
+            for (e in entities_with(Entity.combat)) {
                 Entity.combat[e].attack += spell.value;
 
                 // Negative mod can't bring attack values below 0
@@ -1093,7 +1095,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
         }
         case SpellType_ModLevelAbsorb: {
-            for (e in Entity.combat.keys()) {
+            for (e in entities_with(Entity.combat)) {
                 Entity.combat[e].absorb += spell.value;
 
                 // Negative mod can't bring absorb values below 0
@@ -1137,10 +1139,33 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
         }
         case SpellType_Passify: {
-            // Copy target must be an item and in inventory
             if (Entity.combat.exists(use_target)) {
                 Entity.combat[use_target].aggression = AggressionType_Passive;
                 add_message('You passify the enemy.');
+            }
+        }
+        case SpellType_EnchantEquipment: {
+            if (Entity.equipment.exists(use_target)) {
+                for (s in Entity.equipment[use_target].spells) {
+                    if (s.type == SpellType_ModAttack) {
+                        s.value += spell.value;
+                    } else if (s.type == SpellType_ModDefense) {
+                        // NOTE: need to scale enchantment of defense to make it comparable to attack enchantment
+                        s.value += spell.value * 10;
+                    }
+                }
+                add_message('You enchant equipment.');
+            }
+        }
+        case SpellType_DamageShield: {
+            if (spell.duration_type == SpellDuration_Permanent) {
+                player_damage_shield += spell.value;
+            } else {
+                player_damage_shield_mod += spell.value;
+            }
+
+            if (spell.duration_type == SpellDuration_Permanent) {
+                add_message('${spell.origin_name} increases your permanent damage shield by ${spell.value}.');
             }
         }
     }
@@ -1152,6 +1177,7 @@ function can_use_entity_on_target(e: Int): Bool {
             case SpellType_ModUseCharges: Entity.item.exists(e) && !Entity.position.exists(e);
             case SpellType_CopyItem: Entity.item.exists(e) && !Entity.position.exists(e);
             case SpellType_Passify: Entity.combat.exists(e);
+            case SpellType_EnchantEquipment: Entity.equipment.exists(e);
             default: false;
         }
     } else {
@@ -1315,7 +1341,7 @@ function update() {
 
     // Entities
     Text.size = draw_char_size;
-    for (e in Entity.position.keys()) {
+    for (e in entities_with(Entity.position)) {
         var pos = Entity.position[e];
         if (!out_of_view_bounds(pos.x, pos.y) && position_visible(pos.x - view_x, pos.y - view_y)) {
             draw_entity(e, screen_x(pos.x), screen_y(pos.y));
@@ -1768,7 +1794,7 @@ function update() {
     //
     // Update seen status for entities drawn on minimap
     //
-    for (e in Entity.draw_on_minimap.keys()) {
+    for (e in entities_with(Entity.draw_on_minimap)) {
         var draw_on_minimap = Entity.draw_on_minimap[e];
 
         if (!draw_on_minimap.seen && Entity.position.exists(e)) {
@@ -1791,7 +1817,7 @@ function update() {
     }
 
     // Draw seen things
-    for (e in Entity.draw_on_minimap.keys()) {
+    for (e in entities_with(Entity.draw_on_minimap)) {
         var draw_on_minimap = Entity.draw_on_minimap[e];
 
         if ((draw_on_minimap.seen || show_things || full_minimap_DEV) && Entity.position.exists(e)) {
@@ -1845,6 +1871,7 @@ function update() {
         player_health_max_mod = 0;
         player_attack_mod = 0;
         player_defense_mod = 0;
+        player_damage_shield_mod = 0;
         nolos = false;
         noclip = false;
         show_things = false;
@@ -1972,9 +1999,25 @@ function update() {
             attack_target = Entity.NONE;
         }
 
+        var entities_that_attacked_player = new Array<Int>();
+
+        // TODO: maybe copy() will work? need to test on array of ints
+        // might need to consider everywhere as well, makes it safer to remove during iteration
         // Entities attack player
-        for (e in Entity.combat.keys()) {
-            entity_attack_player(e);
+        for (e in entities_with(Entity.combat)) {
+            var attacked = entity_attack_player(e);
+
+            if (attacked) {
+                entities_that_attacked_player.push(e);
+            }
+        }
+
+        // Deal player shield damage to entities that attacked player
+        var player_damage_shield_total = player_damage_shield + player_damage_shield_mod;
+        if (player_damage_shield_total > 0) {
+            for (e in entities_that_attacked_player) {
+                player_attack_entity(e, player_damage_shield_total);
+            }
         }
 
         // Player dies if inside wall and not noclipping
@@ -1987,7 +2030,7 @@ function update() {
             add_message('You died.');
         }
 
-        for (e in Entity.move.keys()) {
+        for (e in entities_with(Entity.move)) {
             if (Entity.position.exists(e)) {
                 move_entity(e);
             }

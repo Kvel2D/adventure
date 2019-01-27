@@ -1,30 +1,33 @@
---------------------------------------------------------------------------
+----------------------------------------------------------------------------------
 TODO
 
 friendly mobs
-    make friendly mobs green
-    picking up and dropping friendly enemy is like pokemon
-        pick up an enemy like that and drop it and let it fight other enemies for you
-    can attack friendly to prevent path blocks
-    friendly mobs which attack other mobs
-        other mobs should attack them as well? logic is, enemies select whoever is closer, friendly mobs or player
-    spell to summon friendly mob
+    make them green to easily distinguish
+    can attack friendlies to prevent path blocks
+    friendlies and enemies fight each other
+        when deciding who to follow or attack, enemies select closest one out of friendlies or player
+            but prio player, so the loop that selects lowest distance first goes through frendlies then checks player, so player will always be selected if distances are the same
+        friendlies select closest enemy
+    friendly mobs naturally occur on levels(rarely)
 
-    charm spell makes mobs friendly
+    summon - create friendly mob
+    charm - turn enemy into friendly
 
---------------------------------------------------------------------------
+    aoe spells damage friendlies as well?
+        could be a nice tradeoff
+
+----------------------------------------------------------------------------------
 DONE
 
 
-
---------------------------------------------------------------------------
+----------------------------------------------------------------------------------
 PROBLEMS
 
 fat connections still sometimes go out of room bounds
 
 killed merchant but picked up item and still had buy component on
 
---------------------------------------------------------------------------
+----------------------------------------------------------------------------------
 IDEAS
 
 boss mobs
@@ -62,10 +65,5 @@ cursed equipment
 
 statue that converts your copper into stats
 
---------------------------------------------------------------------------
-SPELL IDEAS
-
-enchanting equipment
-    increase attack/defense of equipped weapon/armor
-    only affects certain slot
-
+keys should have some danger associated with them
+    put them in enemy rooms and maybe increase the average amount of enemies in those rooms?

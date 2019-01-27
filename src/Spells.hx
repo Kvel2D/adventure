@@ -24,6 +24,7 @@ enum SpellType {
     SpellType_ModDropLevel;
     SpellType_Invisibility;
     SpellType_EnergyShield;
+    SpellType_DamageShield;
 
     SpellType_ModLevelHealth;
     SpellType_ModLevelAttack;
@@ -32,6 +33,7 @@ enum SpellType {
     SpellType_ModUseCharges;
     SpellType_CopyItem;
     SpellType_Passify;
+    SpellType_EnchantEquipment;
 }
 
 enum SpellDuration {
@@ -75,7 +77,9 @@ SpellType_ModDropChance => 1,
 SpellType_ModCopperDrop => 1,
 SpellType_ModDropLevel => 1,
 SpellType_EnergyShield => 1,
+SpellType_DamageShield => 1,
 SpellType_Passify => 1,
+SpellType_EnchantEquipment => 1,
 
 SpellType_ModHealthMax => 2,
 SpellType_ModHealth => 2,
@@ -138,6 +142,8 @@ static function get_description(spell: Spell): String {
         case SpellType_ModUseCharges: 'add ${spell.value} use charges to item in your inventory';
         case SpellType_CopyItem: 'copy item in your inventory (copy is placed on the ground, must have free space around you or the spell fails and scroll disappears)';
         case SpellType_Passify: 'passify an enemy(left-click on an enemy near you)';
+        case SpellType_EnchantEquipment: 'enchant weapon or armor, increasing it\'s attack or defense bonus permanently';
+        case SpellType_DamageShield: 'deal ${spell.value} damage to attackers';
     }
 
     var interval = 
@@ -568,6 +574,8 @@ static function random_scroll_spell(level: Int): Spell {
         {v: SpellType_CopyItem, c: 1.0},
         {v: SpellType_EnergyShield, c: 1.0},
         {v: SpellType_Passify, c: 1.0},
+        {v: SpellType_EnchantEquipment, c: 1.0},
+        {v: SpellType_DamageShield, c: 10.0},
         ]);
 
     var duration_type = switch (type) {
@@ -578,6 +586,7 @@ static function random_scroll_spell(level: Int): Spell {
         case SpellType_AoeDamage: Pick.value([
             {v: SpellDuration_Permanent, c: 3.0},
             {v: SpellDuration_EveryTurn, c: 1.0},]);
+        case SpellType_DamageShield: SpellDuration_EveryTurn;
         default: SpellDuration_Permanent;
     }
 
@@ -590,6 +599,7 @@ static function random_scroll_spell(level: Int): Spell {
             case SpellType_Nolos: Random.int(100, 150);
             case SpellType_Noclip: Random.int(50, 100);
             case SpellType_AoeDamage: Random.int(30, 50);
+            case SpellType_DamageShield: Random.int(30, 50);
             default: 0;
         }
     }
@@ -599,6 +609,8 @@ static function random_scroll_spell(level: Int): Spell {
         case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_ModUseCharges: 1;
         case SpellType_EnergyShield: Stats.get({min: 3, max: 5, scaling: 1.0}, level);
+        case SpellType_EnchantEquipment: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+        case SpellType_DamageShield: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         default: 0;
     }
 
