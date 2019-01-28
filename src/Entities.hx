@@ -481,16 +481,9 @@ static function random_potion(x: Int, y: Int): Int {
         type: ItemType_Normal,
         spells: [],
     };
-    var spells = Spells.random_potion_spells(level);
-    var has_healing_spell = false;
-    for (s in spells) {
-        if (s.type == SpellType_ModHealth && s.value > 0) {
-            has_healing_spell = true;
-            break;
-        }
-    }
+    var spell = Spells.random_potion_spell(level);
     Entity.use[e] = {
-        spells: spells,
+        spells: [spell],
         charges: 1,
         consumable: true,
         flavor_text: 'You chug the potion.',
@@ -498,7 +491,13 @@ static function random_potion(x: Int, y: Int): Int {
     };
 
     // TODO: diversify potion icons based on potion spell
-    Entity.draw_tile[e] = Tile.PotionHealing;
+    Entity.draw_tile[e] = switch (spell.type) {
+        case SpellType_ModHealth: Tile.PotionHealing;
+        case SpellType_ModAttack: Tile.PotionPhysical;
+        case SpellType_ModDefense: Tile.PotionPhysical;
+        case SpellType_Invisibility: Tile.PotionShadow;
+        default: Tile.None;
+    };
 
     Entity.validate(e);
 
@@ -517,14 +516,14 @@ static function random_scroll(x: Int, y: Int): Int {
         type: ItemType_Normal,
         spells: [],
     };
-    var spells = [Spells.random_scroll_spell(level)];
+    var spell = Spells.random_scroll_spell(level);
     Entity.use[e] = {
-        spells: spells,
+        spells: [spell],
         charges: 1,
         consumable: true,
         flavor_text: 'You read the scroll aloud.',
         // NOTE: incorrect if there are multiple spells and one of them needs a target, though I can't think of an item like that yet
-        need_target: switch (spells[0].type) {
+        need_target: switch (spell.type) {
             case SpellType_ModUseCharges: true;
             case SpellType_CopyItem: true;
             case SpellType_Passify: true;
@@ -534,7 +533,27 @@ static function random_scroll(x: Int, y: Int): Int {
     };
 
     // TODO: diversify scroll icons based on scroll spell
-    Entity.draw_tile[e] = Tile.ScrollPhysical;
+    Entity.draw_tile[e] = switch (spell.type) {
+        case SpellType_UncoverMap: Tile.ScrollLight;
+        case SpellType_Nolos: Tile.ScrollLight;
+        case SpellType_ShowThings: Tile.ScrollLight;
+
+        case SpellType_Noclip: Tile.ScrollShadow;
+        case SpellType_RandomTeleport: Tile.ScrollShadow;
+        case SpellType_SafeTeleport: Tile.ScrollShadow;
+
+        case SpellType_ModUseCharges: Tile.ScrollIce;
+        case SpellType_CopyItem: Tile.ScrollIce;
+        case SpellType_EnchantEquipment: Tile.ScrollIce;
+
+        case SpellType_AoeDamage: Tile.ScrollPhysical;
+        case SpellType_DamageShield: Tile.ScrollPhysical;
+        case SpellType_EnergyShield: Tile.ScrollPhysical;
+
+        case SpellType_Passify: Tile.ScrollMixed;
+
+        default: Tile.None;
+    };
 
     Entity.validate(e);
 
@@ -570,8 +589,6 @@ static function random_enemy_type(): EntityType {
         attack = 1;
     }
     var health = Stats.get({min: 4, max: 5, scaling: 1.0}, level); 
-
-    var absorb = 0;
 
     // TODO: diversify enemy colors
     var color = Col.GRAY;
@@ -630,13 +647,12 @@ static function random_enemy_type(): EntityType {
         combat: {
             health: health, 
             attack: attack, 
-            absorb: absorb, 
             message: message,
             aggression: aggression_type,
             attacked_by_player: false,
             range_squared: range * range,
         },
-        // TODO: think about what percentage is good and whether to vary percentages by mob
+        // TODO: think about what droprate is good and whether to vary percentages by mob
         drop_entity: {
             table: DropTable_Default, 
             chance: 10,
@@ -720,7 +736,6 @@ static function merchant(x: Int, y: Int): Int {
     Entity.combat[e] = {
         health: Stats.get({min: 10, max: 20, scaling: 2.0}, level), 
         attack: Stats.get({min: 3, max: 3, scaling: 1.0}, level), 
-        absorb: 0,
         message: 'Merchant says: "You will regret this".',
         aggression: AggressionType_NeutralToAggressive,
         attacked_by_player: false,

@@ -38,7 +38,6 @@ enum DropTable {
 typedef Combat = {
     var health: Int;
     var attack: Int;
-    var absorb: Int;
     var message: String;
     var aggression: AggressionType;
     var attacked_by_player: Bool;
@@ -224,7 +223,6 @@ static function copy(e: Int, x: Int, y: Int): Int {
         combat[copy] = {
             health: e_combat.health,
             attack: e_combat.attack,
-            absorb: e_combat.absorb,
             message: e_combat.message,
             aggression: e_combat.aggression,
             attacked_by_player: e_combat.attacked_by_player,
@@ -335,7 +333,6 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
         combat[e] = {
             health: type.combat.health,
             attack: type.combat.attack,
-            absorb: type.combat.absorb,
             message: type.combat.message,
             aggression: type.combat.aggression,
             attacked_by_player: type.combat.attacked_by_player,
@@ -429,7 +426,6 @@ static function print(e: Int) {
     trace('combat=${combat[e]}');
     if (Entity.combat.exists(e)) {
         trace('combat.attack=${combat[e].attack}');
-        trace('combat.absorb=${combat[e].absorb}');
     }
     trace('drop_entity=${drop_entity[e]}');
     trace('talk=${talk[e]}');

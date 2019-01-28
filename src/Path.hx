@@ -75,6 +75,7 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
     f_score[x1][y1] = heuristic_score(x1, y1, x2, y2);
 
     while (open_length != 0) {
+        // TODO: use prio queue instead of traversing the whole fringe
         var current = function(): Vec2i {
             var lowest_score = infinity;
             var lowest_node: Vec2i = {x: x1, y: y1};

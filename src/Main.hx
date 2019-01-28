@@ -62,6 +62,7 @@ static var rooms: Array<Room>;
 static var visited_room = new Array<Bool>();
 var tile_canvas_state = Data.create2darray(view_width, view_height, Tile.None);
 var los = Data.create2darray(view_width, view_height, false);
+var need_to_update_message_canvas = true;
 
 var damage_numbers = new Array<DamageNumber>();
 
@@ -131,8 +132,6 @@ var targeting_for_use = false;
 var use_entity_that_needs_target = Entity.NONE;
 var use_target = Entity.NONE;
 
-
-
 function init() {
     Gfx.resizescreen(screen_width, screen_height, true);
     Core.showstats = true;
@@ -160,42 +159,32 @@ static function random_good_room(): Int {
     return Random.pick(room_indices);
 }
 
-// NOTE: creates a copy of ids so can safely modify Entity components while iterating
+// NOTE: this is a copy, so can it's safe to modify components while iterating
 static function entities_with(map: Map<Int, Dynamic>): Array<Int> {
     return [for (key in map.keys()) key];
 }
 
 function generate_level() {
     // Remove all entities, except inventory items and equipped equipment
-    // NOTE: if new entities are added which don't have a position need to change this
+    // NOTE: need to change this if new entities are added which don't have a position 
     for (e in entities_with(Entity.position)) {
         Entity.remove(e);
     }
 
-    // Remove level-specific spells from current spells and spells about to be casted
-    {
-        var removed_spells = new Array<Spell>();
-        for (spell in player_spells) {
-            if (spell.duration == Entity.LEVEL_DURATION) {
-                removed_spells.push(spell);
-            }
-        }
-        for (spell in removed_spells) {
+    // Remove level-specific player spells
+    for (spell in player_spells.copy()) {
+        if (spell.duration == Entity.LEVEL_DURATION) {
             player_spells.remove(spell);
         }
     }
+    // Remove spells about to be casted
     for (list in spells_this_turn) {
-        var removed_spells = new Array<Spell>();
-        for (s in list) {
+        for (s in list.copy()) {
             if (s.duration == Entity.LEVEL_DURATION) {
-                removed_spells.push(s);
+                list.remove(s);
             }
         }
-        for (spell in removed_spells) {
-            list.remove(spell);
-        }
     }
-
     // Remove location spells
     for (x in 0...map_width) {
         for (y in 0...map_height) {
@@ -223,8 +212,6 @@ function generate_level() {
     }
     GenerateWorld.fatten_connections();
 
-    visited_room = [for (i in 0...rooms.length) false];
-
     // Clear walls inside rooms
     for (r in rooms) {
         for (x in r.x...(r.x + r.width)) {
@@ -234,6 +221,8 @@ function generate_level() {
             }
         }
     }
+
+    visited_room = [for (i in 0...rooms.length) false];
 
 
     // Set start position to first room, before generating entities so that generation uses the new player position in collision checks
@@ -283,7 +272,6 @@ inline function unscaled_screen_x(x) {
 inline function unscaled_screen_y(y) {
     return (y - player_y + Math.floor(view_height / 2)) * tilesize;
 }
-
 static inline function get_view_x(): Int { return player_x - Math.floor(view_width / 2); }
 static inline function get_view_y(): Int { return player_y - Math.floor(view_width / 2); }
 
@@ -308,7 +296,6 @@ function player_next_to(pos: Position): Bool {
     return Math.abs(player_x - pos.x) <= 1 && Math.abs(player_y - pos.y) <= 1;
 }
 
-var need_to_update_message_canvas = false;
 function add_message(message: String) {
     message_history.insert(0, message);
     added_message_this_turn = true;
@@ -346,7 +333,7 @@ inline function position_visible(x: Int, y: Int): Bool {
     return !los[x][y] || nolos || nolos_DEV;
 }
 
-function defense_to_absorb(): Int {
+function player_absorb(): Int {
     // 82 def = absorb at least 8, absorb 9 20% of the time
     var total_defense = player_defense + player_defense_mod;
     var absorb: Int = Math.floor(total_defense / 10);
@@ -356,7 +343,6 @@ function defense_to_absorb(): Int {
     return absorb;
 }
 
-// TODO: make sure that get_free_map() is used to get the min required area, instead of full map. Also try to use a cached free_map instead of creating new one everytime
 static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, free_map: Array<Array<Bool>> = null, include_player: Bool = true, include_entities: Bool = true, include_doors: Bool = true): Array<Array<Bool>> {
     // Entities
     if (free_map == null) {
@@ -795,7 +781,7 @@ function entity_attack_player(e: Int): Bool {
     var damage_taken = 0;
     var damage_absorbed = 0;
 
-    var absorb = defense_to_absorb();
+    var absorb = player_absorb();
     var damage = Std.int(Math.max(0, combat.attack - absorb));
 
     // Apply pure absorb
@@ -838,9 +824,7 @@ function entity_attack_player(e: Int): Bool {
 function player_attack_entity(e: Int, attack: Int) {
     var combat = Entity.combat[e];
 
-    var damage_to_entity = Std.int(Math.max(0, attack - combat.absorb));
-
-    combat.health -= damage_to_entity;
+    combat.health -= attack;
     combat.attacked_by_player = true;
 
     var target_name = if (Entity.name.exists(e)) {
@@ -848,7 +832,7 @@ function player_attack_entity(e: Int, attack: Int) {
     } else {
         'unnamed_target';
     }
-    add_message('You attack $target_name for $damage_to_entity.');
+    add_message('You attack $target_name for $attack.');
 
     if (combat.health <= 0) {
         add_message('You slay $target_name.');
@@ -944,8 +928,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 add_message('${spell.origin_name} heals you for ${spell.value} health.');
                 add_damage_number(spell.value);
             } else {
-                var absorb = defense_to_absorb();
-                var damage = Std.int(Math.max(0, (-1 * spell.value) - absorb));
+                var damage = -1 * spell.value;
 
                 // Apply pure absorb
                 if (player_pure_absorb > damage) {
@@ -1091,16 +1074,6 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 // Negative mod can't bring attack values below 0
                 if (Entity.combat[e].attack < 0) {
                     Entity.combat[e].attack = 0;
-                }
-            }
-        }
-        case SpellType_ModLevelAbsorb: {
-            for (e in entities_with(Entity.combat)) {
-                Entity.combat[e].absorb += spell.value;
-
-                // Negative mod can't bring absorb values below 0
-                if (Entity.combat[e].absorb < 0) {
-                    Entity.combat[e].absorb = 0;
                 }
             }
         }
@@ -1501,7 +1474,6 @@ function update() {
             var entity_combat = Entity.combat[e];
             tooltip += '\nHealth: ${entity_combat.health}';
             tooltip += '\nAttack: ${entity_combat.attack}';
-            tooltip += '\nAbsorb: ${entity_combat.absorb}';
             // actual numbers drawn later, because they need to be colored
         }
         if (Entity.description.exists(e)) {
@@ -1739,21 +1711,6 @@ function update() {
     //
     // Messages
     //
-    while (message_history.length > message_history_length_max) {
-        message_history.pop();
-    }
-    Text.wordwrap = ui_wordwrap;
-    if (need_to_update_message_canvas) {
-        need_to_update_message_canvas = false;
-        Gfx.drawtoimage('message_canvas');
-        Gfx.clearscreen();
-        var messages = "";
-        for (message in message_history) {
-            messages = message + '\n' + messages;
-        }
-        Text.display(0, 0, messages);
-        Gfx.drawtoscreen();
-    }
     Gfx.drawimage(ui_x, message_history_y + 50, 'message_canvas');
 
     //
@@ -2001,8 +1958,6 @@ function update() {
 
         var entities_that_attacked_player = new Array<Int>();
 
-        // TODO: maybe copy() will work? need to test on array of ints
-        // might need to consider everywhere as well, makes it safer to remove during iteration
         // Entities attack player
         for (e in entities_with(Entity.combat)) {
             var attacked = entity_attack_player(e);
@@ -2041,6 +1996,24 @@ function update() {
             add_message(turn_delimiter);
             added_message_this_turn = false;
         }
+    }
+
+    // Update message canvas after all possible add_message() calls
+    // Remove old messages above max size
+    while (message_history.length > message_history_length_max) {
+        message_history.pop();
+    }
+    Text.wordwrap = ui_wordwrap;
+    if (need_to_update_message_canvas) {
+        need_to_update_message_canvas = false;
+        Gfx.drawtoimage('message_canvas');
+        Gfx.clearscreen();
+        var messages = "";
+        for (message in message_history) {
+            messages = message + '\n' + messages;
+        }
+        Text.display(0, 0, messages);
+        Gfx.drawtoscreen();
     }
 
     if (frametime_graph_DEV) {

@@ -28,7 +28,6 @@ enum SpellType {
 
     SpellType_ModLevelHealth;
     SpellType_ModLevelAttack;
-    SpellType_ModLevelAbsorb;
 
     SpellType_ModUseCharges;
     SpellType_CopyItem;
@@ -89,7 +88,6 @@ SpellType_AoeDamage => 2,
 
 SpellType_ModLevelHealth => 3,
 SpellType_ModLevelAttack => 3,
-SpellType_ModLevelAbsorb => 3,
 SpellType_ShowThings => 3,
 SpellType_UncoverMap => 3,
 SpellType_SafeTeleport => 3,
@@ -100,7 +98,6 @@ SpellType_ModMoveSpeed => 3,
 ];
 static inline var last_prio = 3;
 
-// TODO: need to think about wording
 // the interval thing is only for heal over time/dmg over time
 // attack bonuses/ health max bonuses are applied every turn
 static function get_description(spell: Spell): String {
@@ -126,7 +123,6 @@ static function get_description(spell: Spell): String {
 
         case SpellType_ModLevelHealth: '$sign${spell.value} health to all enemies on the level';
         case SpellType_ModLevelAttack: '$sign${spell.value} attack to all enemies on the level';
-        case SpellType_ModLevelAbsorb: '$sign${spell.value} absorb to all enemies on the level';
 
         case SpellType_EnergyShield: 'energy shield that absorbs ${spell.value} damage';
         case SpellType_Invisibility: 'turn invisible';
@@ -519,7 +515,7 @@ static function test(): Spell {
     }
 }
 
-static function random_potion_spells(level: Int): Array<Spell> {
+static function random_potion_spell(level: Int): Spell {
     var type = Pick.value([
         {v: SpellType_ModHealth, c: 5.0},
         {v: SpellType_ModAttack, c: 1.0},
@@ -549,7 +545,7 @@ static function random_potion_spells(level: Int): Array<Spell> {
         default: 0;
     }
 
-    return [{
+    return {
         type: type,
         duration_type: duration_type,
         duration: duration,
@@ -557,25 +553,28 @@ static function random_potion_spells(level: Int): Array<Spell> {
         interval_current: 0,
         value: value,
         origin_name: "noname",
-    }];
+    };
 }
 
 static function random_scroll_spell(level: Int): Spell {
     var type = Pick.value([
         {v: SpellType_UncoverMap, c: 1.0},
         {v: SpellType_Nolos, c: 0.25},
+        {v: SpellType_ShowThings, c: 0.5},
+        
         {v: SpellType_Noclip, c: 1.0},
         {v: SpellType_RandomTeleport, c: 0.5},
         {v: SpellType_SafeTeleport, c: 0.5},
+        
         {v: SpellType_ModHealthMax, c: 1.0},
-        {v: SpellType_ShowThings, c: 0.5},
         {v: SpellType_AoeDamage, c: 1.0},
+        {v: SpellType_DamageShield, c: 1.0},
+        {v: SpellType_EnergyShield, c: 1.0},
+
         {v: SpellType_ModUseCharges, c: 0.5},
         {v: SpellType_CopyItem, c: 1.0},
-        {v: SpellType_EnergyShield, c: 1.0},
-        {v: SpellType_Passify, c: 1.0},
         {v: SpellType_EnchantEquipment, c: 1.0},
-        {v: SpellType_DamageShield, c: 10.0},
+        {v: SpellType_Passify, c: 1.0},
         ]);
 
     var duration_type = switch (type) {
@@ -668,7 +667,6 @@ static function enemy_curse_spells(): Array<Spell> {
     var type = Pick.value([
         {v: SpellType_ModLevelHealth, c: 1.0},
         {v: SpellType_ModLevelAttack, c: 1.0},
-        {v: SpellType_ModLevelAbsorb, c: 1.0},
         ]);
 
     return [{
@@ -691,7 +689,6 @@ static function enemy_buff_spells(avoid_type: SpellType = null): Array<Spell> {
         type = Pick.value([
             {v: SpellType_ModLevelHealth, c: 1.0},
             {v: SpellType_ModLevelAttack, c: 1.0},
-            {v: SpellType_ModLevelAbsorb, c: 1.0},
             ]);
     }
 
@@ -958,7 +955,7 @@ static function ailment_room(r: Room) {
 }
 
 static function random_equipment_spell_equip_negative(equipment_type: EquipmentType): Spell {
-    var level = Main.current_level;
+    var level = Main.get_drop_entity_level();
 
     var type = switch (equipment_type) {
         case EquipmentType_Weapon: Pick.value([
@@ -1018,7 +1015,7 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
 }
 
 static function random_equipment_spell_equip(equipment_type: EquipmentType): Spell {
-    var level = Main.current_level;
+    var level = Main.get_drop_entity_level();
 
     var type = switch (equipment_type) {
         case EquipmentType_Weapon: Pick.value([
@@ -1094,7 +1091,7 @@ static function get_equipment_spell_use_charges(s: Spell): Int {
 }
 
 static function random_equipment_spell_use(equipment_type: EquipmentType): Spell {
-    var level = Main.current_level;
+    var level = Main.get_drop_entity_level();
 
     var type = switch (equipment_type) {
         case EquipmentType_Weapon: Pick.value([

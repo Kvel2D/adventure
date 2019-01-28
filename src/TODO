@@ -20,6 +20,8 @@ friendly mobs
 DONE
 
 
+
+
 ----------------------------------------------------------------------------------
 PROBLEMS
 
@@ -67,3 +69,9 @@ statue that converts your copper into stats
 
 keys should have some danger associated with them
     put them in enemy rooms and maybe increase the average amount of enemies in those rooms?
+
+area spells should span multiple rooms and connections
+    whole levels full of it? would need to make it less frequent and maybe increase value of stuff on the level
+    whole level of teleportation would be pretty insane(ly fun)
+
+maybe incrementing level not every floor, but every 2-3 floors would create a better power curve
