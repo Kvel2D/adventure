@@ -1,23 +1,11 @@
 ----------------------------------------------------------------------------------
 TODO
 
-friendly mobs
-    make them green to easily distinguish
-    can attack friendlies to prevent path blocks
-    friendlies and enemies fight each other
-        when deciding who to follow or attack, enemies select closest one out of friendlies or player
-            but prio player, so the loop that selects lowest distance first goes through frendlies then checks player, so player will always be selected if distances are the same
-        friendlies select closest enemy
-    friendly mobs naturally occur on levels(rarely)
-
-    summon - create friendly mob
-    charm - turn enemy into friendly
-
-    aoe spells damage friendlies as well?
-        could be a nice tradeoff
+summon spell
 
 ----------------------------------------------------------------------------------
 DONE
+
 
 
 
@@ -75,3 +63,10 @@ area spells should span multiple rooms and connections
     whole level of teleportation would be pretty insane(ly fun)
 
 maybe incrementing level not every floor, but every 2-3 floors would create a better power curve
+
+quests
+    an npc tells you that he'll give you copper or a good item if you defeat all enemies on the floor
+        or maybe all enemies of type
+    could also do a carry quest
+        given item by one npc, have to carry it to an npc N floors later
+        occupies a slot, but gives a reward in return

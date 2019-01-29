@@ -481,7 +481,9 @@ static function random_potion(x: Int, y: Int): Int {
         type: ItemType_Normal,
         spells: [],
     };
-    var spell = Spells.random_potion_spell(level);
+    var spell_and_tile = Spells.random_potion_spell_and_tile(level);
+    var spell = spell_and_tile.spell;
+    var tile = spell_and_tile.tile;
     Entity.use[e] = {
         spells: [spell],
         charges: 1,
@@ -491,13 +493,7 @@ static function random_potion(x: Int, y: Int): Int {
     };
 
     // TODO: diversify potion icons based on potion spell
-    Entity.draw_tile[e] = switch (spell.type) {
-        case SpellType_ModHealth: Tile.PotionHealing;
-        case SpellType_ModAttack: Tile.PotionPhysical;
-        case SpellType_ModDefense: Tile.PotionPhysical;
-        case SpellType_Invisibility: Tile.PotionShadow;
-        default: Tile.None;
-    };
+    Entity.draw_tile[e] = tile;
 
     Entity.validate(e);
 
@@ -516,7 +512,9 @@ static function random_scroll(x: Int, y: Int): Int {
         type: ItemType_Normal,
         spells: [],
     };
-    var spell = Spells.random_scroll_spell(level);
+    var spell_and_tile = Spells.random_scroll_spell_and_tile(level);
+    var spell = spell_and_tile.spell;
+    var tile = spell_and_tile.tile;
     Entity.use[e] = {
         spells: [spell],
         charges: 1,
@@ -533,27 +531,7 @@ static function random_scroll(x: Int, y: Int): Int {
     };
 
     // TODO: diversify scroll icons based on scroll spell
-    Entity.draw_tile[e] = switch (spell.type) {
-        case SpellType_UncoverMap: Tile.ScrollLight;
-        case SpellType_Nolos: Tile.ScrollLight;
-        case SpellType_ShowThings: Tile.ScrollLight;
-
-        case SpellType_Noclip: Tile.ScrollShadow;
-        case SpellType_RandomTeleport: Tile.ScrollShadow;
-        case SpellType_SafeTeleport: Tile.ScrollShadow;
-
-        case SpellType_ModUseCharges: Tile.ScrollIce;
-        case SpellType_CopyItem: Tile.ScrollIce;
-        case SpellType_EnchantEquipment: Tile.ScrollIce;
-
-        case SpellType_AoeDamage: Tile.ScrollPhysical;
-        case SpellType_DamageShield: Tile.ScrollPhysical;
-        case SpellType_EnergyShield: Tile.ScrollPhysical;
-
-        case SpellType_Passify: Tile.ScrollMixed;
-
-        default: Tile.None;
-    };
+    Entity.draw_tile[e] = tile;
 
     Entity.validate(e);
 
@@ -590,9 +568,6 @@ static function random_enemy_type(): EntityType {
     }
     var health = Stats.get({min: 4, max: 5, scaling: 1.0}, level); 
 
-    // TODO: diversify enemy colors
-    var color = Col.GRAY;
-
     var aggression_type = Pick.value([
         {v: AggressionType_Aggressive, c: 1.0},
         {v: AggressionType_NeutralToAggressive, c: 0.1},
@@ -613,6 +588,7 @@ static function random_enemy_type(): EntityType {
             cant_move: false,
             successive_moves: 0,
             chase_dst: Random.int(7, 14),
+            target: MoveTarget_PlayerOrFriendly,
         }
     } else {
         {
@@ -623,6 +599,7 @@ static function random_enemy_type(): EntityType {
             cant_move: false,
             successive_moves: 0,
             chase_dst: 0,
+            target: MoveTarget_PlayerOrFriendly,
         }
     }
 
@@ -632,6 +609,9 @@ static function random_enemy_type(): EntityType {
         case AggressionType_Neutral: '$name reluctantly hits you back.';
         case AggressionType_Passive: '$name cowers in fear.';
     };
+
+    // TODO: diversify enemy colors
+    var color Col.GRAY;
 
     return {
         name: name,
@@ -651,6 +631,7 @@ static function random_enemy_type(): EntityType {
             aggression: aggression_type,
             attacked_by_player: false,
             range_squared: range * range,
+            target: CombatTarget_PlayerOrFriendly
         },
         // TODO: think about what droprate is good and whether to vary percentages by mob
         drop_entity: {
@@ -740,6 +721,7 @@ static function merchant(x: Int, y: Int): Int {
         aggression: AggressionType_NeutralToAggressive,
         attacked_by_player: false,
         range_squared: 1,
+        target: CombatTarget_PlayerOrFriendly,
     };
     Entity.draw_on_minimap[e] = {
         color: Col.PINK,

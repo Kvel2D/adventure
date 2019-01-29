@@ -515,7 +515,7 @@ static function test(): Spell {
     }
 }
 
-static function random_potion_spell(level: Int): Spell {
+static function random_potion_spell_and_tile(level: Int) {
     var type = Pick.value([
         {v: SpellType_ModHealth, c: 5.0},
         {v: SpellType_ModAttack, c: 1.0},
@@ -545,18 +545,29 @@ static function random_potion_spell(level: Int): Spell {
         default: 0;
     }
 
+    var tile = switch (type) {
+        case SpellType_ModHealth: Tile.PotionHealing;
+        case SpellType_ModAttack: Tile.PotionPhysical;
+        case SpellType_ModDefense: Tile.PotionPhysical;
+        case SpellType_Invisibility: Tile.PotionShadow;
+        default: Tile.None;
+    };
+
     return {
-        type: type,
-        duration_type: duration_type,
-        duration: duration,
-        interval: 1,
-        interval_current: 0,
-        value: value,
-        origin_name: "noname",
+        spell: {
+            type: type,
+            duration_type: duration_type,
+            duration: duration,
+            interval: 1,
+            interval_current: 0,
+            value: value,
+            origin_name: "noname",
+        },
+        tile: tile,
     };
 }
 
-static function random_scroll_spell(level: Int): Spell {
+static function random_scroll_spell_and_tile(level: Int) {
     var type = Pick.value([
         {v: SpellType_UncoverMap, c: 1.0},
         {v: SpellType_Nolos, c: 0.25},
@@ -565,7 +576,7 @@ static function random_scroll_spell(level: Int): Spell {
         {v: SpellType_Noclip, c: 1.0},
         {v: SpellType_RandomTeleport, c: 0.5},
         {v: SpellType_SafeTeleport, c: 0.5},
-        
+
         {v: SpellType_ModHealthMax, c: 1.0},
         {v: SpellType_AoeDamage, c: 1.0},
         {v: SpellType_DamageShield, c: 1.0},
@@ -574,6 +585,7 @@ static function random_scroll_spell(level: Int): Spell {
         {v: SpellType_ModUseCharges, c: 0.5},
         {v: SpellType_CopyItem, c: 1.0},
         {v: SpellType_EnchantEquipment, c: 1.0},
+
         {v: SpellType_Passify, c: 1.0},
         ]);
 
@@ -613,15 +625,41 @@ static function random_scroll_spell(level: Int): Spell {
         default: 0;
     }
 
+    var tile = switch (type) {
+        case SpellType_UncoverMap: Tile.ScrollLight;
+        case SpellType_Nolos: Tile.ScrollLight;
+        case SpellType_ShowThings: Tile.ScrollLight;
+
+        case SpellType_Noclip: Tile.ScrollShadow;
+        case SpellType_RandomTeleport: Tile.ScrollShadow;
+        case SpellType_SafeTeleport: Tile.ScrollShadow;
+
+        case SpellType_ModUseCharges: Tile.ScrollIce;
+        case SpellType_CopyItem: Tile.ScrollIce;
+        case SpellType_EnchantEquipment: Tile.ScrollIce;
+
+        case SpellType_ModHealthMax: Tile.ScrollPhysical;
+        case SpellType_AoeDamage: Tile.ScrollPhysical;
+        case SpellType_DamageShield: Tile.ScrollPhysical;
+        case SpellType_EnergyShield: Tile.ScrollPhysical;
+
+        case SpellType_Passify: Tile.ScrollMixed;
+
+        default: Tile.None;
+    };
+
     return {
-        type: type,
-        duration_type: duration_type,
-        duration: duration,
-        interval: 1,
-        interval_current: 0,
-        value: value,
-        origin_name: "noname",
-    }
+        spell: {
+            type: type,
+            duration_type: duration_type,
+            duration: duration,
+            interval: 1,
+            interval_current: 0,
+            value: value,
+            origin_name: "noname",
+        }, 
+        tile: tile,
+    };
 }
 
 static function random_ring_spell(level: Int): Spell {

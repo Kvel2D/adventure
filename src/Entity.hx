@@ -30,6 +30,16 @@ enum MoveType {
     MoveType_StayAway;
 }
 
+enum MoveTarget {
+    MoveTarget_PlayerOrFriendly;
+    MoveTarget_Enemy;
+}
+
+enum CombatTarget {
+    CombatTarget_PlayerOrFriendly;
+    CombatTarget_Enemy;
+}
+
 enum DropTable {
     DropTable_Default;
     DropTable_LockedChest;
@@ -42,6 +52,7 @@ typedef Combat = {
     var aggression: AggressionType;
     var attacked_by_player: Bool;
     var range_squared: Int;
+    var target: CombatTarget;
 }
 
 typedef Use = {
@@ -90,6 +101,7 @@ typedef Move = {
     var cant_move: Bool;
     var successive_moves: Int;
     var chase_dst: Int;
+    var target: MoveTarget;
 }
 
 typedef Locked = {
@@ -227,6 +239,7 @@ static function copy(e: Int, x: Int, y: Int): Int {
             aggression: e_combat.aggression,
             attacked_by_player: e_combat.attacked_by_player,
             range_squared: e_combat.range_squared,
+            target: e_combat.target,
         };
     }
     if (drop_entity.exists(e)) {
@@ -253,6 +266,7 @@ static function copy(e: Int, x: Int, y: Int): Int {
             cant_move: e_move.cant_move,
             successive_moves: e_move.successive_moves,
             chase_dst: e_move.chase_dst,
+            target: e_move.target,
         };
     }
     if (locked.exists(e)) {
@@ -337,6 +351,7 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
             aggression: type.combat.aggression,
             attacked_by_player: type.combat.attacked_by_player,
             range_squared: type.combat.range_squared,
+            target: type.combat.target,
         };
     }
     if (type.drop_entity != null) {
@@ -360,6 +375,7 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
             cant_move: type.move.cant_move,
             successive_moves: type.move.successive_moves,
             chase_dst: type.move.chase_dst,
+            target: type.move.target,
         };
     }
     if (type.locked != null) {

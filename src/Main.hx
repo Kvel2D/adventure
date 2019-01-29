@@ -402,7 +402,7 @@ function try_buy_entity(e: Int) {
     }
 }
 
-function drop_entity_from_entity(e: Int, dropping_entity_name: String) {
+function drop_entity_from_entity(e: Int) {
     var drop_entity = Entity.drop_entity[e];
     var pos = Entity.position[e];
 
@@ -424,6 +424,11 @@ function drop_entity_from_entity(e: Int, dropping_entity_name: String) {
             'unnamed_drop';
         }
 
+        var dropping_entity_name = 'unnamed_dropping_entity_name';
+        if (Entity.name.exists(e)) {
+            dropping_entity_name = Entity.name[e];
+        }
+
         add_message('$dropping_entity_name drops $drop_name.');
     }
 }
@@ -440,7 +445,7 @@ function try_open_entity(e: Int) {
 
     function drop_from_locked() {
         if (Entity.drop_entity.exists(e) && Entity.position.exists(e)) {
-            drop_entity_from_entity(e, locked_name);
+            drop_entity_from_entity(e);
         }
     }
 
@@ -659,10 +664,71 @@ function move_entity(e: Int) {
         }
     }
 
+    // Find target position
+    var target_x = -1;
+    var target_y = -1;
+    if (move.type == MoveType_Astar || move.type == MoveType_Straight || move.type == MoveType_Straight) {
+        switch (move.target) {
+            case MoveTarget_PlayerOrFriendly: {
+                // Do player first to prio friendlies before player
+                var closest_dst = 10000000.0;
+
+                if (!player_is_invisible) {
+                    target_x = player_x;
+                    target_y = player_y;
+                    closest_dst = Math.dst2(target_x, target_y, pos.x, pos.y);
+                }
+
+                for (other_e in entities_with(Entity.combat)) {
+                    // Skip itself
+                    if (other_e == e) {
+                        continue;
+                    }
+
+                    // Entity must have position, combat and be friendly
+                    if (Entity.position.exists(other_e) && Entity.combat.exists(other_e) && Entity.combat[other_e].target == CombatTarget_Enemy) {
+                        var other_pos = Entity.position[other_e];
+                        var dst = Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y);
+
+                        if (dst < closest_dst) {
+                            closest_dst = dst;
+                            target_x = other_pos.x;
+                            target_y = other_pos.y;
+                        }
+                    }
+                }
+            }
+            case MoveTarget_Enemy: {
+                target_x = -1;
+                target_y = -1;
+                var closest_dst = 10000000.0;
+
+                for (other_e in entities_with(Entity.combat)) {
+                    // Skip itself
+                    if (other_e == e) {
+                        continue;
+                    }
+
+                    // Entity must have position, combat and be an enemy
+                    if (Entity.position.exists(other_e) && Entity.combat.exists(other_e) && Entity.combat[other_e].target == CombatTarget_PlayerOrFriendly) {
+                        var other_pos = Entity.position[other_e];
+                        var dst = Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y);
+
+                        if (dst < closest_dst) {
+                            closest_dst = dst;
+                            target_x = other_pos.x;
+                            target_y = other_pos.y;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     switch (move.type) {
         case MoveType_Astar: {
-            if (!player_next_to(pos) && Math.dst(player_x, player_y, pos.x, pos.y) < move.chase_dst && !player_is_invisible) {
-                var path = Path.astar_view(pos.x, pos.y, player_x, player_y);
+            if (target_x != -1 && target_y != -1 && Math.dst(target_x, target_y, pos.x, pos.y) < move.chase_dst) {
+                var path = Path.astar_view(pos.x, pos.y, target_x, target_y);
 
                 if (path.length > 2) {
                     var room = rooms[player_room];
@@ -671,9 +737,9 @@ function move_entity(e: Int) {
             }
         }
         case MoveType_Straight: {
-            if (!player_next_to(pos) && Math.dst(player_x, player_y, pos.x, pos.y) < move.chase_dst && !player_is_invisible) {
-                var dx = player_x - pos.x;
-                var dy = player_y - pos.y;
+            if (target_x != -1 && target_y != -1 && Math.dst(target_x, target_y, pos.x, pos.y) < move.chase_dst) {
+                var dx = target_x - pos.x;
+                var dy = target_y - pos.y;
                 var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
 
                 if (!free_map[1 + Math.sign(dx)][1]) {
@@ -704,9 +770,9 @@ function move_entity(e: Int) {
         }
         case MoveType_StayAway: {
             // Randomly move but also stay away from player
-            if (Math.dst(player_x, player_y, pos.x, pos.y) <= 4 && !player_is_invisible) {
-                var dx = - (player_x - pos.x);
-                var dy = - (player_y - pos.y);
+            if (Math.dst(target_x, target_y, pos.x, pos.y) <= 4) {
+                var dx = - (target_x - pos.x);
+                var dy = - (target_y - pos.y);
                 var free_map = get_free_map(pos.x - 1, pos.y - 1, 3, 3);
 
                 if (!free_map[1 + Math.sign(dx)][1]) {
@@ -737,21 +803,82 @@ function move_entity(e: Int) {
     }
 }
 
+function kill_entity(e: Int) {
+    // Drop entities if can and entity is on map
+    if (Entity.drop_entity.exists(e) && Entity.position.exists(e)) {
+        drop_entity_from_entity(e);
+    }
+
+    // Merchant death makes all buy items free
+    if (Entity.name.exists(e) && Entity.name[e] == 'Merchant') {
+        var merchant_room = Entity.position[e].room;
+        var removed_buys = new Array<Int>();
+        for (e in entities_with(Entity.buy)) {
+            removed_buys.push(e);
+        }
+        for (e in removed_buys) {
+            Entity.buy.remove(e);
+        }
+    }
+
+    Entity.remove(e);
+}
+
+function entity_attack_entity(e: Int, target: Int) {
+    var combat = Entity.combat[e];
+    var target_combat = Entity.combat[target];
+    
+    var should_attack = switch (combat.aggression) {
+        case AggressionType_Aggressive: true;
+        case AggressionType_Neutral: true; // Neutral always attacks other entities
+        case AggressionType_NeutralToAggressive: false;
+        case AggressionType_Passive: false;
+    }
+
+    if (!should_attack) {
+        return;
+    }
+
+    target_combat.health -= combat.attack;
+
+    add_message(combat.message);
+    
+    var e_name = 'unnamed_e';
+    if (Entity.name.exists(e)) {
+        e_name = Entity.name[e];
+    }
+    var target_name = 'unnamed_target_of_e';
+    if (Entity.name.exists(target)) {
+        target_name = Entity.name[target];
+    }
+    if (combat.attack != 0) {
+        add_message('$e_name attacks $target_name for ${combat.attack} damage.');
+    }
+
+    // Can't move and attack in same turn
+    if (Entity.move.exists(e)) {
+        var move = Entity.move[e];
+        move.cant_move = true;
+    }
+
+    if (target_combat.health <= 0) {
+        kill_entity(target);
+    }
+}
+
 function entity_attack_player(e: Int): Bool {
+    if (!Entity.combat.exists(e) || !Entity.position.exists(e)) {
+        return false;
+    }
+
     var combat = Entity.combat[e];
     
-    // If on map, must be next to player
-    if (Entity.position.exists(e)) {
-        var pos = Entity.position[e];
+    // Must be next to player
+    var pos = Entity.position[e];
 
-        // Must be in view and visible, ok to be in another room as long as entity is visible, this way entities can't attack through walls but attacking around corners works the same way as player attacks
-        if (out_of_view_bounds(pos.x, pos.y) || !position_visible(pos.x - get_view_x(), pos.y - get_view_y())) {
-            return false;
-        }
-
-        if (Math.dst2(player_x, player_y, pos.x, pos.y) > combat.range_squared) {
-            return false;
-        }
+    // Must be in view and visible, ok to be in another room as long as entity is visible, this way entities can't attack through walls but attacking around corners works the same way as player attacks
+    if (out_of_view_bounds(pos.x, pos.y) || !position_visible(pos.x - get_view_x(), pos.y - get_view_y())) {
+        return false;
     }
 
     // NeutralToAggressive become aggressive on attack and starts chasing
@@ -763,6 +890,7 @@ function entity_attack_player(e: Int): Bool {
             cant_move: false,
             successive_moves: 0,
             chase_dst: Main.view_width, // chase forever
+            target: MoveTarget_PlayerOrFriendly,
         }
     }
 
@@ -821,7 +949,55 @@ function entity_attack_player(e: Int): Bool {
     return true;
 }
 
+function entity_attack(e: Int): Bool {
+    if (!Entity.combat.exists(e) || !Entity.position.exists(e)) {
+        return false;
+    }
+
+    var combat = Entity.combat[e];
+    var pos = Entity.position[e];
+
+    // Entity must be in view
+    if (out_of_view_bounds(pos.x, pos.y)) {
+        return false;
+    }
+
+    // Attack player if in range, prio player over friendlies
+    if (combat.target == CombatTarget_PlayerOrFriendly && Math.dst2(player_x, player_y, pos.x, pos.y) <= combat.range_squared) {
+        return entity_attack_player(e);
+    }
+
+    // Find target entity of opposite faction
+    var target_e = Entity.NONE;
+    for (other_e in entities_with(Entity.combat)) {
+        // Skip itself
+        if (other_e == e) {
+            continue;
+        }
+
+        // Target must have position, combat and have opposite target
+        if (Entity.position.exists(other_e) && Entity.combat.exists(other_e) && Entity.combat[other_e].target != combat.target) {
+            var other_pos = Entity.position[other_e];
+
+            if (Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y) < combat.range_squared) {
+                target_e = other_e;
+                break;
+            }
+        }
+    }
+
+    if (target_e != Entity.NONE) {
+        entity_attack_entity(e, target_e);
+    }
+
+    return false;
+}
+
 function player_attack_entity(e: Int, attack: Int) {
+    if (!Entity.combat.exists(e)) {
+        return;
+    }
+    
     var combat = Entity.combat[e];
 
     combat.health -= attack;
@@ -850,24 +1026,7 @@ function player_attack_entity(e: Int, attack: Int) {
     }
 
     if (combat.health <= 0) {
-        // Drop entities if can and entity is on map
-        if (Entity.drop_entity.exists(e) && Entity.position.exists(e)) {
-            drop_entity_from_entity(e, target_name);
-        }
-
-        // Merchant death makes all buy items free
-        if (Entity.name.exists(e) && Entity.name[e] == 'Merchant') {
-            var merchant_room = Entity.position[e].room;
-            var removed_buys = new Array<Int>();
-            for (e in entities_with(Entity.buy)) {
-                removed_buys.push(e);
-            }
-            for (e in removed_buys) {
-                Entity.buy.remove(e);
-            }
-        }
-
-        Entity.remove(e);
+        kill_entity(e);
     }
 }
 
@@ -1960,9 +2119,9 @@ function update() {
 
         // Entities attack player
         for (e in entities_with(Entity.combat)) {
-            var attacked = entity_attack_player(e);
+            var attacked_player = entity_attack(e);
 
-            if (attacked) {
+            if (attacked_player) {
                 entities_that_attacked_player.push(e);
             }
         }
