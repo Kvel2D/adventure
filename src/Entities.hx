@@ -588,7 +588,7 @@ static function random_enemy_type(): EntityType {
             cant_move: false,
             successive_moves: 0,
             chase_dst: Random.int(7, 14),
-            target: MoveTarget_PlayerOrFriendly,
+            target: MoveTarget_FriendlyOverPlayer,
         }
     } else {
         {
@@ -599,7 +599,7 @@ static function random_enemy_type(): EntityType {
             cant_move: false,
             successive_moves: 0,
             chase_dst: 0,
-            target: MoveTarget_PlayerOrFriendly,
+            target: MoveTarget_FriendlyOverPlayer,
         }
     }
 
@@ -611,7 +611,7 @@ static function random_enemy_type(): EntityType {
     };
 
     // TODO: diversify enemy colors
-    var color Col.GRAY;
+    var color = Col.GRAY;
 
     return {
         name: name,
@@ -631,7 +631,7 @@ static function random_enemy_type(): EntityType {
             aggression: aggression_type,
             attacked_by_player: false,
             range_squared: range * range,
-            target: CombatTarget_PlayerOrFriendly
+            target: CombatTarget_FriendlyThenPlayer
         },
         // TODO: think about what droprate is good and whether to vary percentages by mob
         drop_entity: {
@@ -721,11 +721,109 @@ static function merchant(x: Int, y: Int): Int {
         aggression: AggressionType_NeutralToAggressive,
         attacked_by_player: false,
         range_squared: 1,
-        target: CombatTarget_PlayerOrFriendly,
+        target: CombatTarget_FriendlyThenPlayer,
     };
     Entity.draw_on_minimap[e] = {
         color: Col.PINK,
         seen: false,
+    };
+
+    Entity.validate(e);
+
+    return e;
+}
+
+static function golem(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    var level = Main.current_level;
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Golem';
+    Entity.description[e] = 'It\'s a golem.';
+    Entity.talk[e] = 'Golem says: "Protect you"';
+    Entity.draw_char[e] = {
+        char: 'g',
+        color: Col.GREEN,
+    };
+    Entity.combat[e] = {
+        health: Stats.get({min: 10, max: 15, scaling: 1.0}, level), 
+        attack: Stats.get({min: 2, max: 3, scaling: 1.0}, level), 
+        message: 'Golem says: "Why?"',
+        aggression: AggressionType_Aggressive,
+        attacked_by_player: false,
+        range_squared: 1,
+        target: CombatTarget_Enemy,
+    };
+    Entity.move[e] = {
+        type: MoveType_Astar,
+        cant_move: false,
+        successive_moves: 0,
+        chase_dst: Random.int(7, 14),
+        target: MoveTarget_EnemyOverPlayer,
+    };
+
+    Entity.validate(e);
+
+    return e;
+}
+
+static function skeleton(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    var level = Main.current_level;
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Skeleton';
+    Entity.description[e] = 'It\'s a skeleton.';
+    Entity.talk[e] = 'Skeleton says: "Click clack"';
+    Entity.draw_char[e] = {
+        char: 's',
+        color: Col.GREEN,
+    };
+    Entity.combat[e] = {
+        health: Stats.get({min: 1, max: 2, scaling: 1.0}, level), 
+        attack: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
+        message: 'Skeleton attacks.',
+        aggression: AggressionType_Aggressive,
+        attacked_by_player: false,
+        range_squared: 1,
+        target: CombatTarget_Enemy,
+    };
+    Entity.move[e] = {
+        type: MoveType_Straight,
+        cant_move: false,
+        successive_moves: 0,
+        chase_dst: Random.int(7, 14),
+        target: MoveTarget_EnemyOnly,
+    };
+
+    Entity.validate(e);
+
+    return e;
+}
+
+static function imp(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    var level = Main.current_level;
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Imp';
+    Entity.description[e] = 'It\'s an imp.';
+    Entity.talk[e] = 'Imp grins at you.';
+    Entity.draw_char[e] = {
+        char: 'i',
+        color: Col.GREEN,
+    };
+    Entity.combat[e] = {
+        health: Stats.get({min: 2, max: 3, scaling: 1.0}, level), 
+        attack: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
+        message: 'Imp attacks.',
+        aggression: AggressionType_Aggressive,
+        attacked_by_player: false,
+        range_squared: 9,
+        target: CombatTarget_Enemy,
     };
 
     Entity.validate(e);

@@ -231,9 +231,9 @@ function generate_level() {
     player_y = rooms[0].y;
     
     for (dx in 1...6) {
-        Entities.random_weapon(player_x + dx, player_y);
-        Entities.random_armor(player_x + dx, player_y + 1);
-        Entities.random_scroll(player_x + dx, player_y + 2);
+        // Entities.random_weapon(player_x + dx, player_y);
+        // Entities.random_armor(player_x + dx, player_y + 1);
+        // Entities.random_scroll(player_x + dx, player_y + 2);
     }
 
     // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
@@ -668,58 +668,89 @@ function move_entity(e: Int) {
     var target_x = -1;
     var target_y = -1;
     if (move.type == MoveType_Astar || move.type == MoveType_Straight || move.type == MoveType_Straight) {
-        switch (move.target) {
-            case MoveTarget_PlayerOrFriendly: {
-                // Do player first to prio friendlies before player
-                var closest_dst = 10000000.0;
 
-                if (!player_is_invisible) {
-                    target_x = player_x;
-                    target_y = player_y;
-                    closest_dst = Math.dst2(target_x, target_y, pos.x, pos.y);
+        // Find closest enemies and friendlies
+        var enemy_x = -1;
+        var enemy_y = -1;
+        var friendly_x = -1;
+        var friendly_y = -1;
+        var closest_enemy_dst = 10000000.0;
+        var closest_friendly_dst = 10000000.0;
+        var player_dst = Math.dst2(player_x, player_y, pos.x, pos.y);
+
+        for (other_e in entities_with(Entity.combat)) {
+            // Skip itself
+            if (other_e == e) {
+                continue;
+            }
+
+            // Entity must have position and combat
+            // NOTE: enemy/friendly is a reverse of combat target, an entity is FRIENDLY if it's combat target is ENEMY
+            if (Entity.position.exists(other_e) && Entity.combat.exists(other_e)) {
+                var other_pos = Entity.position[other_e];
+
+                // Entity must be in view
+                if (out_of_view_bounds(other_pos.x, other_pos.y)) {
+                    continue;
                 }
 
-                for (other_e in entities_with(Entity.combat)) {
-                    // Skip itself
-                    if (other_e == e) {
-                        continue;
+                var other_target = Entity.combat[other_e].target;
+                var dst = Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y);
+
+                switch (other_target) {
+                    case CombatTarget_Enemy: {
+                        if (dst < closest_friendly_dst) {
+                            closest_friendly_dst = dst;
+                            friendly_x = other_pos.x;
+                            friendly_y = other_pos.y;
+                        }
                     }
-
-                    // Entity must have position, combat and be friendly
-                    if (Entity.position.exists(other_e) && Entity.combat.exists(other_e) && Entity.combat[other_e].target == CombatTarget_Enemy) {
-                        var other_pos = Entity.position[other_e];
-                        var dst = Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y);
-
-                        if (dst < closest_dst) {
-                            closest_dst = dst;
-                            target_x = other_pos.x;
-                            target_y = other_pos.y;
+                    case CombatTarget_FriendlyThenPlayer: {
+                        if (dst < closest_enemy_dst) {
+                            closest_enemy_dst = dst;
+                            enemy_x = other_pos.x;
+                            enemy_y = other_pos.y;
                         }
                     }
                 }
             }
-            case MoveTarget_Enemy: {
-                target_x = -1;
-                target_y = -1;
-                var closest_dst = 10000000.0;
+        }
 
-                for (other_e in entities_with(Entity.combat)) {
-                    // Skip itself
-                    if (other_e == e) {
-                        continue;
-                    }
+        // Decide who to move to
 
-                    // Entity must have position, combat and be an enemy
-                    if (Entity.position.exists(other_e) && Entity.combat.exists(other_e) && Entity.combat[other_e].target == CombatTarget_PlayerOrFriendly) {
-                        var other_pos = Entity.position[other_e];
-                        var dst = Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y);
-
-                        if (dst < closest_dst) {
-                            closest_dst = dst;
-                            target_x = other_pos.x;
-                            target_y = other_pos.y;
-                        }
-                    }
+        switch (move.target) {
+            case MoveTarget_PlayerOnly: {
+                if (!player_is_invisible) {
+                    target_x = player_x;
+                    target_y = player_y;
+                }
+            }
+            case MoveTarget_EnemyOnly: {
+                if (enemy_x != -1 && enemy_y != -1) {
+                    target_x = enemy_x;
+                    target_y = enemy_y;
+                }
+            }
+            case MoveTarget_FriendlyOverPlayer: {
+                if (friendly_x != -1 && friendly_y != -1 && Math.dst(friendly_x, friendly_y, pos.x, pos.y) <= move.chase_dst) {
+                    // Chase friendly if there's one and it's within chase dst
+                    target_x = friendly_x;
+                    target_y = friendly_y;
+                } else if (!player_is_invisible) {
+                    // Otherwise chase player
+                    target_x = player_x;
+                    target_y = player_y;
+                }
+            }
+            case MoveTarget_EnemyOverPlayer: {
+                if (enemy_x != -1 && enemy_y != -1 && Math.dst(enemy_x, enemy_y, pos.x, pos.y) <= move.chase_dst) {
+                    // Chase enemy if there's one and it's within chase dst
+                    target_x = enemy_x;
+                    target_y = enemy_y;
+                } else if (!player_is_invisible) {
+                    // Otherwise chase player
+                    target_x = player_x;
+                    target_y = player_y;
                 }
             }
         }
@@ -890,7 +921,7 @@ function entity_attack_player(e: Int): Bool {
             cant_move: false,
             successive_moves: 0,
             chase_dst: Main.view_width, // chase forever
-            target: MoveTarget_PlayerOrFriendly,
+            target: MoveTarget_FriendlyOverPlayer,
         }
     }
 
@@ -963,7 +994,7 @@ function entity_attack(e: Int): Bool {
     }
 
     // Attack player if in range, prio player over friendlies
-    if (combat.target == CombatTarget_PlayerOrFriendly && Math.dst2(player_x, player_y, pos.x, pos.y) <= combat.range_squared) {
+    if (combat.target == CombatTarget_FriendlyThenPlayer && Math.dst2(player_x, player_y, pos.x, pos.y) <= combat.range_squared) {
         return entity_attack_player(e);
     }
 
@@ -979,7 +1010,7 @@ function entity_attack(e: Int): Bool {
         if (Entity.position.exists(other_e) && Entity.combat.exists(other_e) && Entity.combat[other_e].target != combat.target) {
             var other_pos = Entity.position[other_e];
 
-            if (Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y) < combat.range_squared) {
+            if (Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y) <= combat.range_squared) {
                 target_e = other_e;
                 break;
             }
@@ -1298,6 +1329,46 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
 
             if (spell.duration_type == SpellDuration_Permanent) {
                 add_message('${spell.origin_name} increases your permanent damage shield by ${spell.value}.');
+            }
+        }
+        case SpellType_SummonGolem: {
+            var free_pos = free_position_around_player();
+
+            if (free_pos.x != -1 && free_pos.y != -1) {
+                Entities.golem(free_pos.x, free_pos.y);
+                add_message('You summon a golem, it smiles at you.');
+            } else {
+                add_message('No space to summon golem, spell fails!');
+            }
+        }
+        case SpellType_SummonSkeletons: {
+            var summon_count = 0;
+            for (i in 0...3) {
+                var free_pos = free_position_around_player();
+                if (free_pos.x != -1 && free_pos.y != -1) {
+                    Entities.skeleton(free_pos.x, free_pos.y);
+                    summon_count++;
+                } else {
+                    break;
+                }
+            }
+            
+            if (summon_count == 3) {
+                add_message('You summon skeletons. Spooky!.');
+            } else if (summon_count == 0) {
+                add_message('No space to summon skeletons, spell fails!');
+            } else {
+                add_message('You summon skeletons but there was not enough space for all three.');
+            }
+        }
+        case SpellType_SummonImp: {
+            var free_pos = free_position_around_player();
+
+            if (free_pos.x != -1 && free_pos.y != -1) {
+                Entities.imp(free_pos.x, free_pos.y);
+                add_message('You summon a imp, it grins at you.');
+            } else {
+                add_message('No space to summon imp, spell fails!');
             }
         }
     }

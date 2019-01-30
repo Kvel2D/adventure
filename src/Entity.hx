@@ -31,12 +31,14 @@ enum MoveType {
 }
 
 enum MoveTarget {
-    MoveTarget_PlayerOrFriendly;
-    MoveTarget_Enemy;
+    MoveTarget_FriendlyOverPlayer;
+    MoveTarget_EnemyOnly;
+    MoveTarget_PlayerOnly;
+    MoveTarget_EnemyOverPlayer;
 }
 
 enum CombatTarget {
-    CombatTarget_PlayerOrFriendly;
+    CombatTarget_FriendlyThenPlayer;
     CombatTarget_Enemy;
 }
 

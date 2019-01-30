@@ -33,6 +33,10 @@ enum SpellType {
     SpellType_CopyItem;
     SpellType_Passify;
     SpellType_EnchantEquipment;
+
+    SpellType_SummonGolem;
+    SpellType_SummonSkeletons;
+    SpellType_SummonImp;
 }
 
 enum SpellDuration {
@@ -95,6 +99,9 @@ SpellType_RandomTeleport => 3,
 SpellType_Nolos => 3,
 SpellType_Noclip => 3,
 SpellType_ModMoveSpeed => 3,
+SpellType_SummonGolem => 3,
+SpellType_SummonSkeletons => 3,
+SpellType_SummonImp => 3,
 ];
 static inline var last_prio = 3;
 
@@ -140,6 +147,9 @@ static function get_description(spell: Spell): String {
         case SpellType_Passify: 'passify an enemy(left-click on an enemy near you)';
         case SpellType_EnchantEquipment: 'enchant weapon or armor, increasing it\'s attack or defense bonus permanently';
         case SpellType_DamageShield: 'deal ${spell.value} damage to attackers';
+        case SpellType_SummonGolem: 'summon a golem that protects you';
+        case SpellType_SummonSkeletons: 'summon three skeletons that protect you';
+        case SpellType_SummonImp: 'summon an imp that protects you, it can\'t move but it can shoot fireballs!';
     }
 
     var interval = 
@@ -587,6 +597,9 @@ static function random_scroll_spell_and_tile(level: Int) {
         {v: SpellType_EnchantEquipment, c: 1.0},
 
         {v: SpellType_Passify, c: 1.0},
+        {v: SpellType_SummonGolem, c: 1.0},
+        {v: SpellType_SummonSkeletons, c: 1.0},
+        {v: SpellType_SummonImp, c: 1.0},
         ]);
 
     var duration_type = switch (type) {
@@ -644,6 +657,10 @@ static function random_scroll_spell_and_tile(level: Int) {
         case SpellType_EnergyShield: Tile.ScrollPhysical;
 
         case SpellType_Passify: Tile.ScrollMixed;
+
+        case SpellType_SummonGolem: Tile.ScrollFire;
+        case SpellType_SummonSkeletons: Tile.ScrollFire;
+        case SpellType_SummonImp: Tile.ScrollFire;
 
         default: Tile.None;
     };
@@ -1000,6 +1017,7 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
             {v: SpellType_ModHealth, c: 1.0},
             {v: SpellType_ModDefense, c: 1.0},
             {v: SpellType_ModHealthMax, c: 1.0},
+            {v: SpellType_SummonSkeletons, c: 1.0},
             ]);
         case EquipmentType_Head: Pick.value([
             {v: SpellType_ModHealthMax, c: 1.0},
@@ -1017,6 +1035,7 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
             {v: SpellDuration_EveryAttack, c: 1.0},
             {v: SpellDuration_EveryTurn, c: 0.5},
             ]);
+        case SpellType_ModHealth: SpellDuration_EveryAttack;
         default: SpellDuration_Permanent;
     }
 
@@ -1031,6 +1050,7 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
             case SpellDuration_EveryTurn: Random.int(30, 50);
             default: 1;
         }
+        case SpellType_ModHealth: Random.int(15, 20);
         default: 0;
     }
 
@@ -1124,6 +1144,8 @@ static function get_equipment_spell_use_charges(s: Spell): Int {
         case SpellType_Nolos: Random.int(3, 5);
         case SpellType_ModHealth: Random.int(2, 4);
         case SpellType_ModMoveSpeed: Random.int(2, 4);
+        case SpellType_SummonGolem: Random.int(2, 4);
+        case SpellType_SummonImp: Random.int(2, 4);
         default: 100;
     }
 }
@@ -1136,10 +1158,12 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
             {v: SpellType_AoeDamage, c: 1.0},
             {v: SpellType_Invisibility, c: 0.5},
             {v: SpellType_EnergyShield, c: 1.0},
+            {v: SpellType_SummonGolem, c: 1.0},
             ]);
         case EquipmentType_Head: Pick.value([
             {v: SpellType_Nolos, c: 1.0},
             {v: SpellType_EnergyShield, c: 1.0},
+            {v: SpellType_SummonImp, c: 1.0},
             ]);
         case EquipmentType_Chest: Pick.value([
             {v: SpellType_ModHealth, c: 1.0},
@@ -1149,6 +1173,8 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
         case EquipmentType_Legs: Pick.value([
             {v: SpellType_ModMoveSpeed, c: 1.0},
             {v: SpellType_EnergyShield, c: 1.0},
+            {v: SpellType_RandomTeleport, c: 0.5},
+            {v: SpellType_SafeTeleport, c: 0.5},
             ]);
     }
 

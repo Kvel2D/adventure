@@ -1,19 +1,17 @@
 ----------------------------------------------------------------------------------
 TODO
 
-summon spell
 
 ----------------------------------------------------------------------------------
 DONE
-
-
-
 
 
 ----------------------------------------------------------------------------------
 PROBLEMS
 
 fat connections still sometimes go out of room bounds
+
+start room got disconnected
 
 killed merchant but picked up item and still had buy component on
 
@@ -70,3 +68,12 @@ quests
     could also do a carry quest
         given item by one npc, have to carry it to an npc N floors later
         occupies a slot, but gives a reward in return
+
+chain spell
+    damages a mob and jumps to nearby mobs
+        maybe each jump increases the damage
+    jump range is generous, mobs don't have to be next to each other
+
+summon wisp
+    don't attack, only clump to player as a physical barrier
+    maybe clump to enemy instead
