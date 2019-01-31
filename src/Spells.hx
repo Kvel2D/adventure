@@ -1035,7 +1035,7 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
             {v: SpellDuration_EveryAttack, c: 1.0},
             {v: SpellDuration_EveryTurn, c: 0.5},
             ]);
-        case SpellType_SummonSkeletons: SpellDuration_EveryAttack;
+        case SpellType_ModHealth: SpellDuration_EveryAttack;
         default: SpellDuration_Permanent;
     }
 
@@ -1050,7 +1050,7 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
             case SpellDuration_EveryTurn: Random.int(30, 50);
             default: 1;
         }
-        case SpellType_SummonSkeletons: Random.int(15, 20);
+        case SpellType_ModHealth: Random.int(15, 20);
         default: 0;
     }
 
