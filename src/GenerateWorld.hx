@@ -6,10 +6,10 @@ import Entities;
 using MathExtensions;
 
 typedef PreRoom = {
-    x: Float,
-    y: Float,
-    width: Float, 
-    height: Float
+    x: Int,
+    y: Int,
+    width: Int, 
+    height: Int
 }
 
 typedef Room = {

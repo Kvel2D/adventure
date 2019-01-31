@@ -145,7 +145,8 @@ function init() {
     Entities.read_name_corpus();
     LOS.calculate_rays();
 
-    generate_level();
+    pathfinding_test();
+    // generate_level();
 }
 
 // Room is good if it's not a connection and isn't locked
@@ -162,6 +163,92 @@ static function random_good_room(): Int {
 // NOTE: this is a copy, so can it's safe to modify components while iterating
 static function entities_with(map: Map<Int, Dynamic>): Array<Int> {
     return [for (key in map.keys()) key];
+}
+
+function pathfinding_test() {
+    // Clear wall and tile data
+    for (x in 0...map_width) {
+        for (y in 0...map_height) {
+            walls[x][y] = true;
+            tiles[x][y] = Tile.Black;
+        }
+    }
+
+    // Generate and connect rooms
+    var test_rooms: Array<PreRoom> = [
+    { x: 1, y: 1, width: 7, height: 8, },
+    { x: 10, y: 3, width: 8, height: 9, },
+    { x: 21, y: 2, width: 5, height: 4, },
+    { x: 3, y: 15, width: 5, height: 4, },
+    { x: 14, y: 16, width: 7, height: 6, },
+    { x: 24, y: 11, width: 5, height: 6, },
+    { x: 5, y: 23, width: 11, height: 7, },
+    { x: 23, y: 23, width: 7, height: 7, },
+    ];
+    rooms = [ for (r in test_rooms) {x: r.x, y: r.y, width: r.width, height: r.height, is_connection: true, adjacent_rooms: [], is_locked: false, is_horizontal: false }];
+    var test_connections: Array<PreRoom> = [
+    { x: 4, y: 8, width: 3, height: 7, },
+    { x: 8, y: 17, width: 6, height: 1, },
+    { x: 14, y: 22, width: 3, height: 1, },
+    { x: 15, y: 12, width: 3, height: 4, },
+    { x: 18, y: 4, width: 3, height: 1, },
+    { x: 24, y: 6, width: 3, height: 5, },
+    { x: 25, y: 17, width: 4, height: 6, },
+    ];
+    rooms = rooms.concat([ for (r in test_connections) {x: r.x, y: r.y, width: r.width, height: r.height, is_connection: false, adjacent_rooms: [], is_locked: false, is_horizontal: false }]);
+
+    // NOTE: need to increment room dimensions because connections have one dimension of 0 and rooms are really one bigger as well
+    // for (r in rooms) {
+    //     r.width++;
+    //     r.height++;
+    // }
+    // GenerateWorld.fatten_connections();
+
+    // Clear walls inside rooms
+    for (r in rooms) {
+        for (x in r.x...(r.x + r.width)) {
+            for (y in r.y...(r.y + r.height)) {
+                walls[x][y] = false;
+                tiles[x][y] = Tile.Ground;
+            }
+        }
+    }
+
+    visited_room = [for (i in 0...rooms.length) false];
+
+
+    // Set start position to first room, before generating entities so that generation uses the new player position in collision checks
+    player_x = 14;
+    player_y = 29;
+    player_room = get_room_index(player_x, player_y);
+    
+    player_x_old = -1;
+    player_y_old = -1;
+
+    function path_monster(x, y) {
+        // Make path monster
+        var e = Entity.make();
+        Entity.set_position(e, x, y);
+        Entity.name[e] = 'Path Monster';
+        Entity.draw_char[e] = {
+            char: 'p',
+            color: Col.PINK,
+        };
+        Entity.move[e] = {
+            type: MoveType_Astar,
+            cant_move: false,
+            successive_moves: 0,
+            chase_dst: 1000,
+            target: MoveTarget_PlayerOnly,
+        };
+        Entity.validate(e);
+    }
+
+    for (x in 0...3) {    
+        for (y in 0...3) {    
+            path_monster(24 + x * 2, 24 + y * 2);
+        }
+    }
 }
 
 function generate_level() {
@@ -759,11 +846,13 @@ function move_entity(e: Int) {
     switch (move.type) {
         case MoveType_Astar: {
             if (target_x != -1 && target_y != -1 && Math.dst(target_x, target_y, pos.x, pos.y) < move.chase_dst) {
-                var path = Path.astar_view(pos.x, pos.y, target_x, target_y);
+                // var path = Path.astar_view(pos.x, pos.y, target_x, target_y);
+                var path = Path.astar_map(pos.x, pos.y, target_x, target_y);
 
                 if (path.length > 2) {
                     var room = rooms[player_room];
-                    Entity.set_position(e, path[path.length - 2].x + get_view_x(), path[path.length - 2].y + get_view_y());
+                    // Entity.set_position(e, path[path.length - 2].x + get_view_x(), path[path.length - 2].y + get_view_y());
+                    Entity.set_position(e, path[path.length - 2].x, path[path.length - 2].y);
                 }
             }
         }
@@ -2215,11 +2304,13 @@ function update() {
             add_message('You died.');
         }
 
+        timer_start();
         for (e in entities_with(Entity.move)) {
             if (Entity.position.exists(e)) {
                 move_entity(e);
             }
         }
+        timer_end();
 
         // Mark the end of turn
         if (added_message_this_turn) {

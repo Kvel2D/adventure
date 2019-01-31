@@ -53,6 +53,9 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
     open[x1][y1] = true;
     var open_length = 1;
 
+    var open_queue = new Array<Vec2i>;
+    open_queue.push({x: x1, y: y1});
+
     for (x in 0...area_width) {
         for (y in 0...area_height) {
             prev[x][y].x = -1;
@@ -79,17 +82,33 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
         var current = function(): Vec2i {
             var lowest_score = infinity;
             var lowest_node: Vec2i = {x: x1, y: y1};
-            for (x in 0...area_width) {
-                for (y in 0...area_height) {
-                    if (open[x][y] && f_score[x][y] <= lowest_score) {
-                        lowest_node.x = x;
-                        lowest_node.y = y;
-                        lowest_score = f_score[x][y];
-                    }
+            var lowest_i: Int = -1;
+            for (i in 0...open_queue.length) {
+                var node = open_queue[i];
+                if (f_score[node.x][node.y] <= lowest_score) {
+                    lowest_node.x = node.x;
+                    lowest_node.y = node.y;
+                    lowest_score = f_score[node.x][node.y];
+                    lowest_i = i;
                 }
             }
+            open_queue.slice(i, 1);
             return lowest_node;
         }();
+        // var current = function(): Vec2i {
+        //     var lowest_score = infinity;
+        //     var lowest_node: Vec2i = {x: x1, y: y1};
+        //     for (x in 0...area_width) {
+        //         for (y in 0...area_height) {
+        //             if (open[x][y] && f_score[x][y] <= lowest_score) {
+        //                 lowest_node.x = x;
+        //                 lowest_node.y = y;
+        //                 lowest_score = f_score[x][y];
+        //             }
+        //         }
+        //     }
+        //     return lowest_node;
+        // }();
 
         if (current.x == x2 && current.y == y2) {
             var x = current.x;
@@ -123,6 +142,7 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
             var tentative_g_score = g_score[current.x][current.y] + 1;
             if (!open[neighbor_x][neighbor_y]) {
                 open[neighbor_x][neighbor_y] = true;
+                open_queue.push({x: neighbor_x, y: neighbor_y});
                 open_length++;
             } else if (tentative_g_score >= g_score[neighbor_x][neighbor_y]) {
                 continue;
@@ -171,7 +191,8 @@ static function astar_map(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
     prev = map_prev;
     free_map = map_free_map;
 
-    return astar_internal(x1, y1, x2, y2, 0, 0, Main.map_width, Main.map_height);
+    // return astar_internal(x1, y1, x2, y2, 0, 0, Main.map_width, Main.map_height);
+    return astar_internal(x1, y1, x2, y2, 0, 0, 30, 30);
 }
 
 }
