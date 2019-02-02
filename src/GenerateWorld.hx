@@ -55,11 +55,6 @@ static var merchant_item_amount = 3;
 
 static var enemy_types_per_level_min = 2;
 static var enemy_types_per_level_max = 5;
-static var empty_room_chance = 10;
-static var enemy_room_chance = 70; // subset of non-empty rooms
-static var spell_room_chance = 10; // subset of enemy rooms
-static var locked_room_chance = 10; // subset of rooms with one connection
-static var merchant_room_chance = 10; // subset of item-only rooms
 
 public static function shuffle<T>(array: Array<T>): Array<T> {
     if (array != null) {
@@ -121,7 +116,7 @@ static function fill_rooms_with_entities() {
 
     var spawned_merchant_this_level = false;
 
-    var empty_room = [for (i in 0...Main.rooms.length) false];
+    var room_is_empty = [for (i in 0...Main.rooms.length) false];
 
     // NOTE: leave start room(0th) empty
     for (i in 1...Main.rooms.length) {
@@ -132,14 +127,91 @@ static function fill_rooms_with_entities() {
             continue;
         }
 
-        if (Random.chance(empty_room_chance)) {
-            empty_room[i] = true;
-            continue;
+        var positions = room_free_ODD_positions_shuffled(r);
+
+        function empty_room() {
+            room_is_empty[i] = true;
         }
 
-        // Some one-connection rooms can be locked behind a door
-        if (r.adjacent_rooms.length == 1 && Random.chance(locked_room_chance)) {
-            r.is_locked = true;
+        function enemy_room() {
+            // Enemy/item room with possible location spells
+            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * enemy_room_entity_amount));
+            for (i in 0...amount) {
+                if (positions.length == 0) {
+                    break;
+                }
+                var pos = positions.pop();
+                Pick.value([
+                    {v: random_enemy, c: 90.0},
+                    {v: Entities.unlocked_chest, c: 12.0},
+                    {v: Entities.random_potion, c: 6.0},
+                    {v: Entities.random_armor, c: 3.0},
+                    {v: Entities.random_scroll, c: 4.0},
+                    {v: Entities.random_weapon, c: 0.5},
+                    {v: Entities.random_ring, c: 0.5},
+                    {v: Entities.locked_chest, c: 2.0},
+                    {v: Entities.random_statue, c: 1.0},
+                    ])
+                (pos.x, pos.y);
+            }
+        }
+
+        function merchant_room() {
+            // Spawn merchant and items in a line starting from 3,3 away from top-left corner
+            spawned_merchant_this_level = true;
+            Entities.merchant(r.x + 1, r.y + 1);
+
+            // Spawn with increased level
+            Main.current_level++;
+            var sell_items = new Array<Int>();
+            for (i in 0...merchant_item_amount) {
+                sell_items.push(Pick.value([
+                    {v: Entities.random_potion, c: 3.0},
+                    {v: Entities.random_armor, c: 1.0},
+                    {v: Entities.random_scroll, c: 1.0},
+                    {v: Entities.random_weapon, c: 0.5},
+                    {v: Entities.random_ring, c: 0.5},
+                    ])
+                (r.x + 2 + i, r.y + 1));
+            }
+            Main.current_level--;
+
+            // Add cost to items
+            for (e in sell_items) {
+                Entity.buy[e] = {
+                    cost: Stats.get({min: 5, max: 10, scaling: 2.0}, Main.current_level),
+                };
+            }
+            // For Use entities, increase charges to make them more valuable
+            for (e in sell_items) {
+                if (Entity.use.exists(e)) {
+                    Entity.use[e].charges += Random.int(1, 2);
+                }
+            }
+        }
+
+        function item_room() {
+            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));
+            for (i in 0...amount) {
+                if (positions.length == 0) {
+                    break;
+                }
+                var pos = positions.pop();
+                Pick.value([
+                    {v: Entities.random_potion, c: 6.0},
+                    {v: Entities.random_armor, c: 6.0},
+                    {v: Entities.random_scroll, c: 3.0},
+                    {v: Entities.locked_chest, c: 2.0},
+                    {v: Entities.random_weapon, c: 1.0},
+                    {v: Entities.random_ring, c: 1.0},
+                    {v: Entities.random_statue, c: 1.0},
+                    ])
+                (pos.x, pos.y);
+            }
+        }
+
+        function locked_room() {
+            // More good stuff inside
             var connection = Main.rooms[r.adjacent_rooms[0]];
 
             // other room
@@ -181,13 +253,7 @@ static function fill_rooms_with_entities() {
                     }
                 }
             }
-        }
 
-        var positions = room_free_ODD_positions_shuffled(r);
-
-        if (r.is_locked) {
-            // Locked room
-            // More good stuff inside
             // NOTE: spawning chests behind locked doors is okay
             var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));
 
@@ -204,98 +270,31 @@ static function fill_rooms_with_entities() {
                     ])
                 (pos.x, pos.y);
             }
-        } else if (Random.chance(enemy_room_chance)) {
-            // Enemy/item room with possible location spells
-            var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * enemy_room_entity_amount));
-            for (i in 0...amount) {
-                if (positions.length == 0) {
-                    break;
-                }
-                var pos = positions.pop();
-                Pick.value([
-                    {v: random_enemy, c: 50.0},
-                    {v: Entities.unlocked_chest, c: 12.0},
-                    {v: Entities.random_potion, c: 6.0},
-                    {v: Entities.random_armor, c: 6.0},
-                    {v: Entities.random_scroll, c: 4.0},
-                    {v: Entities.random_weapon, c: 1.0},
-                    {v: Entities.random_ring, c: 1.0},
-                    {v: Entities.locked_chest, c: 2.0},
-                    {v: Entities.random_statue, c: 1.0},
-                    ])
-                (pos.x, pos.y);
-            }
+        }
 
-            // Sometimes add location spells
-            if (Random.chance(spell_room_chance)) {
-                Pick.value([
-                    {v: Spells.poison_room, c: 1.0},
-                    {v: Spells.lava_room, c: 1.0},
-                    {v: Spells.ice_room, c: 1.0},
-                    {v: Spells.teleport_room, c: 1.0},
-                    {v: Spells.ailment_room, c: 1.0},
-                    ])
-                (r);
-            }
-        } else {
-            // Room with items only
-            if (Random.chance(merchant_room_chance) && !spawned_merchant_this_level) {
-                // Merchant room
-                // Spawn merchant and items in a line starting from 3,3 away from top-left corner
-                spawned_merchant_this_level = true;
-                Entities.merchant(r.x + 1, r.y + 1);
+        var dead_end = r.adjacent_rooms.length == 1;
 
-                // Spawn with increased level
-                Main.current_level++;
-                var sell_items = new Array<Int>();
-                for (i in 0...merchant_item_amount) {
-                    sell_items.push(Pick.value([
-                        {v: Entities.random_potion, c: 3.0},
-                        {v: Entities.random_armor, c: 2.0},
-                        {v: Entities.random_scroll, c: 1.0},
-                        {v: Entities.random_weapon, c: 1.0},
-                        {v: Entities.random_ring, c: 1.0},
-                        ])
-                    (r.x + 2 + i, r.y + 1));
-                }
-                Main.current_level--;
+        Pick.value([
+            {v: empty_room, c: 20.0},
+            {v: enemy_room, c: 50.0},
+            {v: item_room, c: if (dead_end) 60.0 else 30.0},
+            // {v: locked_room, c: 5.0},
+            {v: merchant_room, c: if (!spawned_merchant_this_level) 3.0 else 0.0},
+            ])
+        ();
 
-                // Add cost to items
-                for (e in sell_items) {
-                    Entity.buy[e] = {
-                        cost: Stats.get({min: 5, max: 10, scaling: 2.0}, Main.current_level),
-                    };
-                }
-                // For Use entities, increase charges to make them more valuable
-                for (e in sell_items) {
-                    if (Entity.use.exists(e)) {
-                        Entity.use[e].charges += Random.int(2, 3);
-                    }
-                }
-            } else {
-                var amount = Random.int(1, Math.round((r.width * r.height) / (max * max) * item_room_entity_amount));
-                for (i in 0...amount) {
-                    if (positions.length == 0) {
-                        break;
-                    }
-                    var pos = positions.pop();
-                    Pick.value([
-                        {v: Entities.random_potion, c: 6.0},
-                        {v: Entities.random_armor, c: 6.0},
-                        {v: Entities.random_scroll, c: 3.0},
-                        {v: Entities.locked_chest, c: 2.0},
-                        {v: Entities.random_weapon, c: 1.0},
-                        {v: Entities.random_ring, c: 1.0},
-                        {v: Entities.random_statue, c: 1.0},
-                        ])
-                    (pos.x, pos.y);
-                }
-            }
+        // Sometimes add location spells
+        if (Random.chance(10)) {
+            Pick.value([
+                {v: Spells.poison_room, c: 1.0},
+                {v: Spells.teleport_room, c: 1.0},
+                ])
+            (r);
         }
     }
 
     var stairs_room = Main.get_room_index(Main.stairs_x, Main.stairs_y);
-    empty_room[stairs_room] = false;
+    room_is_empty[stairs_room] = false;
 
     // Spawn matching keys for each locked entity, duplicates possible, keys in same room as locked entity also possible, avoid spawning in connection rooms
     // NOTE: don't spawn keys in locked rooms, could spawn a key for the door itself behind it
@@ -305,7 +304,7 @@ static function fill_rooms_with_entities() {
             var r_i = Main.random_good_room();
             var r = Main.rooms[r_i];
 
-            empty_room[r_i] = false;
+            room_is_empty[r_i] = false;
             
             var positions = room_free_ODD_positions_shuffled(r);
 
@@ -319,7 +318,7 @@ static function fill_rooms_with_entities() {
     //
     // var empty_rooms = new Array<Room>();
     // for (i in 0...Main.rooms.length) {
-    //     if (empty_room[i]) {
+    //     if (room_is_empty[i]) {
     //         empty_rooms.push(Main.rooms[i]);
     //     }
     // }
@@ -804,11 +803,9 @@ static function fatten_connections() {
     }
 }
 
-static function insert_inroom_walls() {
+static function decorate_rooms_with_walls() {
     function no_walls(r: Room) {}
-    function columns(r: Room) {
-        return;
-    }
+
     function cross_section(r: Room) {
         var x_mid = Math.floor((r.x + r.width / 2));
         var y_mid = Math.floor((r.y + r.height / 2));
@@ -822,11 +819,31 @@ static function insert_inroom_walls() {
     }
 
     function columns(r: Room) {
+        var spacing = Random.int(3, 4);
+
         for (x in r.x + 1...r.x + r.width - 1) {
             for (y in r.y + 1...r.y + r.height - 1) {
-                if (x % 3 == 0 && y % 3 == 0) {
+                if (x % spacing == 0 && y % spacing == 0) {
                     Main.walls[x][y] = true;
                 }
+            }
+        }
+    }
+
+    function thin_ring(r: Room) {
+        for (x in (r.x + 2)...(r.x + r.width - 2)) {
+            for (y in (r.y + 2)...(r.y + r.height - 2)) {
+                Main.walls[x][y] = true;
+                Main.tiles[x][y] = Tile.Black;
+            }
+        }
+    }
+
+    function fat_ring(r: Room) {
+        for (x in (r.x + 3)...(r.x + r.width - 3)) {
+            for (y in (r.y + 3)...(r.y + r.height - 3)) {
+                Main.walls[x][y] = true;
+                Main.tiles[x][y] = Tile.Black;
             }
         }
     }
@@ -834,9 +851,9 @@ static function insert_inroom_walls() {
     for (r in Main.rooms) {
         if (!r.is_connection) {
             Pick.value([
-                {v: no_walls, c: 1.0},
-                {v: columns, c: 1.0},
-                {v: cross_section, c: 1.0},
+                {v: no_walls, c: 10.0},
+                {v: thin_ring, c: 0.5},
+                {v: fat_ring, c: 1.0},
                 ])(r);
             }
         }

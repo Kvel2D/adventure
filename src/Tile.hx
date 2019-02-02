@@ -8,14 +8,28 @@ class Tile {
 
     static inline var None = at(0, 0); // for bugged/invisible things
     static inline var Black = at(1, 0);
-    static inline var Ground = at(2, 0);
-    static inline var DarkerGround = at(3, 0);
-    static inline var Stairs = at(4, 0);
-    static inline var Poison = at(5, 0);
-    static inline var Lava = at(6, 0);
-    static inline var Magical = at(7, 0);
-    static inline var Ailment = at(8, 0);
-    static inline var Ice = at(9, 0);
+    static inline var Teleport = at(2, 0);
+    static inline var Poison = at(3, 0);
+
+    static inline var Stairs0 = at(7, 0);
+    static inline var Ground0 = at(8, 0);
+    static inline var GroundDark0 = at(9, 0);
+    static inline var Stairs1 = at(7, 1);
+    static inline var Ground1 = at(8, 1);
+    static inline var GroundDark1 = at(9, 1);
+    static inline var Stairs2 = at(7, 2);
+    static inline var Ground2 = at(8, 2);
+    static inline var GroundDark2 = at(9, 2);
+    static inline var Stairs3 = at(7, 3);
+    static inline var Ground3 = at(8, 3);
+    static inline var GroundDark3 = at(9, 3);
+    static inline var Stairs4 = at(7, 4);
+    static inline var Ground4 = at(8, 4);
+    static inline var GroundDark4 = at(9, 4);
+
+    static var Stairs = [Stairs0, Stairs1, Stairs2, Stairs3, Stairs4];
+    static var Ground = [Ground0, Ground1, Ground2, Ground3, Ground4];
+    static var GroundDark = [GroundDark0, GroundDark1, GroundDark2, GroundDark3, GroundDark4];
 
     static inline var PotionPhysical = at(0, 1);
     static inline var PotionShadow = at(1, 1);

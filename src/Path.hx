@@ -51,7 +51,7 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
         }
     }
     open[x1][y1] = true;
-    var open_length = 1;
+    var open_queue: Array<Vec2i> = [{x: x1, y: y1}];
 
     for (x in 0...area_width) {
         for (y in 0...area_height) {
@@ -74,29 +74,29 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
     }
     f_score[x1][y1] = heuristic_score(x1, y1, x2, y2);
 
-    while (open_length != 0) {
-        // TODO: use prio queue instead of traversing the whole fringe
+    while (open_queue.length != 0) {
         var current = function(): Vec2i {
             var lowest_score = infinity;
-            var lowest_node: Vec2i = {x: x1, y: y1};
-            for (x in 0...area_width) {
-                for (y in 0...area_height) {
-                    if (open[x][y] && f_score[x][y] <= lowest_score) {
-                        lowest_node.x = x;
-                        lowest_node.y = y;
-                        lowest_score = f_score[x][y];
-                    }
+            var lowest_node: Vec2i = {x: -1, y: -1};
+            for (node in open_queue) {
+                var f_score = f_score[node.x][node.y];
+                if (f_score <= lowest_score) {
+                    lowest_node = node;
+                    lowest_score = f_score;
                 }
             }
+            open_queue.remove(lowest_node);
             return lowest_node;
         }();
+        open[current.x][current.y] = false;
+        closed[current.x][current.y] = true;
 
         if (current.x == x2 && current.y == y2) {
             var x = current.x;
             var y = current.y;
             var current = {x: x, y: y};
             var temp = {x: x, y: y};
-            var path:Array<Vec2i> = [{x: current.x, y: current.y}];
+            var path: Array<Vec2i> = [{x: current.x, y: current.y}];
             while (prev[current.x][current.y].x != -1) {
                 temp.x = current.x;
                 temp.y = current.y;
@@ -107,9 +107,6 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
             return path;
         }
 
-        open[current.x][current.y] = false;
-        open_length--;
-        closed[current.x][current.y] = true;
         for (dx_dy in Main.four_dxdy) {
             var neighbor_x = current.x + dx_dy.x;
             var neighbor_y = current.y + dx_dy.y;
@@ -123,7 +120,7 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
             var tentative_g_score = g_score[current.x][current.y] + 1;
             if (!open[neighbor_x][neighbor_y]) {
                 open[neighbor_x][neighbor_y] = true;
-                open_length++;
+                open_queue.push({x: neighbor_x, y: neighbor_y});
             } else if (tentative_g_score >= g_score[neighbor_x][neighbor_y]) {
                 continue;
             }

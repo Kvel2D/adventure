@@ -171,7 +171,6 @@ static function key(x: Int, y: Int, color: Int): Int {
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Key';
     Entity.item[e] = {
-        name: "Key",
         type: ItemType_Normal,
         spells: [],
     };
@@ -287,7 +286,7 @@ static function stairs(x: Int, y: Int): Int {
 
     var color = Random.pick(locked_colors);
     Entity.description[e] = 'Stairs to the next level.';
-    Entity.draw_tile[e] = Tile.Stairs;
+    Entity.draw_tile[e] = Main.current_stairs_tile;
     Entity.draw_on_minimap[e] = {
         color: Col.LIGHTBLUE,
         seen: false,
@@ -309,7 +308,6 @@ static function test_potion(x: Int, y: Int): Int {
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Potion';
     Entity.item[e] = {
-        name: "Test potion",
         type: ItemType_Normal,
         spells: [],
     };
@@ -334,7 +332,7 @@ static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
             return (Pick.value([
                 {v: Entities.random_weapon, c: 1.0},
                 {v: Entities.random_armor, c: 6.0},
-                {v: Entities.random_potion, c: 6.0},
+                {v: Entities.random_potion, c: 3.0},
                 {v: Entities.random_ring, c: 2.0},
                 ])(x, y));
         }
@@ -359,7 +357,7 @@ static function random_weapon(x: Int, y: Int): Int {
     Entity.draw_tile[e] = weapon_tiles[Math.floor(Math.min(5, level / 2))];
 
     var weapon_names = ['copper sword', 'iron shank', 'big hammer'];
-    Entity.name[e] = 'Weapon';
+    Entity.name[e] = Random.pick(weapon_names);
 
     var attack_buff_value = Stats.get({min: 1, max: 1, scaling: 1.0}, level); 
 
@@ -384,7 +382,6 @@ static function random_weapon(x: Int, y: Int): Int {
     }
 
     Entity.equipment[e] = {
-        name: Random.pick(weapon_names),
         type: EquipmentType_Weapon,
         spells: equip_spells,
     };
@@ -411,7 +408,7 @@ static function random_armor(x: Int, y: Int): Int {
     EquipmentType_Chest => [Tile.Chest1, Tile.Chest2, Tile.Chest3, Tile.Chest4, Tile.Chest5, Tile.Chest6],
     EquipmentType_Legs => [Tile.Legs1, Tile.Legs2, Tile.Legs3, Tile.Legs4, Tile.Legs5, Tile.Legs6],
     ];
-    Entity.name[e] = 'Armor';
+    Entity.name[e] = armor_names[armor_type];
     Entity.draw_tile[e] = armor_tiles[armor_type][Math.floor(Math.min(5, level / 2))];
 
     var defense_total = Stats.get({min: 1, max: 2, scaling: 1.0}, level);
@@ -437,7 +434,6 @@ static function random_armor(x: Int, y: Int): Int {
     }
 
     Entity.equipment[e] = {
-        name: armor_names[armor_type],
         type: armor_type,
         spells: equip_spells,
     };
@@ -455,7 +451,6 @@ static function random_ring(x: Int, y: Int): Int {
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Ring';
     Entity.item[e] = {
-        name: "Big Ring",
         type: ItemType_Ring,
         spells: [Spells.random_ring_spell(level)],
     };
@@ -477,7 +472,6 @@ static function random_potion(x: Int, y: Int): Int {
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Potion';
     Entity.item[e] = {
-        name: "Healing potion",
         type: ItemType_Normal,
         spells: [],
     };
@@ -508,7 +502,6 @@ static function random_scroll(x: Int, y: Int): Int {
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Scroll';
     Entity.item[e] = {
-        name: "Scroll item",
         type: ItemType_Normal,
         spells: [],
     };
@@ -544,13 +537,13 @@ static function random_enemy_type(): EntityType {
     var level = Main.current_level;
 
     var range: Int = if (level <= 1) {
-        1;
+        2;
     } else {
-        // NOTE: Ranges are squared, this means that each range covers a square area
+        // NOTE: Ranges are sums of squares, this means that each range covers a square area, 1^2 + 1^2 = 2, 2^2 + 2^2 = 8, 3^2 + 3^2 = 18
         Pick.value([
-            {v: 1, c: 8.0},
-            {v: 2, c: 2.0},
-            {v: 3, c: 1.0},
+            {v: 2, c: 8.0},
+            {v: 8, c: 2.0},
+            {v: 18, c: 1.0},
             ]);
     }
 
@@ -567,6 +560,12 @@ static function random_enemy_type(): EntityType {
         attack = 1;
     }
     var health = Stats.get({min: 4, max: 5, scaling: 1.0}, level); 
+
+    // Make first floor easy
+    if (Main.current_floor == 0) {
+        attack = 1;
+        health  = Math.round(health / 2);
+    }
 
     var aggression_type = Pick.value([
         {v: AggressionType_Aggressive, c: 1.0},
@@ -630,13 +629,13 @@ static function random_enemy_type(): EntityType {
             message: message,
             aggression: aggression_type,
             attacked_by_player: false,
-            range_squared: range * range,
+            range_squared: range,
             target: CombatTarget_FriendlyThenPlayer
         },
         // TODO: think about what droprate is good and whether to vary percentages by mob
         drop_entity: {
             table: DropTable_Default, 
-            chance: 10,
+            chance: 25,
         },
         talk: Entity.NULL_STRING,
         give_copper_on_death: {

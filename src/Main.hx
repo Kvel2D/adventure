@@ -54,7 +54,7 @@ static inline var ui_text_size = 14;
 static inline var player_hud_text_size = 8;
 static inline var charges_text_size = 8;
 
-static inline var max_rings = 3;
+static inline var max_rings = 2;
 
 static var walls = Data.create2darray(map_width, map_height, false);
 static var tiles = Data.create2darray(map_width, map_height, Tile.None);
@@ -75,7 +75,7 @@ var copper_drop_mod = 0;
 static var increase_drop_level = false;
 var player_is_invisible = false;
 
-var show_dev_buttons = true;
+var show_dev_buttons = false;
 var noclip_DEV = false;
 var nolos_DEV = false;
 var full_minimap_DEV = false;
@@ -126,6 +126,11 @@ static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1},
 
 // Used by all generation functions, don't need to pass it around everywhere
 static var current_level = 0;
+static var increment_level = true;
+static var current_floor = 0;
+static var current_stairs_tile = Tile.Stairs[0];
+static var current_ground_tile = Tile.Ground[0];
+static var current_ground_dark_tile = Tile.GroundDark[0];
 
 var start_targeting = false;
 var targeting_for_use = false;
@@ -141,6 +146,30 @@ function init() {
     Gfx.createimage('frametime_canvas', 100, 50);
     Gfx.createimage('frametime_canvas2', 100, 50);
     Gfx.createimage('message_canvas', ui_wordwrap, 320);
+
+
+    // Draw equipment and inventory boxes
+    Gfx.createimage('ui_canvas', ui_wordwrap, screen_height);
+    Gfx.drawtoimage('ui_canvas');
+
+    Gfx.scale(1, 1, 0, 0);
+    Text.size = ui_text_size;
+    Text.display(0, equipment_y - Text.height() - 2, 'EQUIPMENT');
+    Text.display(0, inventory_y - Text.height() - 2, 'INVENTORY');
+    
+    Gfx.scale(world_scale, world_scale, 0, 0);
+    var armor_i = 0;
+    for (equipment_type in Type.allEnums(EquipmentType)) {
+        Gfx.drawbox(0 + armor_i * tilesize * world_scale, equipment_y, tilesize * world_scale, tilesize * world_scale, Col.WHITE);
+        armor_i++;
+    }
+    for (x in 0...inventory_width) {
+        for (y in 0...inventory_height) {
+            Gfx.drawbox(0 + x * tilesize * world_scale, inventory_y + y * tilesize * world_scale, tilesize * world_scale, tilesize * world_scale, Col.WHITE);
+        }
+    }
+
+    Gfx.drawtoscreen();
 
     Entities.read_name_corpus();
     LOS.calculate_rays();
@@ -212,15 +241,23 @@ function generate_level() {
     }
     GenerateWorld.fatten_connections();
 
+    var level_tile_index = Math.round(current_floor / 3);
+    current_stairs_tile = Tile.Stairs[level_tile_index];
+    current_ground_tile = Tile.Ground[level_tile_index];
+    current_ground_dark_tile = Tile.GroundDark[level_tile_index];
+
     // Clear walls inside rooms
     for (r in rooms) {
         for (x in r.x...(r.x + r.width)) {
             for (y in r.y...(r.y + r.height)) {
                 walls[x][y] = false;
-                tiles[x][y] = Tile.Ground;
+                tiles[x][y] = current_ground_tile;
             }
         }
     }
+
+    // Put random formations in rooms
+    GenerateWorld.decorate_rooms_with_walls();
 
     visited_room = [for (i in 0...rooms.length) false];
 
@@ -366,7 +403,7 @@ static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, free_map
     if (include_doors) {
         for (locked in entities_with(Entity.locked)) {
             var pos = Entity.position[locked];
-            if (Math.point_box_intersect(pos.x, pos.y, x1, y1, width, height) && Entity.name[locked] == 'Door') {
+            if (Math.point_box_intersect(pos.x, pos.y, x1, y1, width, height) && Entity.name.exists(locked) && Entity.name[locked] == 'Door') {
                 free_map[pos.x - x1][pos.y - y1] = false;
             }
         }
@@ -416,17 +453,16 @@ function drop_entity_from_entity(e: Int) {
     if (Random.chance(chance)) {
         Entity.remove_position(e);
         var drop = Entities.entity_from_table(pos.x, pos.y, drop_entity.table);
-        var drop_name = if (Entity.equipment.exists(drop)) {
-            Entity.equipment[drop].name;
-        } else if (Entity.item.exists(drop)) {
-            Entity.item[drop].name;
+        var drop_name = if (Entity.name.exists(drop)) {
+            Entity.name[drop];
         } else {
             'unnamed_drop';
         }
 
-        var dropping_entity_name = 'unnamed_dropping_entity_name';
-        if (Entity.name.exists(e)) {
-            dropping_entity_name = Entity.name[e];
+        var dropping_entity_name = if (Entity.name.exists(e)) {
+            Entity.name[e];
+        } else {
+            'unnamed_dropping_entity';
         }
 
         add_message('$dropping_entity_name drops $drop_name.');
@@ -487,9 +523,7 @@ function use_entity(e: Int) {
 
         // Save name before pushing spell onto player
         for (spell in use.spells) {
-            spell.origin_name = if (Entity.item.exists(e)) {
-                Entity.item[e].name;
-            } else if (Entity.name.exists(e)) {
+            spell.origin_name = if (Entity.name.exists(e)) {
                 Entity.name[e];
             } else {
                 'unnamed_origin';
@@ -516,7 +550,12 @@ function equip_entity(e: Int) {
     // Remove entity from map
     if (Entity.equipment.exists(old_e) && !Entity.position.exists(old_e)) {
         // If there's equipment in slot, swap position with new equipment
-        add_message('You unequip ${Entity.equipment[old_e].name}.');
+        var unequip_name = if (Entity.name.exists(old_e)) {
+            Entity.name[old_e];
+        } else {
+            'unnamed_unequip';
+        }
+        add_message('You unequip $unequip_name.');
 
         var e_pos = Entity.position[e];
         Entity.remove_position(e);
@@ -525,7 +564,12 @@ function equip_entity(e: Int) {
         Entity.remove_position(e);
     }
 
-    add_message('You equip ${Entity.equipment[e].name}.');
+    var equip_name = if (Entity.name.exists(e)) {
+        Entity.name[e];
+    } else {
+        'unnamed_equip';
+    }
+    add_message('You equip ${Entity.name[e]}.');
 
     player_equipment[e_equipment.type] = e;
 }
@@ -571,7 +615,7 @@ function move_entity_into_inventory(e: Int) {
             if (doesnt_exist || not_in_inventory) {
                 inventory[x][y] = e;
 
-                add_message('You pick up ${Entity.item[e].name}.');
+                add_message('You pick up ${Entity.name[e]}.');
                 Entity.remove_position(e);
 
                 return;
@@ -605,15 +649,13 @@ function drop_entity_from_player(e: Int) {
     var pos = free_position_around_player();
 
     if (pos.x != -1 && pos.y != -1) {
-        var name = 'unnamed_drop_from_player';
-
-        if (Entity.item.exists(e)) {
-            name = Entity.item[e].name;
-        } else if (Entity.equipment.exists(e)) {
-            name = Entity.equipment[e].name;
+        var drop_name = if (Entity.name.exists(e)) {
+            Entity.name[e];
+        } else {
+            'unnamed_drop_from_player';
         }
 
-        add_message('You drop ${name}.');
+        add_message('You drop ${drop_name}.');
         Entity.set_position(e, pos.x, pos.y);
     } else {
         add_message('No space to drop item.');
@@ -874,13 +916,15 @@ function entity_attack_entity(e: Int, target: Int) {
 
     add_message(combat.message);
     
-    var e_name = 'unnamed_e';
-    if (Entity.name.exists(e)) {
-        e_name = Entity.name[e];
+    var e_name = if (Entity.name.exists(e)) {
+        Entity.name[e];
+    } else {
+        'unnamed_e';
     }
-    var target_name = 'unnamed_target_of_e';
-    if (Entity.name.exists(target)) {
-        target_name = Entity.name[target];
+    var target_name = if (Entity.name.exists(target)) {
+        Entity.name[target];
+    } else {
+        'unnamed_target_of_e';
     }
     if (combat.attack != 0) {
         add_message('$e_name attacks $target_name for ${combat.attack} damage.');
@@ -959,9 +1003,10 @@ function entity_attack_player(e: Int): Bool {
 
     add_message(combat.message);
     
-    var target_name = 'unnamed_target';
-    if (Entity.name.exists(e)) {
-        target_name = Entity.name[e];
+    var target_name = if (Entity.name.exists(e)) {
+        Entity.name[e];
+    } else {
+        'unnamed_target';
     }
     if (damage_taken != 0) {
         add_message('You take ${damage_taken} damage from $target_name.');
@@ -1217,7 +1262,12 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             show_things = true;
         }
         case SpellType_NextFloor: {
-            current_level++;
+            if (increment_level) {
+                current_level++;
+            }
+            increment_level = !increment_level;
+            current_floor++;
+
             generate_level();
             add_message('You go up to the next floor.');
         }
@@ -1271,7 +1321,9 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             player_is_invisible = true;
         }
         case SpellType_EnergyShield: {
-            player_pure_absorb += spell.value;
+            if (player_pure_absorb < spell.value) {
+                player_pure_absorb = spell.value;
+            }
         }
         case SpellType_ModUseCharges: {
             if (Entity.use.exists(use_target)) {
@@ -1511,6 +1563,7 @@ function update() {
     // Render
     //
 
+
     // Tiles
     Gfx.scale(1, 1, 0, 0);
     Gfx.drawtoimage('tiles_canvas');
@@ -1526,7 +1579,7 @@ function update() {
                 if (position_visible(x, y)) {
                     new_tile = tiles[map_x][map_y];
                 } else {
-                    new_tile = Tile.DarkerGround;
+                    new_tile = current_ground_dark_tile;
                 }
             }
 
@@ -1623,7 +1676,7 @@ function update() {
     //
     var player_stats = "";
     player_stats += 'PLAYER';
-    player_stats += '\nPosition: ${player_x} ${player_y}, Floor: ${current_level}';
+    player_stats += '\nFloor: ${current_floor}';
     player_stats += '\nHealth: ${player_health}/${player_health_max + player_health_max_mod}';
     player_stats += '\nAttack: ${player_attack + player_attack_mod}';
     player_stats += '\nDefense: ${player_defense + player_defense_mod}';
@@ -1634,15 +1687,10 @@ function update() {
     //
     // Equipment
     //
-    Text.size = ui_text_size;
-    Text.display(ui_x, equipment_y - Text.height() - 2, 'EQUIPMENT');
     Gfx.scale(world_scale, world_scale, 0, 0);
     Text.size = draw_char_size;
     var armor_i = 0;
     for (equipment_type in Type.allEnums(EquipmentType)) {
-        // Slot border
-        Gfx.drawbox(ui_x + armor_i * tilesize * world_scale, equipment_y, tilesize * world_scale, tilesize * world_scale, Col.WHITE);
-
         // Equipment
         var e = player_equipment[equipment_type];
         if (Entity.equipment.exists(e) && !Entity.position.exists(e)) {
@@ -1652,20 +1700,16 @@ function update() {
         armor_i++;
     }
 
+    Gfx.scale(1, 1, 0, 0);
+    Gfx.drawimage(ui_x, 0, 'ui_canvas');
+
     //
     // Inventory
     //
-    Gfx.scale(1, 1, 0, 0);
-    Text.size = ui_text_size;
-    Text.display(ui_x, inventory_y - Text.height() - 2, 'INVENTORY');
     Gfx.scale(world_scale, world_scale, 0, 0);
     Text.size = draw_char_size;
     for (x in 0...inventory_width) {
         for (y in 0...inventory_height) {
-            // Slot border
-            Gfx.drawbox(ui_x + x * tilesize * world_scale, inventory_y + y * tilesize * world_scale, tilesize * world_scale, tilesize * world_scale, Col.WHITE);
-            
-            // Item
             var e = inventory[x][y];
             if (Entity.item.exists(e) && !Entity.position.exists(e)) {
                 draw_entity(e, ui_x + x * tilesize * world_scale, inventory_y + y * tilesize * world_scale);
@@ -1698,7 +1742,7 @@ function update() {
         var tooltip = "";
         if (Entity.name.exists(e)) {
             // tooltip += 'Id: ${e}';
-            tooltip += '${Entity.name[e]}';
+            tooltip += '${Entity.name[e]}\n';
         }
         if (Entity.combat.exists(e)) {
             var entity_combat = Entity.combat[e];
@@ -1711,33 +1755,30 @@ function update() {
         }
         if (Entity.equipment.exists(e)) {
             var equipment = Entity.equipment[e];
-            tooltip += '\nEquipment name: ${equipment.name}';
-            // tooltip += '\nEquipment type: ${equipment.type}';
             if (equipment.spells.length > 0) {
-                tooltip += '\nEquip effects:';
+                tooltip += '\n';
                 for (s in equipment.spells) {
-                    tooltip += '\n    ' + Spells.get_description(s);
+                    tooltip += '\n' + Spells.get_description(s);
                 }
-            }
-        }
-        if (Entity.use.exists(e)) {
-            var use = Entity.use[e];
-            tooltip += '\nUse effects:';
-            for (s in use.spells) {
-                tooltip += '\n    ' + Spells.get_description(s);
             }
         }
         if (Entity.item.exists(e) && Entity.item[e].spells.length > 0) {
             var item = Entity.item[e];
-            tooltip += '\nCarry effect:';
             for (s in item.spells) {
-                tooltip += '\n    ' + Spells.get_description(s);
+                tooltip += '\n' + Spells.get_description(s);
             }
         }
+        if (Entity.use.exists(e)) {
+            var use = Entity.use[e];
+            tooltip += '\nUse:';
+            for (s in use.spells) {
+                tooltip += '\n' + Spells.get_description(s);
+            }
+        }
+        
         if (Entity.buy.exists(e)) {
             tooltip += '\nCost: ${Entity.buy[e].cost} copper.';
         }
-
         return tooltip;
     }
 
@@ -1917,24 +1958,34 @@ function update() {
     }
 
     // Attack, pick up or equip, if only one is possible, if multiple are possible, then must pick one through interact menu
-    if (!player_acted && Mouse.leftclick() && Entity.position.exists(hovered_map)) {
-        var pos = Entity.position[hovered_map];
-        // Left-click interaction if entity is on map and is visible
-        if (player_next_to(Entity.position[hovered_map]) && !los[pos.x - view_x][pos.y - view_y]) {
-            var can_attack = Entity.combat.exists(hovered_map);
-            var can_pickup = Entity.item.exists(hovered_map) && !Entity.buy.exists(interact_target);
-            var can_equip = Entity.equipment.exists(hovered_map) && !Entity.buy.exists(interact_target);
+    if (!player_acted && Mouse.leftclick()) {
+        if (Entity.position.exists(hovered_anywhere)) {
+            var pos = Entity.position[hovered_anywhere];
+            // Left-click interaction if entity is on map and is visible
+            if (player_next_to(Entity.position[hovered_anywhere]) && !los[pos.x - view_x][pos.y - view_y]) {
+                var can_attack = Entity.combat.exists(hovered_anywhere);
+                var can_pickup = Entity.item.exists(hovered_anywhere) && !Entity.buy.exists(interact_target);
+                var can_equip = Entity.equipment.exists(hovered_anywhere) && !Entity.buy.exists(interact_target);
 
-            if (can_attack && !can_pickup && !can_equip) {
-                attack_target = hovered_map;
+                if (can_attack && !can_pickup && !can_equip) {
+                    attack_target = hovered_anywhere;
+                    player_acted = true;
+                } else if (!can_attack && can_pickup && !can_equip) {
+                    move_entity_into_inventory(hovered_anywhere);
+                    player_acted = true;
+                } else if (!can_attack && !can_pickup && can_equip) {
+                    equip_entity(hovered_anywhere);
+                    player_acted = true;
+                } 
+            }
+        } else {
+            // Left-click interaction if entity is equipped or in inventory
+            var can_use = Entity.use.exists(hovered_anywhere);
+
+            if (can_use && !targeting_for_use) {
+                use_entity(hovered_anywhere);
                 player_acted = true;
-            } else if (!can_attack && can_pickup && !can_equip) {
-                move_entity_into_inventory(hovered_map);
-                player_acted = true;
-            } else if (!can_attack && !can_pickup && can_equip) {
-                equip_entity(hovered_map);
-                player_acted = true;
-            } 
+            }
         }
     }
 
@@ -1969,8 +2020,13 @@ function update() {
         if (GUI.auto_text_button('Toggle frametime graph')) {
             frametime_graph_DEV = !frametime_graph_DEV;
         }
-        if (GUI.auto_text_button('Next level')) {
-            current_level++;
+        if (GUI.auto_text_button('Next floor')) {
+            if (increment_level) {
+                current_level++;
+            }
+            increment_level = !increment_level;
+            current_floor++;
+
             generate_level();
             // Update view, since moving to next level changes player position
             view_x = get_view_x();
@@ -2245,6 +2301,7 @@ function update() {
         Text.display(0, 0, messages);
         Gfx.drawtoscreen();
     }
+
 
     if (frametime_graph_DEV) {
         var frame_time = Math.max(1 / 60.0, Timer.stamp() - update_start);

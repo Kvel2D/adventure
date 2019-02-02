@@ -2,8 +2,11 @@
 TODO
 
 
+-1health+attack to enemies statue is unbalanced => increase -health
+
 ----------------------------------------------------------------------------------
 DONE
+
 
 
 ----------------------------------------------------------------------------------
@@ -22,22 +25,15 @@ boss mobs
     guaranteed powerful item drop
     big health pool
 
-find font that's not messed up in html5
-
-scrolling for spell display, at some point spells won't fit in current area
-
-boss summon rituals
+    boss summon rituals
     doing some sequence of actions summons a special boss
         copying a copy scroll spawns copy scroll boss
         spawning 3 skeletons in same room spawns a necromancer at stairs
         killing 2 merchants spawns a merchant boss
 
-change color scheme every 3 levels, maybe put a boss at every 3rd level too
+find font that's not messed up in html5
 
-insert random patterns in rooms sometimes
-    cross-sections
-    columns(series of one-off blocks)
-    hole in middle
+scrolling for spell display, at some point spells won't fit in current area
 
 vary room geometry by level
     restrict sizes to certain ranges
@@ -61,6 +57,7 @@ area spells should span multiple rooms and connections
     whole level of teleportation would be pretty insane(ly fun)
 
 maybe incrementing level not every floor, but every 2-3 floors would create a better power curve
+    need to test side-by-side
 
 quests
     an npc tells you that he'll give you copper or a good item if you defeat all enemies on the floor
@@ -74,6 +71,15 @@ chain spell
         maybe each jump increases the damage
     jump range is generous, mobs don't have to be next to each other
 
-summon wisp
+summon wisps
     don't attack, only clump to player as a physical barrier
     maybe clump to enemy instead
+
+mobs drop armor that is better than one found on the ground?
+
+improve locked things
+    for chests, keys could drop be inserted into a mob's droptable
+        DropKey component that guarantees a drop of key
+
+    for doors, just locking a single room with item is the same as a locked chest
+    need to figure out how to lock a section of the map and place a key on the side reachable by player

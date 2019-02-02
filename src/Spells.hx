@@ -922,51 +922,6 @@ static function poison_room(r: Room) {
     }
 }
 
-static function lava_room(r: Room) {
-    var level = Main.current_level;
-    
-    var lava_spell = {
-        type: SpellType_ModHealth,
-        duration_type: SpellDuration_EveryTurn,
-        duration: Entity.INFINITE_DURATION,
-        interval: Random.int(2, 3),
-        interval_current: 0,
-        value: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level),
-        origin_name: "noname",
-    };
-
-    // Lava only covers portions of the room
-    for (x in r.x...r.x + r.width) {
-        for (y in r.y...r.y + r.height) {
-            if (Random.chance(10)) {
-                Main.location_spells[x][y].push(lava_spell);
-                Main.tiles[x][y] = Tile.Lava;
-            }
-        }
-    }
-}
-
-static function ice_room(r: Room) {
-    var level = Main.current_level;
-
-    var ice_spell = {
-        type: SpellType_ModHealth,
-        duration_type: SpellDuration_EveryTurn,
-        duration: Entity.INFINITE_DURATION,
-        interval: Random.int(10, 15),
-        interval_current: 0,
-        value: -1 * Stats.get({min: 1, max: 1, scaling: 0.1}, level),
-        origin_name: "noname",
-    };
-
-    for (x in r.x...r.x + r.width) {
-        for (y in r.y...r.y + r.height) {
-            Main.location_spells[x][y].push(ice_spell);
-            Main.tiles[x][y] = Tile.Ice;
-        }
-    }
-}
-
 static function teleport_room(r: Room) {
     var level = Main.current_level;
     
@@ -983,28 +938,7 @@ static function teleport_room(r: Room) {
     for (x in r.x...r.x + r.width) {
         for (y in r.y...r.y + r.height) {
             Main.location_spells[x][y].push(teleport_spell);
-            Main.tiles[x][y] = Tile.Magical;
-        }
-    }
-}
-
-static function ailment_room(r: Room) {
-    var level = Main.current_level;
-    
-    var decrease_def_spell = {
-        type: SpellType_ModDefense,
-        duration_type: SpellDuration_EveryTurn,
-        duration: Entity.INFINITE_DURATION,
-        interval: 1,
-        interval_current: 0,
-        value: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level),
-        origin_name: "noname",
-    };
-
-    for (x in r.x...r.x + r.width) {
-        for (y in r.y...r.y + r.height) {
-            Main.location_spells[x][y].push(decrease_def_spell);
-            Main.tiles[x][y] = Tile.Ice;
+            Main.tiles[x][y] = Tile.Teleport;
         }
     }
 }
@@ -1035,7 +969,7 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
             {v: SpellDuration_EveryAttack, c: 1.0},
             {v: SpellDuration_EveryTurn, c: 0.5},
             ]);
-        case SpellType_ModHealth: SpellDuration_EveryAttack;
+        case SpellType_SummonSkeletons: SpellDuration_EveryAttack;
         default: SpellDuration_Permanent;
     }
 
@@ -1050,7 +984,7 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
             case SpellDuration_EveryTurn: Random.int(30, 50);
             default: 1;
         }
-        case SpellType_ModHealth: Random.int(15, 20);
+        case SpellType_SummonSkeletons: Random.int(15, 20);
         default: 0;
     }
 
@@ -1146,6 +1080,8 @@ static function get_equipment_spell_use_charges(s: Spell): Int {
         case SpellType_ModMoveSpeed: Random.int(2, 4);
         case SpellType_SummonGolem: Random.int(2, 4);
         case SpellType_SummonImp: Random.int(2, 4);
+        case SpellType_RandomTeleport: 1;
+        case SpellType_SafeTeleport: 1;
         default: 100;
     }
 }
@@ -1194,7 +1130,7 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
 
     var value = switch (type) {
         case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
-        case SpellType_EnergyShield: Stats.get({min: 3, max: 4, scaling: 1.0}, level);
+        case SpellType_EnergyShield: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         case SpellType_ModHealth: Stats.get({min: 3, max: 4, scaling: 1.0}, level);
         case SpellType_ModMoveSpeed: 1;
         default: 0;
@@ -1217,9 +1153,9 @@ static function random_equipment_spells(equipment_type: EquipmentType): Array<Ar
     
     var total_spell_count: Int = Pick.value([
         {v: 0, c: 1},
-        {v: 1, c: 0.5 * level},
-        {v: 2, c: Math.max(0, 0.55 * (level - 1))},
-        {v: 3, c: Math.max(0, 0.55 * (level - 3))},
+        {v: 1, c: 0.33},
+        {v: 2, c: 0.1},
+        {v: 3, c: 0.05},
         ]);
     var spell_equip_count = 0;
     var spell_use_count = 0;

@@ -66,7 +66,6 @@ typedef Use = {
 }
 
 typedef Equipment = {
-    var name: String;
     var type: EquipmentType;
     var spells: Array<Spell>;
 }
@@ -77,7 +76,6 @@ typedef GiveCopper = {
 }
 
 typedef Item = {
-    var name: String;
     var type: ItemType;
     var spells: Array<Spell>;
 }
@@ -209,7 +207,6 @@ static function copy(e: Int, x: Int, y: Int): Int {
     if (equipment.exists(e)) {
         var e_equipment = equipment[e];
         equipment[copy] = {
-            name: e_equipment.name,
             type: e_equipment.type,
             spells: [for (spell in e_equipment.spells) Spells.copy(spell)],
         };
@@ -217,7 +214,6 @@ static function copy(e: Int, x: Int, y: Int): Int {
     if (item.exists(e)) {
         var e_item = item[e];
         item[copy] = {
-            name: e_item.name,
             type: e_item.type,
             spells: [for (spell in e_item.spells) Spells.copy(spell)],
         };
@@ -324,14 +320,12 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
     }
     if (type.equipment != null) {
         equipment[e] = {
-            name: type.equipment.name,
             type: type.equipment.type,
             spells: [for (spell in type.equipment.spells) Spells.copy(spell)],
         };
     }
     if (type.item != null) {
         item[e] = {
-            name: type.item.name,
             type: type.item.type,
             spells: [for (spell in type.item.spells) Spells.copy(spell)],
         };
