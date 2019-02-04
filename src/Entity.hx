@@ -49,6 +49,7 @@ enum DropTable {
 
 typedef Combat = {
     var health: Int;
+    var health_max: Int;
     var attack: Int;
     var message: String;
     var aggression: AggressionType;
@@ -232,6 +233,7 @@ static function copy(e: Int, x: Int, y: Int): Int {
         var e_combat = combat[e];
         combat[copy] = {
             health: e_combat.health,
+            health_max: e_combat.health_max,
             attack: e_combat.attack,
             message: e_combat.message,
             aggression: e_combat.aggression,
@@ -342,6 +344,7 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
     if (type.combat != null) {
         combat[e] = {
             health: type.combat.health,
+            health_max: type.combat.health_max,
             attack: type.combat.attack,
             message: type.combat.message,
             aggression: type.combat.aggression,

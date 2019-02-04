@@ -30,7 +30,7 @@ static inline var map_height = 125;
 static inline var view_width = 31;
 static inline var view_height = 31;
 static inline var world_scale = 4;
-static inline var minimap_scale = 2;
+static inline var minimap_scale = 4;
 static inline var minimap_x = 0;
 static inline var minimap_y = 100;
 static inline var room_size_min = 5;
@@ -223,61 +223,65 @@ function generate_level() {
         }
     }
 
-    // Clear wall and tile data
-    for (x in 0...map_width) {
-        for (y in 0...map_height) {
-            walls[x][y] = true;
-            tiles[x][y] = Tile.Black;
-        }
-    }
-
-    // Generate and connect rooms
-    rooms = GenerateWorld.generate_via_digging();
-    GenerateWorld.connect_rooms(rooms, Random.float(0.5, 2));
-    // NOTE: need to increment room dimensions because connections have one dimension of 0 and rooms are really one bigger as well
-    for (r in rooms) {
-        r.width++;
-        r.height++;
-    }
-    GenerateWorld.fatten_connections();
-
-    var level_tile_index = Math.round(current_floor / 3);
-    current_stairs_tile = Tile.Stairs[level_tile_index];
-    current_ground_tile = Tile.Ground[level_tile_index];
-    current_ground_dark_tile = Tile.GroundDark[level_tile_index];
-
-    // Clear walls inside rooms
-    for (r in rooms) {
-        for (x in r.x...(r.x + r.width)) {
-            for (y in r.y...(r.y + r.height)) {
-                walls[x][y] = false;
-                tiles[x][y] = current_ground_tile;
+    do {
+        // Clear wall and tile data
+        for (x in 0...map_width) {
+            for (y in 0...map_height) {
+                walls[x][y] = true;
+                tiles[x][y] = Tile.Black;
             }
         }
-    }
 
-    // Put random formations in rooms
-    GenerateWorld.decorate_rooms_with_walls();
+        // Generate and connect rooms
+        rooms = GenerateWorld.generate_via_digging();
+        GenerateWorld.connect_rooms(rooms, Random.float(0.5, 2));
+        // NOTE: need to increment room dimensions because connections have one dimension of 0 and rooms are really one bigger as well
+        for (r in rooms) {
+            r.width++;
+            r.height++;
+        }
+        GenerateWorld.fatten_connections();
 
-    visited_room = [for (i in 0...rooms.length) false];
+        var level_tile_index = Math.round(current_floor / 3);
+        if (level_tile_index >= Tile.Stairs.length) {
+            level_tile_index = 0;
+        }
+        current_stairs_tile = Tile.Stairs[level_tile_index];
+        current_ground_tile = Tile.Ground[level_tile_index];
+        current_ground_dark_tile = Tile.GroundDark[level_tile_index];
 
+        // Clear walls inside rooms
+        for (r in rooms) {
+            for (x in r.x...(r.x + r.width)) {
+                for (y in r.y...(r.y + r.height)) {
+                    walls[x][y] = false;
+                    tiles[x][y] = current_ground_tile;
+                }
+            }
+        }
 
-    // Set start position to first room, before generating entities so that generation uses the new player position in collision checks
-    player_room = 0;
-    player_x = rooms[0].x;
-    player_y = rooms[0].y;
-    
-    for (dx in 1...6) {
-        // Entities.random_weapon(player_x + dx, player_y);
-        // Entities.random_armor(player_x + dx, player_y + 1);
-        // Entities.random_scroll(player_x + dx, player_y + 2);
-    }
+        // Put random formations in rooms
+        GenerateWorld.decorate_rooms_with_walls();
 
-    // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
-    var r = rooms[random_good_room()];
-    stairs_x = r.x + Math.floor(r.width / 2);
-    stairs_y = r.y + Math.floor(r.height / 2);
-    Entities.stairs(stairs_x, stairs_y);
+        visited_room = [for (i in 0...rooms.length) false];
+
+        // Set start position to first room, before generating entities so that generation uses the new player position in collision checks
+        player_room = 0;
+        player_x = rooms[0].x;
+        player_y = rooms[0].y;
+        
+        for (dx in 1...6) {
+            // Entities.random_weapon(player_x + dx, player_y);
+            // Entities.random_armor(player_x + dx, player_y + 1);
+            // Entities.random_scroll(player_x + dx, player_y + 2);
+        }
+
+        // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
+        var r = rooms[random_good_room()];
+        stairs_x = r.x + Math.floor(r.width / 2);
+        stairs_y = r.y + Math.floor(r.height / 2);
+        Entities.stairs(stairs_x, stairs_y);
+    } while (Path.astar_map(player_x, player_y, stairs_x, stairs_y).length == 0);
 
     GenerateWorld.fill_rooms_with_entities();
 
@@ -1127,6 +1131,13 @@ function draw_entity(e: Int, x: Float, y: Float) {
         Text.display(x, y, '${use.charges}', Col.WHITE);
         Text.size = draw_char_size;
     }
+
+    // Draw health bar
+    if (Entity.combat.exists(e)) {
+        Text.size = charges_text_size;
+        var combat = Entity.combat[e];
+        Text.display(x, y - 10, '${combat.health}/${combat.health_max}');
+    }
 }
 
 function do_spell(spell: Spell, effect_message: Bool = true) {
@@ -1830,8 +1841,12 @@ function update() {
             }
         }
 
-        Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, hovered_tooltip_wordwrap, Text.height(entity_tooltip), Col.DARKBROWN);
-        Text.display(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, entity_tooltip, Col.WHITE);
+        if (!Entity.combat.exists(hovered_anywhere)) {
+            if (!Entity.position.exists(hovered_anywhere)) {
+                Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, Text.width(entity_tooltip), Text.height(entity_tooltip), Col.DARKBROWN);
+            }
+            Text.display(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, entity_tooltip, Col.WHITE);
+        }
     }
 
     // Add comparison text to tooltip for equipment on the ground
@@ -2070,7 +2085,7 @@ function update() {
     }
 
     // Draw player
-    Gfx.drawbox(minimap_x + player_x * minimap_scale, minimap_y + player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
+    Gfx.fillbox(minimap_x + player_x * minimap_scale, minimap_y + player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
 
     //
     // End of turn
@@ -2261,9 +2276,25 @@ function update() {
             }
         }
 
-        // Player dies if inside wall and not noclipping
+        // Move player to nearest room if noclip ends while player is still inside a wall
         if (walls[player_x][player_y] && !(noclip || noclip_DEV)) {
-            player_health = 0;
+            var closest_room: Room = null;
+            var closest_dst2 = 100000000.0;
+            for (r in rooms) {
+                var dst2 = Math.dst2(player_x, player_y, r.x, r.y);
+
+                if (dst2 < closest_dst2) {
+                    closest_dst2 = dst2;
+                    closest_room = r;
+                }
+            }
+
+            var pos = GenerateWorld.room_free_positions_shuffled(closest_room)[0];
+
+            // NOTE: position could have no path to stairs, if player blocks the path with items, won't handle this because player has to try really hard to screw this up
+            player_x = pos.x;
+            player_y = pos.y;
+            player_room = get_room_index(player_x, player_y);
         }
 
         // NOTE: can die from entity attacks or spells

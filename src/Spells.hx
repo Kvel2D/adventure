@@ -724,13 +724,19 @@ static function enemy_curse_spells(): Array<Spell> {
         {v: SpellType_ModLevelAttack, c: 1.0},
         ]);
 
+    var value = switch (type) {
+        case SpellType_ModLevelHealth: -1 * Stats.get({min: 2, max: 3, scaling: 0.5}, level);
+        case SpellType_ModLevelAttack: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+        default: 100;
+    }
+
     return [{
         type: type,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
         interval_current: 0,
-        value: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level),
+        value: value,
         origin_name: "noname",
     }];
 }
@@ -747,13 +753,19 @@ static function enemy_buff_spells(avoid_type: SpellType = null): Array<Spell> {
             ]);
     }
 
+    var value = switch (type) {
+        case SpellType_ModLevelHealth: Stats.get({min: 2, max: 3, scaling: 0.5}, level);
+        case SpellType_ModLevelAttack: Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+        default: 100;
+    }
+
     return [{
         type: type,
         duration_type: SpellDuration_Permanent,
         duration: 0,
         interval: 0,
         interval_current: 0,
-        value: 1 * Stats.get({min: 1, max: 1, scaling: 0.25}, level),
+        value: value,
         origin_name: "noname",
     }];
 } 

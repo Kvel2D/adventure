@@ -1,20 +1,16 @@
 ----------------------------------------------------------------------------------
 TODO
 
+make room spells span multiple rooms
 
--1health+attack to enemies statue is unbalanced => increase -health
+game's too hard
 
 ----------------------------------------------------------------------------------
 DONE
 
 
-
 ----------------------------------------------------------------------------------
 PROBLEMS
-
-fat connections still sometimes go out of room bounds
-
-start room got disconnected
 
 killed merchant but picked up item and still had buy component on
 
@@ -35,36 +31,7 @@ find font that's not messed up in html5
 
 scrolling for spell display, at some point spells won't fit in current area
 
-vary room geometry by level
-    restrict sizes to certain ranges
-        all small rooms or all big rooms
-        also connection factors
-
 equipment names
-
-cursed equipment
-    both positive and negative bonuses are outside of normal range, so it gives very high positives and negatives
-    don't want to affect normal equipment though, it should be a completely separate range of weights
-    making the normal weight range extend higher won't work
-
-statue that converts your copper into stats
-
-keys should have some danger associated with them
-    put them in enemy rooms and maybe increase the average amount of enemies in those rooms?
-
-area spells should span multiple rooms and connections
-    whole levels full of it? would need to make it less frequent and maybe increase value of stuff on the level
-    whole level of teleportation would be pretty insane(ly fun)
-
-maybe incrementing level not every floor, but every 2-3 floors would create a better power curve
-    need to test side-by-side
-
-quests
-    an npc tells you that he'll give you copper or a good item if you defeat all enemies on the floor
-        or maybe all enemies of type
-    could also do a carry quest
-        given item by one npc, have to carry it to an npc N floors later
-        occupies a slot, but gives a reward in return
 
 chain spell
     damages a mob and jumps to nearby mobs
@@ -83,3 +50,11 @@ improve locked things
 
     for doors, just locking a single room with item is the same as a locked chest
     need to figure out how to lock a section of the map and place a key on the side reachable by player
+
+statue that converts your copper into stats
+
+randomization is often too much
+    maybe merchant should spawn at least every 2 levels and always have at least one health potion as a way for player to offset bad luck
+
+rock
+    useless, but can be used as a blockade

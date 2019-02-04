@@ -625,6 +625,7 @@ static function random_enemy_type(): EntityType {
         use: null,
         combat: {
             health: health, 
+            health_max: health, 
             attack: attack, 
             message: message,
             aggression: aggression_type,
@@ -713,8 +714,10 @@ static function merchant(x: Int, y: Int): Int {
         char: 'M',
         color: Col.PINK,
     };
+    var health = Stats.get({min: 10, max: 20, scaling: 2.0}, level);
     Entity.combat[e] = {
-        health: Stats.get({min: 10, max: 20, scaling: 2.0}, level), 
+        health: health,
+        health_max: health, 
         attack: Stats.get({min: 3, max: 3, scaling: 1.0}, level), 
         message: 'Merchant says: "You will regret this".',
         aggression: AggressionType_NeutralToAggressive,
@@ -745,8 +748,10 @@ static function golem(x: Int, y: Int): Int {
         char: 'g',
         color: Col.GREEN,
     };
+    var health = Stats.get({min: 10, max: 15, scaling: 1.0}, level);
     Entity.combat[e] = {
-        health: Stats.get({min: 10, max: 15, scaling: 1.0}, level), 
+        health: health, 
+        health_max: health, 
         attack: Stats.get({min: 2, max: 3, scaling: 1.0}, level), 
         message: 'Golem says: "Why?"',
         aggression: AggressionType_Aggressive,
@@ -780,8 +785,10 @@ static function skeleton(x: Int, y: Int): Int {
         char: 's',
         color: Col.GREEN,
     };
+    var health = Stats.get({min: 1, max: 2, scaling: 1.0}, level);
     Entity.combat[e] = {
-        health: Stats.get({min: 1, max: 2, scaling: 1.0}, level), 
+        health: health,
+        health_max: health, 
         attack: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
         message: 'Skeleton attacks.',
         aggression: AggressionType_Aggressive,
@@ -815,8 +822,10 @@ static function imp(x: Int, y: Int): Int {
         char: 'i',
         color: Col.GREEN,
     };
+    var health = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
     Entity.combat[e] = {
-        health: Stats.get({min: 2, max: 3, scaling: 1.0}, level), 
+        health: health, 
+        health_max: health, 
         attack: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
         message: 'Imp attacks.',
         aggression: AggressionType_Aggressive,
