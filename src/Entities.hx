@@ -464,7 +464,7 @@ static function random_ring(x: Int, y: Int): Int {
     return e;
 }
 
-static function random_potion(x: Int, y: Int): Int {
+static function random_potion(x: Int, y: Int, force_spell: SpellType = null): Int {
     var e = Entity.make();
 
     var level = Main.get_drop_entity_level();
@@ -475,7 +475,7 @@ static function random_potion(x: Int, y: Int): Int {
         type: ItemType_Normal,
         spells: [],
     };
-    var spell_and_tile = Spells.random_potion_spell_and_tile(level);
+    var spell_and_tile = Spells.random_potion_spell_and_tile(level, force_spell);
     var spell = spell_and_tile.spell;
     var tile = spell_and_tile.tile;
     Entity.use[e] = {

@@ -52,6 +52,8 @@ static var max_rooms = 15;
 static var enemy_room_entity_amount = 2;
 static var item_room_entity_amount = 2;
 static var merchant_item_amount = 3;
+static var merchant_per_level_chance = 40;
+static var location_spell_chance = 5;
 
 static var enemy_types_per_level_min = 2;
 static var enemy_types_per_level_max = 5;
@@ -118,6 +120,8 @@ static function fill_rooms_with_entities() {
 
     var room_is_empty = [for (i in 0...Main.rooms.length) false];
 
+    var spawn_merchant_this_level = Random.chance(merchant_per_level_chance);
+
     // NOTE: leave start room(0th) empty
     for (i in 1...Main.rooms.length) {
         var r = Main.rooms[i];
@@ -159,33 +163,49 @@ static function fill_rooms_with_entities() {
         function merchant_room() {
             // Spawn merchant and items in a line starting from 3,3 away from top-left corner
             spawned_merchant_this_level = true;
-            Entities.merchant(r.x + 1, r.y + 1);
 
-            // Spawn with increased level
-            Main.current_level++;
-            var sell_items = new Array<Int>();
-            for (i in 0...merchant_item_amount) {
-                sell_items.push(Pick.value([
-                    {v: Entities.random_potion, c: 3.0},
-                    {v: Entities.random_armor, c: 1.0},
-                    {v: Entities.random_scroll, c: 1.0},
-                    {v: Entities.random_weapon, c: 0.5},
-                    {v: Entities.random_ring, c: 0.5},
-                    ])
-                (r.x + 2 + i, r.y + 1));
-            }
-            Main.current_level--;
+            var merchant_pos = room_free_ODD_positions_shuffled(r)[0];
+            Entities.merchant(merchant_pos.x, merchant_pos.y);
 
-            // Add cost to items
-            for (e in sell_items) {
-                Entity.buy[e] = {
-                    cost: Stats.get({min: 5, max: 10, scaling: 2.0}, Main.current_level),
-                };
+            // Position items around merchant
+            var item_positions = new Array<Vec2i>();
+            var free_map = Main.get_free_map(merchant_pos.x - 1, merchant_pos.y - 1, merchant_pos.x + 1, merchant_pos.y + 1);
+            for (dx in -1...2) {
+                for (dy in -1...2) {
+                    if (free_map[dx + 1][dy + 1]) {
+                        item_positions.push({x: merchant_pos.x + dx, y: merchant_pos.y + dy});
+                    }
+                }
             }
-            // For Use entities, increase charges to make them more valuable
-            for (e in sell_items) {
-                if (Entity.use.exists(e)) {
-                    Entity.use[e].charges += Random.int(1, 2);
+
+            if (item_positions.length > 0) {
+                // Spawn items with increased level
+                Main.current_level++;
+                var sell_items = new Array<Int>();
+                sell_items.push(Entities.random_potion(item_positions[0].x, item_positions[0].y, SpellType_ModHealth));
+                for (i in 1...Std.int(Math.min(merchant_item_amount, item_positions.length))) {
+                    sell_items.push(Pick.value([
+                        {v: Entities.random_potion, c: 3.0},
+                        {v: Entities.random_armor, c: 1.0},
+                        {v: Entities.random_scroll, c: 1.0},
+                        {v: Entities.random_weapon, c: 0.5},
+                        {v: Entities.random_ring, c: 0.5},
+                        ])
+                    (item_positions[i].x, item_positions[i].y));
+                }
+                Main.current_level--;
+
+                // Add cost to items
+                for (e in sell_items) {
+                    Entity.buy[e] = {
+                        cost: Stats.get({min: 5, max: 10, scaling: 2.0}, Main.current_level),
+                    };
+                }
+                // For Use entities, increase charges to make them more valuable
+                for (e in sell_items) {
+                    if (Entity.use.exists(e)) {
+                        Entity.use[e].charges += Random.int(2, 3);
+                    }
                 }
             }
         }
@@ -198,11 +218,11 @@ static function fill_rooms_with_entities() {
                 }
                 var pos = positions.pop();
                 Pick.value([
+                    {v: Entities.random_armor, c: 3.0},
+                    {v: Entities.random_weapon, c: 0.5},
                     {v: Entities.random_potion, c: 6.0},
-                    {v: Entities.random_armor, c: 6.0},
                     {v: Entities.random_scroll, c: 3.0},
                     {v: Entities.locked_chest, c: 2.0},
-                    {v: Entities.random_weapon, c: 1.0},
                     {v: Entities.random_ring, c: 1.0},
                     {v: Entities.random_statue, c: 1.0},
                     ])
@@ -274,22 +294,48 @@ static function fill_rooms_with_entities() {
 
         var dead_end = r.adjacent_rooms.length == 1;
 
-        Pick.value([
-            {v: empty_room, c: 20.0},
-            {v: enemy_room, c: 50.0},
-            {v: item_room, c: if (dead_end) 60.0 else 30.0},
-            // {v: locked_room, c: 5.0},
-            {v: merchant_room, c: if (!spawned_merchant_this_level) 3.0 else 0.0},
-            ])
-        ();
+        if (!spawned_merchant_this_level && spawn_merchant_this_level) {
+            merchant_room();
+        } else {
+            Pick.value([
+                {v: empty_room, c: 20.0},
+                {v: enemy_room, c: 50.0},
+                {v: item_room, c: if (dead_end) 60.0 else 30.0},
+                // {v: locked_room, c: 5.0},
+                ])
+            ();
+        }
 
         // Sometimes add location spells
         if (Random.chance(10)) {
-            Pick.value([
+
+        }
+    }
+
+    var room_has_location_spell = [for (i in 0...Main.rooms.length) false];
+
+    // Add location spells
+    for (i in 0...Main.rooms.length) {
+        if (Random.chance(location_spell_chance)) {
+            var location_spell = Pick.value([
                 {v: Spells.poison_room, c: 1.0},
                 {v: Spells.teleport_room, c: 1.0},
-                ])
-            (r);
+                ]);
+
+            function add_location_spell_to_room_and_adjacent(room_i: Int, depth: Int) {
+                if (!room_has_location_spell[room_i]) {
+                    room_has_location_spell[room_i] = true;
+                    location_spell(Main.rooms[room_i]);
+
+                    if (depth > 0) {
+                        for (adj_i in Main.rooms[room_i].adjacent_rooms) {
+                            add_location_spell_to_room_and_adjacent(adj_i, depth - 1);
+                        }
+                    }
+                }
+            }
+
+            add_location_spell_to_room_and_adjacent(i, 1);
         }
     }
 
@@ -608,32 +654,32 @@ static function connect_rooms(rooms: Array<Room>, disconnect_factor: Float = 0.0
     }
 
     // Remove connections that intersect with rooms
-    var intersecting_horizontals = new Array<Connection>();
-    for (c in horizontals) {
-        for (room in rooms) {
-            if (room.y <= c.y1 && c.y2 <= room.y + room.height && Math.collision_1d(room.x, room.x + room.width, c.x1, c.x2) != 0) {
-                intersecting_horizontals.push(c);
-            }
-        }
-    }
-    for (c in intersecting_horizontals) {
-        connected[c.i][c.j] = false;
-        connected[c.j][c.i] = false;
-        horizontals.remove(c);
-    }
-    var intersecting_verticals = new Array<Connection>();
-    for (c in verticals) {
-        for (room in rooms) {
-            if (room.x <= c.x1 && c.x2 <= room.x + room.width && Math.collision_1d(room.y, room.y + room.height, c.y1, c.y2) != 0) {
-                intersecting_verticals.push(c);
-            }
-        }
-    }
-    for (c in intersecting_verticals) {
-        connected[c.i][c.j] = false;
-        connected[c.j][c.i] = false;
-        verticals.remove(c);
-    }
+    // var intersecting_horizontals = new Array<Connection>();
+    // for (c in horizontals) {
+    //     for (room in rooms) {
+    //         if (room.y <= c.y1 && c.y2 <= room.y + room.height && Math.collision_1d(room.x, room.x + room.width, c.x1, c.x2) != 0) {
+    //             intersecting_horizontals.push(c);
+    //         }
+    //     }
+    // }
+    // for (c in intersecting_horizontals) {
+    //     connected[c.i][c.j] = false;
+    //     connected[c.j][c.i] = false;
+    //     horizontals.remove(c);
+    // }
+    // var intersecting_verticals = new Array<Connection>();
+    // for (c in verticals) {
+    //     for (room in rooms) {
+    //         if (room.x <= c.x1 && c.x2 <= room.x + room.width && Math.collision_1d(room.y, room.y + room.height, c.y1, c.y2) != 0) {
+    //             intersecting_verticals.push(c);
+    //         }
+    //     }
+    // }
+    // for (c in intersecting_verticals) {
+    //     connected[c.i][c.j] = false;
+    //     connected[c.j][c.i] = false;
+    //     verticals.remove(c);
+    // }
 
     // Remove intersections between horizontal and verticals by removing either a horizontal or all intersecting verticals
     var removed_horizontal = new Array<Connection>();

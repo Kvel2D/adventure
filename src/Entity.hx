@@ -84,7 +84,6 @@ typedef Item = {
 typedef Position = {
     var x: Int;
     var y: Int;
-    var room: Int;
 }
 
 typedef DropEntity = {
@@ -151,8 +150,8 @@ static var id_max: Int = 0;
 // NOTE: only use NONE for initializing and clearing entity references
 // don't "==/!= NONE", check for component existence instead
 static inline var NONE = -1;
-static inline var INFINITE_DURATION = -1;
-static inline var LEVEL_DURATION = -2;
+static inline var DURATION_INFINITE = -1;
+static inline var DURATION_LEVEL = -2;
 static inline var NULL_INT = -1;
 static inline var NULL_STRING = 'null';
 static inline var random_move_chance = 50;
@@ -439,9 +438,6 @@ static function print(e: Int) {
     trace('item=${item[e]}');
     trace('use=${use[e]}');
     trace('combat=${combat[e]}');
-    if (Entity.combat.exists(e)) {
-        trace('combat.attack=${combat[e].attack}');
-    }
     trace('drop_entity=${drop_entity[e]}');
     trace('talk=${talk[e]}');
     trace('give_copper_on_death=${give_copper_on_death[e]}');
@@ -507,23 +503,10 @@ static function validate(e: Int) {
 static var position_map = Data.create2darray(Main.map_width, Main.map_height, Entity.NONE);
 
 static function set_position(e: Int, x: Int, y: Int) {
-    var new_room = -1;
-
     if (position.exists(e)) {
         // Clear old position
         var pos = position[e];
         position_map[pos.x][pos.y] = Entity.NONE;
-
-        // If didn't change rooms, can skip recalculating new room
-        var old_room = Main.rooms[pos.room];
-        if (Math.point_box_intersect(x, y, old_room.x, old_room.y, old_room.width + 1, old_room.height + 1)) {
-            new_room = pos.room;
-        }
-    }
-
-    // Need to recalculate room
-    if (new_room == -1) {
-        new_room = Main.get_room_index(x, y);
     }
 
     if (position_map[x][y] != Entity.NONE) {
@@ -538,7 +521,6 @@ static function set_position(e: Int, x: Int, y: Int) {
     position[e] = {
         x: x,
         y: y,
-        room: new_room,
     };
     position_map[x][y] = e;
 }

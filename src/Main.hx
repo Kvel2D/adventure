@@ -38,7 +38,7 @@ static inline var room_size_max = 15;
 
 static inline var ui_x = tilesize * view_width * world_scale + 13;
 static inline var player_stats_y = 0;
-static inline var equipment_y = 150;
+static inline var equipment_y = 135;
 static inline var equipment_amount = 4;
 static inline var inventory_y = 210;
 static inline var inventory_width = 4;
@@ -110,6 +110,7 @@ EquipmentType_Legs => Entity.NONE,
 EquipmentType_Weapon => Entity.NONE,
 ];
 var player_spells = new Array<Spell>();
+static inline var player_spells_max = 10;
 static var location_spells = [for (x in 0...map_width) [for (y in 0...map_height) new Array<Spell>()]];
 var inventory = Data.create2darray(inventory_width, inventory_height, Entity.NONE);
 var spells_this_turn = [for (i in 0...(Spells.last_prio + 1)) new Array<Spell>()];
@@ -202,14 +203,14 @@ function generate_level() {
 
     // Remove level-specific player spells
     for (spell in player_spells.copy()) {
-        if (spell.duration == Entity.LEVEL_DURATION) {
+        if (spell.duration == Entity.DURATION_LEVEL) {
             player_spells.remove(spell);
         }
     }
     // Remove spells about to be casted
     for (list in spells_this_turn) {
         for (s in list.copy()) {
-            if (s.duration == Entity.LEVEL_DURATION) {
+            if (s.duration == Entity.DURATION_LEVEL) {
                 list.remove(s);
             }
         }
@@ -533,6 +534,12 @@ function use_entity(e: Int) {
                 'unnamed_origin';
             }
             player_spells.push(Spells.copy(spell));
+
+            // If too many player spells, remove older ones
+            if (player_spells.length > player_spells_max) {
+                add_message('Too many active spells, an old spell was removed.');
+                player_spells.shift();
+            }
         }
     }
 
@@ -808,7 +815,6 @@ function move_entity(e: Int) {
                 var path = Path.astar_view(pos.x, pos.y, target_x, target_y);
 
                 if (path.length > 2) {
-                    var room = rooms[player_room];
                     Entity.set_position(e, path[path.length - 2].x + get_view_x(), path[path.length - 2].y + get_view_y());
                 }
             }
@@ -888,12 +894,7 @@ function kill_entity(e: Int) {
 
     // Merchant death makes all buy items free
     if (Entity.name.exists(e) && Entity.name[e] == 'Merchant') {
-        var merchant_room = Entity.position[e].room;
-        var removed_buys = new Array<Int>();
         for (e in entities_with(Entity.buy)) {
-            removed_buys.push(e);
-        }
-        for (e in removed_buys) {
             Entity.buy.remove(e);
         }
     }
@@ -1114,6 +1115,7 @@ function draw_entity(e: Int, x: Float, y: Float) {
     if (Entity.draw_char.exists(e)) {
         // Draw char
         var draw_char = Entity.draw_char[e];
+        Text.size = draw_char_size;
         Text.display(x, y, draw_char.char, draw_char.color);
     } else if (Entity.draw_tile.exists(e)) {
         // Draw tile
@@ -1129,7 +1131,6 @@ function draw_entity(e: Int, x: Float, y: Float) {
 
         Text.size = charges_text_size;
         Text.display(x, y, '${use.charges}', Col.WHITE);
-        Text.size = draw_char_size;
     }
 
     // Draw health bar
@@ -1434,6 +1435,39 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 add_message('No space to summon imp, spell fails!');
             }
         }
+        case SpellType_ChainDamage: {
+            // Jump starting from player and chain from mob to mob
+            // Jump range is 2x2 diagonal
+            // Don't chain to same mob twice
+            function do_chain(source: Vec2i, enemies: Array<Int>, damage: Int) {
+                var jump_e = Entity.NONE;
+                for (e in enemies) {
+                    if (Entity.position.exists(e) && Entity.combat.exists(e)) {
+                        var pos = Entity.position[e];
+                        var dst2 = Math.dst(pos.x, pos.y, source.x, source.y);
+
+                        if (dst2 <= 8) {
+                            jump_e = e;
+                            break;
+                        }
+                    }
+                }
+
+                if (jump_e != Entity.NONE) {
+                    // Remove jump target from enemies to not jump to same entity twice
+                    enemies.remove(jump_e);
+
+                    // NOTE: get entity position before attacking, because attack can kill entity
+                    var jump_e_pos = Entity.position[jump_e];
+                    var next_source: Vec2i = {x: jump_e_pos.x, y: jump_e_pos.y};
+                    
+                    player_attack_entity(jump_e, damage);
+                    do_chain(next_source, enemies, damage * 2);
+                }
+            }
+
+            do_chain({x: player_x, y: player_y}, entities_with(Entity.combat), spell.value);
+        }
     }
 }
 
@@ -1686,12 +1720,10 @@ function update() {
     // Player stats
     //
     var player_stats = "";
-    player_stats += 'PLAYER';
-    player_stats += '\nFloor: ${current_floor}';
     player_stats += '\nHealth: ${player_health}/${player_health_max + player_health_max_mod}';
     player_stats += '\nAttack: ${player_attack + player_attack_mod}';
     player_stats += '\nDefense: ${player_defense + player_defense_mod}';
-    player_stats += '\nEnergy shield: ${player_pure_absorb}';
+    player_stats += '\nShield: ${player_pure_absorb}';
     player_stats += '\nCopper: ${copper_count}';
     Text.display(ui_x, player_stats_y, player_stats);
 
@@ -1800,45 +1832,45 @@ function update() {
         if (Entity.equipment.exists(hovered_anywhere) && Entity.position.exists(hovered_anywhere)) {
             var equipped = player_equipment[Entity.equipment[hovered_anywhere].type];
 
-            if (Entity.equipment.exists(equipped) && !Entity.position.exists(equipped)) {
-                entity_tooltip += '\n\nCURRENTLY EQUIPPED:\n' + get_tooltip(equipped);
+            // if (Entity.equipment.exists(equipped) && !Entity.position.exists(equipped)) {
+            //     entity_tooltip += '\n\nCURRENTLY EQUIPPED:\n' + get_tooltip(equipped);
 
-                entity_tooltip += '\n\nDIFF:\n';
+            //     entity_tooltip += '\n\nDIFF:\n';
 
-                var equipped_spells = Entity.equipment[equipped].spells;
-                var hovered_spells = Entity.equipment[hovered_anywhere].spells;
+            //     var equipped_spells = Entity.equipment[equipped].spells;
+            //     var hovered_spells = Entity.equipment[hovered_anywhere].spells;
 
-                var equipped_defense = 0;
-                var equipped_attack = 0;
-                var hovered_defense = 0;
-                var hovered_attack = 0;
-                for (s in equipped_spells) {
-                    if (s.type == SpellType_ModDefense) {
-                        equipped_defense += s.value;
-                    } else if (s.type == SpellType_ModAttack) {
-                        equipped_attack += s.value;
-                    }
-                }
-                for (s in hovered_spells) {
-                    if (s.type == SpellType_ModDefense) {
-                        hovered_defense += s.value;
-                    } else if (s.type == SpellType_ModAttack) {
-                        hovered_attack += s.value;
-                    }
-                }
+            //     var equipped_defense = 0;
+            //     var equipped_attack = 0;
+            //     var hovered_defense = 0;
+            //     var hovered_attack = 0;
+            //     for (s in equipped_spells) {
+            //         if (s.type == SpellType_ModDefense) {
+            //             equipped_defense += s.value;
+            //         } else if (s.type == SpellType_ModAttack) {
+            //             equipped_attack += s.value;
+            //         }
+            //     }
+            //     for (s in hovered_spells) {
+            //         if (s.type == SpellType_ModDefense) {
+            //             hovered_defense += s.value;
+            //         } else if (s.type == SpellType_ModAttack) {
+            //             hovered_attack += s.value;
+            //         }
+            //     }
 
-                var defense_diff = hovered_defense - equipped_defense;
-                var attack_diff = hovered_attack - equipped_attack;
+            //     var defense_diff = hovered_defense - equipped_defense;
+            //     var attack_diff = hovered_attack - equipped_attack;
 
-                if (defense_diff != 0) {
-                    var sign = if (defense_diff > 0) '+' else '';
-                    entity_tooltip += '$sign${defense_diff} defense\n';
-                }
-                if (attack_diff != 0) {
-                    var sign = if (attack_diff > 0) '+' else '';
-                    entity_tooltip += '$sign${attack_diff} attack\n';
-                }
-            }
+            //     if (defense_diff != 0) {
+            //         var sign = if (defense_diff > 0) '+' else '';
+            //         entity_tooltip += '$sign${defense_diff} defense\n';
+            //     }
+            //     if (attack_diff != 0) {
+            //         var sign = if (attack_diff > 0) '+' else '';
+            //         entity_tooltip += '$sign${attack_diff} attack\n';
+            //     }
+            // }
         }
 
         if (!Entity.combat.exists(hovered_anywhere)) {
@@ -2155,7 +2187,7 @@ function update() {
                     spell.interval_current = 0;
                     active = true;
 
-                    if (spell.duration != Entity.INFINITE_DURATION && spell.duration != Entity.LEVEL_DURATION) {
+                    if (spell.duration != Entity.DURATION_INFINITE && spell.duration != Entity.DURATION_LEVEL) {
                         spell.duration--;
                         if (spell.duration == 0) {
                             spell_over = true;

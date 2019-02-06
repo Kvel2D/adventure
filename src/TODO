@@ -1,12 +1,11 @@
 ----------------------------------------------------------------------------------
 TODO
 
-make room spells span multiple rooms
-
 game's too hard
 
 ----------------------------------------------------------------------------------
 DONE
+
 
 
 ----------------------------------------------------------------------------------
@@ -29,20 +28,13 @@ boss mobs
 
 find font that's not messed up in html5
 
-scrolling for spell display, at some point spells won't fit in current area
-
-equipment names
-
-chain spell
-    damages a mob and jumps to nearby mobs
-        maybe each jump increases the damage
-    jump range is generous, mobs don't have to be next to each other
+custom equipment and item names
+    preset names that progress together with levels?
+    copper sword/dagger/staff/hammer -> iron -> ...
 
 summon wisps
     don't attack, only clump to player as a physical barrier
     maybe clump to enemy instead
-
-mobs drop armor that is better than one found on the ground?
 
 improve locked things
     for chests, keys could drop be inserted into a mob's droptable
@@ -53,8 +45,25 @@ improve locked things
 
 statue that converts your copper into stats
 
-randomization is often too much
-    maybe merchant should spawn at least every 2 levels and always have at least one health potion as a way for player to offset bad luck
+spell that increases all healing and damage to player for the rest of the level
+    you could finish off all enemies on the level and then use it to boost your heal potions
+    or you might really need healing now to complete the level in which case you are forced to use it then and there instead of waiting for the end of the level
 
-rock
-    useless, but can be used as a blockade
+    everyturn
+
+    flat increase? flat increase scaled with level? double? 1.5x?
+
+can form levels into shapes by using a probability map
+    map regions of world so 150x150->15x15 or something in between
+    each cell gets a probability
+
+    when digging rooms, use a Random.chance() to reject positions randomly based on that probability
+        maybe use the room center instead of position for better accuracy
+
+    can do same thing for connections(use midpoint)
+
+don't remove cross-connections?
+    might be interesting to traverse
+    though conflicts with the the tracking of entity/player room because connections would overlap
+        do i still need to track rooms?
+        not sure if it's even used anymore
