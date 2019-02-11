@@ -298,7 +298,7 @@ static function fill_rooms_with_entities() {
             merchant_room();
         } else {
             Pick.value([
-                {v: empty_room, c: 20.0},
+                {v: empty_room, c: 25.0},
                 {v: enemy_room, c: 50.0},
                 {v: item_room, c: if (dead_end) 60.0 else 30.0},
                 // {v: locked_room, c: 5.0},

@@ -69,9 +69,11 @@ var damage_numbers = new Array<DamageNumber>();
 var noclip = false;
 var nolos = false;
 var show_things = false;
+var health_leech = false;
 var movespeed_mod = 0;
 var dropchance_mod = 0;
 var copper_drop_mod = 0;
+var spell_damage_mod = 0;
 static var increase_drop_level = false;
 var player_is_invisible = false;
 
@@ -274,7 +276,8 @@ function generate_level() {
         for (dx in 1...6) {
             // Entities.random_weapon(player_x + dx, player_y);
             // Entities.random_armor(player_x + dx, player_y + 1);
-            // Entities.random_scroll(player_x + dx, player_y + 2);
+            Entities.random_scroll(player_x + dx, player_y + 2);
+            // Entities.random_statue(player_x + dx, player_y + 2);
         }
 
         // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
@@ -1044,7 +1047,7 @@ function entity_attack(e: Int): Bool {
     }
 
     // Attack player if in range, prio player over friendlies
-    if (combat.target == CombatTarget_FriendlyThenPlayer && Math.dst2(player_x, player_y, pos.x, pos.y) <= combat.range_squared) {
+    if (combat.target == CombatTarget_FriendlyThenPlayer && Math.dst2(player_x_old, player_y_old, pos.x, pos.y) <= combat.range_squared) {
         return entity_attack_player(e);
     }
 
@@ -1074,12 +1077,16 @@ function entity_attack(e: Int): Bool {
     return false;
 }
 
-function player_attack_entity(e: Int, attack: Int) {
+function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
     if (!Entity.combat.exists(e)) {
         return;
     }
     
     var combat = Entity.combat[e];
+
+    if (is_spell) {
+        attack += spell_damage_mod;
+    }
 
     combat.health -= attack;
     combat.attacked_by_player = true;
@@ -1090,6 +1097,14 @@ function player_attack_entity(e: Int, attack: Int) {
         'unnamed_target';
     }
     add_message('You attack $target_name for $attack.');
+
+    if (health_leech) {
+        player_health += attack;
+        if (player_health > player_health_max) {
+            player_health = player_health_max;
+        }
+        add_message('Health leech heals you for $attack.');
+    }
 
     if (combat.health <= 0) {
         add_message('You slay $target_name.');
@@ -1273,6 +1288,9 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_ShowThings: {
             show_things = true;
         }
+        case SpellType_HealthLeech: {
+            health_leech = true;
+        }
         case SpellType_NextFloor: {
             if (increment_level) {
                 current_level++;
@@ -1384,6 +1402,19 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 add_message('You enchant equipment.');
             }
         }
+        case SpellType_SwapHealth: {
+            if (Entity.combat.exists(use_target)) {
+                var temp = player_health;
+                var combat = Entity.combat[use_target];
+                player_health = combat.health;
+                if (player_health > player_health_max) {
+                    player_health = player_health_max;
+                }
+                combat.health = temp;
+
+                add_message('You swap yours and enemy health.');
+            }
+        }
         case SpellType_DamageShield: {
             if (spell.duration_type == SpellDuration_Permanent) {
                 player_damage_shield += spell.value;
@@ -1468,6 +1499,15 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
 
             do_chain({x: player_x, y: player_y}, entities_with(Entity.combat), spell.value);
         }
+        case SpellType_ModCopper: {
+            copper_count -= spell.value;
+            if (copper_count < 0) {
+                copper_count = 0;
+            }
+        }
+        case SpellType_ModSpellDamage: {
+            spell_damage_mod += spell.value;
+        }
     }
 }
 
@@ -1478,6 +1518,7 @@ function can_use_entity_on_target(e: Int): Bool {
             case SpellType_CopyItem: Entity.item.exists(e) && !Entity.position.exists(e);
             case SpellType_Passify: Entity.combat.exists(e);
             case SpellType_EnchantEquipment: Entity.equipment.exists(e);
+            case SpellType_SwapHealth: Entity.combat.exists(e);
             default: false;
         }
     } else {
@@ -1543,9 +1584,6 @@ function update() {
 
     // Update LOS after movement
     if (player_x != player_x_old || player_y != player_y_old) {
-        player_x_old = player_x;
-        player_y_old = player_y;
-
         LOS.update_los(los);
     }
 
@@ -2011,8 +2049,8 @@ function update() {
             // Left-click interaction if entity is on map and is visible
             if (player_next_to(Entity.position[hovered_anywhere]) && !los[pos.x - view_x][pos.y - view_y]) {
                 var can_attack = Entity.combat.exists(hovered_anywhere);
-                var can_pickup = Entity.item.exists(hovered_anywhere) && !Entity.buy.exists(interact_target);
-                var can_equip = Entity.equipment.exists(hovered_anywhere) && !Entity.buy.exists(interact_target);
+                var can_pickup = Entity.item.exists(hovered_anywhere) && !Entity.buy.exists(hovered_anywhere);
+                var can_equip = Entity.equipment.exists(hovered_anywhere) && !Entity.buy.exists(hovered_anywhere);
 
                 if (can_attack && !can_pickup && !can_equip) {
                     attack_target = hovered_anywhere;
@@ -2165,9 +2203,11 @@ function update() {
         nolos = false;
         noclip = false;
         show_things = false;
+        health_leech = false;
         movespeed_mod = 0;
         dropchance_mod = 0;
         copper_drop_mod = 0;
+        spell_damage_mod = 0;
         increase_drop_level = false;
         player_is_invisible = false;
 
@@ -2225,7 +2265,7 @@ function update() {
             return spell_over;
         }
 
-        function process_spell_list(list: Array<Spell>) {
+        function process_spell_list(list: Array<Spell>, remove_from_list: Bool = false) {
             var expired_spells = new Array<Spell>();
             for (spell in list) {
                 var spell_over = process_spell(spell);
@@ -2238,7 +2278,9 @@ function update() {
                 if (spell.duration_type != SpellDuration_Permanent) {
                     add_message('Spell ${spell.type} wore off.');
                 }
-                list.remove(spell);
+                if (remove_from_list) {
+                    list.remove(spell);
+                }
             }
         }
 
@@ -2263,7 +2305,7 @@ function update() {
         }
 
         // Player spells
-        process_spell_list(player_spells);
+        process_spell_list(player_spells, true);
 
         // Location spells
         process_spell_list(location_spells[player_x][player_y]);
@@ -2285,7 +2327,7 @@ function update() {
 
         // Player attacks entity
         if (attack_target != Entity.NONE) {
-            player_attack_entity(attack_target, player_attack + player_attack_mod);
+            player_attack_entity(attack_target, player_attack + player_attack_mod, false);
             attack_target = Entity.NONE;
         }
 
@@ -2378,6 +2420,9 @@ function update() {
         Gfx.drawtoscreen();
         Gfx.drawimage(400, 100, 'frametime_canvas');
     }
+
+    player_x_old = player_x;
+    player_y_old = player_y;
 }
 
 }

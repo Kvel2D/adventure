@@ -519,6 +519,7 @@ static function random_scroll(x: Int, y: Int): Int {
             case SpellType_CopyItem: true;
             case SpellType_Passify: true;
             case SpellType_EnchantEquipment: true;
+            case SpellType_SwapHealth: true;
             default: false;
         },
     };
@@ -748,11 +749,11 @@ static function golem(x: Int, y: Int): Int {
         char: 'g',
         color: Col.GREEN,
     };
-    var health = Stats.get({min: 10, max: 15, scaling: 1.0}, level);
+    var health = Stats.get({min: 4, max: 7, scaling: 1.0}, level);
     Entity.combat[e] = {
         health: health, 
         health_max: health, 
-        attack: Stats.get({min: 2, max: 3, scaling: 1.0}, level), 
+        attack: Stats.get({min: 1, max: 2, scaling: 1.0}, level), 
         message: 'Golem says: "Why?"',
         aggression: AggressionType_Aggressive,
         attacked_by_player: false,
