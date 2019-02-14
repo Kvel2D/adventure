@@ -32,7 +32,7 @@ static inline var view_height = 31;
 static inline var world_scale = 4;
 static inline var minimap_scale = 4;
 static inline var minimap_x = 0;
-static inline var minimap_y = 100;
+static inline var minimap_y = 0;
 static inline var room_size_min = 5;
 static inline var room_size_max = 15;
 
@@ -80,7 +80,8 @@ var player_is_invisible = false;
 var show_dev_buttons = false;
 var noclip_DEV = false;
 var nolos_DEV = false;
-var full_minimap_DEV = false;
+var full_minimap_DEV = true;
+// var full_minimap_DEV = false;
 var frametime_graph_DEV = false;
 var draw_invisible_entities = true;
 
@@ -149,7 +150,6 @@ function init() {
     Gfx.createimage('frametime_canvas', 100, 50);
     Gfx.createimage('frametime_canvas2', 100, 50);
     Gfx.createimage('message_canvas', ui_wordwrap, 320);
-
 
     // Draw equipment and inventory boxes
     Gfx.createimage('ui_canvas', ui_wordwrap, screen_height);
@@ -2133,13 +2133,28 @@ function update() {
         }
     }
 
+    // TODO: cache the minimap image
+    // try to remove overlapping while keeping minimap transparent?
+    // not sure if possible
+
     //
     // Minimap
     //
     // Draw rooms
+
+    // Draw connections first, then rooms
+    // Draw rooms filled in to cover up intersecting connections
     for (i in 0...rooms.length) {
-        if (visited_room[i] || full_minimap_DEV) {
+        var r = rooms[i];
+        if ((visited_room[i] || full_minimap_DEV) && r.is_connection) {
+            Gfx.fillbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.BLACK);
+            Gfx.drawbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
+        }
+    }
+    for (i in 0...rooms.length) {
             var r = rooms[i];
+        if ((visited_room[i] || full_minimap_DEV) && !r.is_connection) {
+            Gfx.fillbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.BLACK);
             Gfx.drawbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
         }
     }
