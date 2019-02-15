@@ -38,12 +38,13 @@ static inline var room_size_max = 15;
 
 static inline var ui_x = tilesize * view_width * world_scale + 13;
 static inline var player_stats_y = 0;
+static inline var player_stats_numbers_offset = 85;
 static inline var equipment_y = 135;
 static inline var equipment_amount = 4;
 static inline var inventory_y = 210;
 static inline var inventory_width = 4;
 static inline var inventory_height = 2;
-static inline var spells_list_y = 320;
+static inline var spells_list_y = 300;
 static inline var message_history_y = 600;
 static inline var message_history_length_max = 20;
 static inline var turn_delimiter = '------------------------------';
@@ -80,8 +81,7 @@ var player_is_invisible = false;
 var show_dev_buttons = false;
 var noclip_DEV = false;
 var nolos_DEV = false;
-var full_minimap_DEV = true;
-// var full_minimap_DEV = false;
+var full_minimap_DEV = false;
 var frametime_graph_DEV = false;
 var draw_invisible_entities = true;
 
@@ -151,12 +151,21 @@ function init() {
     Gfx.createimage('frametime_canvas2', 100, 50);
     Gfx.createimage('message_canvas', ui_wordwrap, 320);
 
+
     // Draw equipment and inventory boxes
     Gfx.createimage('ui_canvas', ui_wordwrap, screen_height);
     Gfx.drawtoimage('ui_canvas');
 
+
     Gfx.scale(1, 1, 0, 0);
     Text.size = ui_text_size;
+    var player_stats = "";
+    player_stats += '\nHealth:';
+    player_stats += '\nAttack:';
+    player_stats += '\nDefense:';
+    player_stats += '\nShield:';
+    player_stats += '\nCopper:\n ';
+    Text.display(0, player_stats_y, player_stats);
     Text.display(0, equipment_y - Text.height() - 2, 'EQUIPMENT');
     Text.display(0, inventory_y - Text.height() - 2, 'INVENTORY');
     
@@ -276,7 +285,7 @@ function generate_level() {
         for (dx in 1...6) {
             // Entities.random_weapon(player_x + dx, player_y);
             // Entities.random_armor(player_x + dx, player_y + 1);
-            Entities.random_scroll(player_x + dx, player_y + 2);
+            // Entities.random_scroll(player_x + dx, player_y + 2);
             // Entities.random_statue(player_x + dx, player_y + 2);
         }
 
@@ -1758,12 +1767,12 @@ function update() {
     // Player stats
     //
     var player_stats = "";
-    player_stats += '\nHealth: ${player_health}/${player_health_max + player_health_max_mod}';
-    player_stats += '\nAttack: ${player_attack + player_attack_mod}';
-    player_stats += '\nDefense: ${player_defense + player_defense_mod}';
-    player_stats += '\nShield: ${player_pure_absorb}';
-    player_stats += '\nCopper: ${copper_count}';
-    Text.display(ui_x, player_stats_y, player_stats);
+    player_stats += '\n${player_health}/${player_health_max + player_health_max_mod}';
+    player_stats += '\n${player_attack + player_attack_mod}';
+    player_stats += '\n${player_defense + player_defense_mod}';
+    player_stats += '\n${player_pure_absorb}';
+    player_stats += '\n${copper_count}';
+    Text.display(ui_x + player_stats_numbers_offset, player_stats_y, player_stats);
 
     //
     // Equipment
@@ -2438,6 +2447,8 @@ function update() {
 
     player_x_old = player_x;
     player_y_old = player_y;
+
+    Text.display(100, 100, "testggpp\np");
 }
 
 }

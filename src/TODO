@@ -6,6 +6,8 @@ redistribute spells between scrolls and potions
 ----------------------------------------------------------------------------------
 DONE
 
+align player stats
+
 ----------------------------------------------------------------------------------
 PROBLEMS
 
@@ -25,6 +27,8 @@ boss mobs
         killing 2 merchants spawns a merchant boss
 
 find font that's not messed up in html5
+    enemy letters are offset
+    other letters have lower parts cut off unless there's another line under them
 
 custom equipment and item names
     preset names that progress together with levels?
@@ -43,4 +47,8 @@ need to clean up map by removing connections that cross rooms
 enchant equipment effect
     add a random spell(call the normal spell creation functions for type)
 
+redistribute spells between scrolls and potions
+
+diversify spells more
+    lots of spell variations are not utilized
 
