@@ -1,17 +1,23 @@
 ----------------------------------------------------------------------------------
 TODO
 
-redistribute spells between scrolls and potions
-
 ----------------------------------------------------------------------------------
 DONE
 
-align player stats
+fix using of targeted use entities via left-click not starting target mode
+increase teleport_room interval
+add DR to teleport rooms(double spell interval with each teleport)
+fix incomplete level clean-up when generation fails because of no path to stairs
+^fixes double stairs problem
+consolidate spell detail functions to Spells
+don't put location spells into very long connections
+rename EnchantEquipment to ImproveEquipment
+add EnchantEquipment(adds random equip spell)
+make spell room spread more varied, now can be 2 deep but also has a chance of being 0 depth
+modmovespeed potion
 
 ----------------------------------------------------------------------------------
 PROBLEMS
-
-two stairs spawned
 
 ----------------------------------------------------------------------------------
 IDEAS
@@ -41,14 +47,9 @@ improve locked things
     for doors, just locking a single room with item is the same as a locked chest
     need to figure out how to lock a section of the map and place a key on the side reachable by player
 
-need to clean up map by removing connections that cross rooms
-    replace with two connections that connect to room
-
-enchant equipment effect
-    add a random spell(call the normal spell creation functions for type)
-
 redistribute spells between scrolls and potions
 
 diversify spells more
     lots of spell variations are not utilized
+
 

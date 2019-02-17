@@ -33,6 +33,7 @@ enum SpellType {
 
     SpellType_ModUseCharges;
     SpellType_CopyItem;
+    SpellType_ImproveEquipment;
     SpellType_EnchantEquipment;
     SpellType_Passify;
     SpellType_SwapHealth;
@@ -88,6 +89,7 @@ SpellType_ModDropLevel => 1,
 SpellType_EnergyShield => 1,
 SpellType_DamageShield => 1,
 SpellType_Passify => 1,
+SpellType_ImproveEquipment => 1,
 SpellType_EnchantEquipment => 1,
 SpellType_ModCopper => 1,
 SpellType_HealthLeech => 1,
@@ -156,7 +158,8 @@ static function get_description(spell: Spell): String {
         case SpellType_ModUseCharges: 'add ${spell.value} use charges to item in your inventory';
         case SpellType_CopyItem: 'copy item in your inventory (copy is placed on the ground, must have free space around you or the spell fails and scroll disappears)';
         case SpellType_Passify: 'passify an enemy(left-click on an enemy near you)';
-        case SpellType_EnchantEquipment: 'enchant weapon or armor, increasing it\'s attack or defense bonus permanently';
+        case SpellType_ImproveEquipment: 'improve weapon or armor, increasing it\'s attack or defense bonus permanently';
+        case SpellType_EnchantEquipment: 'enchant weapon or armor, giving it a random equip spell';
         case SpellType_DamageShield: 'deal ${spell.value} damage to attackers';
         case SpellType_SummonGolem: 'summon a golem that protects you';
         case SpellType_SummonSkeletons: 'summon three skeletons that protect you';
@@ -203,6 +206,30 @@ static function get_description(spell: Spell): String {
     }
 
     return '$effect$interval$duration';
+}
+
+static function need_target(type: SpellType): Bool {
+    return switch (type) {
+        case SpellType_ModUseCharges: true;
+        case SpellType_CopyItem: true;
+        case SpellType_Passify: true;
+        case SpellType_ImproveEquipment: true;
+        case SpellType_EnchantEquipment: true;
+        case SpellType_SwapHealth: true;
+        default: false;
+    }
+}
+
+static function spell_can_be_used_on_target(type: SpellType, target: Int): Bool {
+    return switch (type) {
+        case SpellType_ModUseCharges: Entity.item.exists(target) && !Entity.position.exists(target);
+        case SpellType_CopyItem: Entity.item.exists(target) && !Entity.position.exists(target);
+        case SpellType_Passify: Entity.combat.exists(target);
+        case SpellType_ImproveEquipment: Entity.equipment.exists(target);
+        case SpellType_EnchantEquipment: Entity.equipment.exists(target);
+        case SpellType_SwapHealth: Entity.combat.exists(target);
+        default: false;
+    }
 }
 
 static function copy(spell: Spell): Spell {
@@ -550,6 +577,8 @@ static function random_potion_spell_and_tile(level: Int, force_spell: SpellType)
             {v: SpellType_ModAttack, c: 1.0},
             {v: SpellType_ModDefense, c: 1.0},
             {v: SpellType_Invisibility, c: 0.25},
+            // {v: SpellType_ModMoveSpeed, c: 0.1},
+            {v: SpellType_ModMoveSpeed, c: 10000},
             ]);
     }
 
@@ -564,6 +593,7 @@ static function random_potion_spell_and_tile(level: Int, force_spell: SpellType)
             {v: SpellDuration_EveryAttack, c: 1.0},
             ]);
         case SpellType_Invisibility: SpellDuration_EveryTurn;
+        case SpellType_ModMoveSpeed: SpellDuration_EveryTurn;
         default: SpellDuration_Permanent;
     }
 
@@ -579,6 +609,7 @@ static function random_potion_spell_and_tile(level: Int, force_spell: SpellType)
             default: 1000;
         };
         case SpellType_Invisibility: Random.int(60, 80);
+        case SpellType_ModMoveSpeed: Random.int(3, 5);
         default: 0;
     }
 
@@ -586,6 +617,7 @@ static function random_potion_spell_and_tile(level: Int, force_spell: SpellType)
         case SpellType_ModHealth: Stats.get({min: 5, max: 5, scaling: 1.0}, level);
         case SpellType_ModAttack: Stats.get({min: 1, max: 1, scaling: 0.5}, level);
         case SpellType_ModDefense: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+        case SpellType_ModMoveSpeed: Random.int(3, 4);
         default: 0;
     }
 
@@ -594,6 +626,7 @@ static function random_potion_spell_and_tile(level: Int, force_spell: SpellType)
         case SpellType_ModAttack: Tile.PotionPhysical;
         case SpellType_ModDefense: Tile.PotionPhysical;
         case SpellType_Invisibility: Tile.PotionShadow;
+        case SpellType_ModMoveSpeed: Tile.PotionIce;
         default: Tile.None;
     };
 
@@ -629,7 +662,8 @@ static function random_scroll_spell_and_tile(level: Int) {
 
         {v: SpellType_ModUseCharges, c: 0.5},
         {v: SpellType_CopyItem, c: 1.0},
-        {v: SpellType_EnchantEquipment, c: 1.0},
+        {v: SpellType_ImproveEquipment, c: 1.0},
+        {v: SpellType_EnchantEquipment, c: 1000.0},
 
         {v: SpellType_Passify, c: 1.0},
         {v: SpellType_SummonGolem, c: 1.0},
@@ -676,7 +710,7 @@ static function random_scroll_spell_and_tile(level: Int) {
         case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_ModUseCharges: 1;
         case SpellType_EnergyShield: Stats.get({min: 3, max: 5, scaling: 1.0}, level);
-        case SpellType_EnchantEquipment: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+        case SpellType_ImproveEquipment: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         case SpellType_DamageShield: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_ChainDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_ModSpellDamage: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
@@ -696,6 +730,7 @@ static function random_scroll_spell_and_tile(level: Int) {
 
         case SpellType_ModUseCharges: Tile.ScrollIce;
         case SpellType_CopyItem: Tile.ScrollIce;
+        case SpellType_ImproveEquipment: Tile.ScrollIce;
         case SpellType_EnchantEquipment: Tile.ScrollIce;
         case SpellType_ModSpellDamage: Tile.ScrollIce;
 
@@ -976,7 +1011,7 @@ static function poison_room(r: Room) {
         type: SpellType_ModHealth,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.DURATION_INFINITE,
-        interval: Random.int(10, 15),
+        interval: Random.int(15, 20),
         interval_current: 0,
         value: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level),
         origin_name: "noname",
@@ -997,7 +1032,7 @@ static function teleport_room(r: Room) {
         type: SpellType_RandomTeleport,
         duration_type: SpellDuration_EveryTurn,
         duration: Entity.DURATION_INFINITE,
-        interval: Math.round(r.width * 3),
+        interval: Math.round(Math.max(r.width, r.height) * 2),
         interval_current: 0,
         value: 0,
         origin_name: "noname",
@@ -1240,7 +1275,7 @@ static function random_equipment_spells(equipment_type: EquipmentType): Array<Ar
     var total_spell_count: Int = Pick.value([
         {v: 0, c: 1},
         {v: 1, c: 0.33},
-        {v: 2, c: 0.1},
+        {v: 2, c: 0.10},
         {v: 3, c: 0.05},
         ]);
     var spell_equip_count = 0;

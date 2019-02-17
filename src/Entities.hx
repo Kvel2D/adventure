@@ -514,14 +514,7 @@ static function random_scroll(x: Int, y: Int): Int {
         consumable: true,
         flavor_text: 'You read the scroll aloud.',
         // NOTE: incorrect if there are multiple spells and one of them needs a target, though I can't think of an item like that yet
-        need_target: switch (spell.type) {
-            case SpellType_ModUseCharges: true;
-            case SpellType_CopyItem: true;
-            case SpellType_Passify: true;
-            case SpellType_EnchantEquipment: true;
-            case SpellType_SwapHealth: true;
-            default: false;
-        },
+        need_target: Spells.need_target(spell.type),
     };
 
     // TODO: diversify scroll icons based on scroll spell

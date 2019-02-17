@@ -54,6 +54,7 @@ static var item_room_entity_amount = 2;
 static var merchant_item_amount = 3;
 static var merchant_per_level_chance = 40;
 static var location_spell_chance = 5;
+static var room_spell_spreads_to_neighbors_chance = 50;
 
 static var enemy_types_per_level_min = 2;
 static var enemy_types_per_level_max = 5;
@@ -323,11 +324,15 @@ static function fill_rooms_with_entities() {
                 ]);
 
             function add_location_spell_to_room_and_adjacent(room_i: Int, depth: Int) {
-                if (!room_has_location_spell[room_i]) {
+                // NOTE: connections can be very long, don't put location spells if they are longer than max room dimension
+                var room = Main.rooms[room_i];
+                var max_dimension = Math.max(room.width, room.height);
+
+                if (!room_has_location_spell[room_i] && max_dimension <= Main.room_size_max * 1.1) {
                     room_has_location_spell[room_i] = true;
                     location_spell(Main.rooms[room_i]);
 
-                    if (depth > 0) {
+                    if (depth > 0 && Random.chance(room_spell_spreads_to_neighbors_chance)) {
                         for (adj_i in Main.rooms[room_i].adjacent_rooms) {
                             add_location_spell_to_room_and_adjacent(adj_i, depth - 1);
                         }
@@ -335,7 +340,7 @@ static function fill_rooms_with_entities() {
                 }
             }
 
-            add_location_spell_to_room_and_adjacent(i, 1);
+            add_location_spell_to_room_and_adjacent(i, 2);
         }
     }
 

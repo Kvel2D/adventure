@@ -143,7 +143,7 @@ var use_target = Entity.NONE;
 
 function init() {
     Gfx.resizescreen(screen_width, screen_height, true);
-    Core.showstats = true;
+    // Core.showstats = true;
     Text.font = 'pixelfj8';
     Gfx.loadtiles('tiles', tilesize, tilesize);
     Gfx.createimage('tiles_canvas', tilesize * view_width, tilesize * view_height);
@@ -206,36 +206,35 @@ static function entities_with(map: Map<Int, Dynamic>): Array<Int> {
 }
 
 function generate_level() {
-    // Remove all entities, except inventory items and equipped equipment
-    // NOTE: need to change this if new entities are added which don't have a position 
-    for (e in entities_with(Entity.position)) {
-        Entity.remove(e);
-    }
-
-    // Remove level-specific player spells
-    for (spell in player_spells.copy()) {
-        if (spell.duration == Entity.DURATION_LEVEL) {
-            player_spells.remove(spell);
-        }
-    }
-    // Remove spells about to be casted
-    for (list in spells_this_turn) {
-        for (s in list.copy()) {
-            if (s.duration == Entity.DURATION_LEVEL) {
-                list.remove(s);
-            }
-        }
-    }
-    // Remove location spells
-    for (x in 0...map_width) {
-        for (y in 0...map_height) {
-            if (location_spells[x][y].length > 0) {
-                location_spells[x][y] = new Array<Spell>();
-            }
-        }
-    }
-
     do {
+        // Remove all entities, except inventory items and equipped equipment
+        for (e in entities_with(Entity.position)) {
+            Entity.remove(e);
+        }
+
+        // Remove level-specific player spells
+        for (spell in player_spells.copy()) {
+            if (spell.duration == Entity.DURATION_LEVEL) {
+                player_spells.remove(spell);
+            }
+        }
+        // Remove spells about to be casted
+        for (list in spells_this_turn) {
+            for (s in list.copy()) {
+                if (s.duration == Entity.DURATION_LEVEL) {
+                    list.remove(s);
+                }
+            }
+        }
+        // Remove location spells
+        for (x in 0...map_width) {
+            for (y in 0...map_height) {
+                if (location_spells[x][y].length > 0) {
+                    location_spells[x][y] = new Array<Spell>();
+                }
+            }
+        }
+
         // Clear wall and tile data
         for (x in 0...map_width) {
             for (y in 0...map_height) {
@@ -286,6 +285,7 @@ function generate_level() {
             // Entities.random_weapon(player_x + dx, player_y);
             // Entities.random_armor(player_x + dx, player_y + 1);
             // Entities.random_scroll(player_x + dx, player_y + 2);
+            Entities.random_potion(player_x + dx, player_y + 2);
             // Entities.random_statue(player_x + dx, player_y + 2);
         }
 
@@ -1398,7 +1398,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 add_message('You passify the enemy.');
             }
         }
-        case SpellType_EnchantEquipment: {
+        case SpellType_ImproveEquipment: {
             if (Entity.equipment.exists(use_target)) {
                 for (s in Entity.equipment[use_target].spells) {
                     if (s.type == SpellType_ModAttack) {
@@ -1408,6 +1408,15 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                         s.value += spell.value * 10;
                     }
                 }
+                add_message('You improve equipment.');
+            }
+        }
+        case SpellType_EnchantEquipment: {
+            if (Entity.equipment.exists(use_target)) {
+                var equipment = Entity.equipment[use_target];
+                var spell = Spells.random_equipment_spell_equip(equipment.type);
+                equipment.spells.push(spell);
+
                 add_message('You enchant equipment.');
             }
         }
@@ -1522,14 +1531,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
 
 function can_use_entity_on_target(e: Int): Bool {
     if (Entity.use.exists(use_entity_that_needs_target)) {
-        return switch (Entity.use[use_entity_that_needs_target].spells[0].type) {
-            case SpellType_ModUseCharges: Entity.item.exists(e) && !Entity.position.exists(e);
-            case SpellType_CopyItem: Entity.item.exists(e) && !Entity.position.exists(e);
-            case SpellType_Passify: Entity.combat.exists(e);
-            case SpellType_EnchantEquipment: Entity.equipment.exists(e);
-            case SpellType_SwapHealth: Entity.combat.exists(e);
-            default: false;
-        }
+        return Spells.spell_can_be_used_on_target(Entity.use[use_entity_that_needs_target].spells[0].type, e);
     } else {
         return false;
     }
@@ -2051,6 +2053,9 @@ function update() {
         }
     }
 
+    //
+    // DEFAULT LEFT-CLICK ACTION
+    //
     // Attack, pick up or equip, if only one is possible, if multiple are possible, then must pick one through interact menu
     if (!player_acted && Mouse.leftclick()) {
         if (Entity.position.exists(hovered_anywhere)) {
@@ -2077,8 +2082,14 @@ function update() {
             var can_use = Entity.use.exists(hovered_anywhere);
 
             if (can_use && !targeting_for_use) {
-                use_entity(hovered_anywhere);
-                player_acted = true;
+                if (Entity.use[hovered_anywhere].need_target) {
+                    use_entity_that_needs_target = hovered_anywhere;
+                    start_targeting = true;
+                    player_acted = true;
+                } else {
+                    use_entity(hovered_anywhere);
+                    player_acted = true;
+                }
             }
         }
     }
@@ -2161,7 +2172,7 @@ function update() {
         }
     }
     for (i in 0...rooms.length) {
-            var r = rooms[i];
+        var r = rooms[i];
         if ((visited_room[i] || full_minimap_DEV) && !r.is_connection) {
             Gfx.fillbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.BLACK);
             Gfx.drawbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
@@ -2281,6 +2292,11 @@ function update() {
                 if (Spells.prios.exists(spell.type)) {
                     var prio = Spells.prios[spell.type];
                     spells_this_turn[prio].push(spell);
+
+                    // DR on random teleports with interval(teleport room)
+                    if (spell.type == SpellType_RandomTeleport && spell.interval > 0) {
+                        spell.interval *= 2;
+                    }
                 } else {
                     trace('no prio defined for ${spell.type}');
                 }
@@ -2447,8 +2463,6 @@ function update() {
 
     player_x_old = player_x;
     player_y_old = player_y;
-
-    Text.display(100, 100, "testggpp\np");
 }
 
 }
