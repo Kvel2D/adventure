@@ -52,13 +52,14 @@ class Tile {
     static inline var StatueSuthaephes = at(3, 9);
     static inline var StatueEnohik = at(4, 9);
 
-    static inline var Head0 = at(0, 2);
+        static inline var Head0 = at(0, 2);
     static inline var Head1 = at(1, 2);
     static inline var Head2 = at(2, 2);
     static inline var Head3 = at(3, 2);
     static inline var Head4 = at(4, 2);
     static inline var Head5 = at(5, 2);
     static inline var Head6 = at(6, 2);
+    static var Heads = [Head0, Head1, Head2, Head3, Head4, Head5, Head6];
 
     static inline var Chest0 = at(0, 3);
     static inline var Chest1 = at(1, 3);
@@ -67,6 +68,7 @@ class Tile {
     static inline var Chest4 = at(4, 3);
     static inline var Chest5 = at(5, 3);
     static inline var Chest6 = at(6, 3);
+    static var Chests = [Chest0, Chest1, Chest2, Chest3, Chest4, Chest5, Chest6];
 
     static inline var Legs0 = at(0, 4);
     static inline var Legs1 = at(1, 4);
@@ -75,6 +77,7 @@ class Tile {
     static inline var Legs4 = at(4, 4);
     static inline var Legs5 = at(5, 4);
     static inline var Legs6 = at(6, 4);
+    static var Legss = [Legs0, Legs1, Legs2, Legs3, Legs4, Legs5, Legs6];
 
     static inline var Sword1 = at(1, 5);
     static inline var Sword2 = at(2, 5);
@@ -82,6 +85,7 @@ class Tile {
     static inline var Sword4 = at(4, 5);
     static inline var Sword5 = at(5, 5);
     static inline var Sword6 = at(6, 5);
+    static var Swords = [Sword1, Sword2, Sword3, Sword4, Sword5, Sword6];
 
     static inline var KeyRed = at(0, 8);
     static inline var KeyOrange = at(1, 8);

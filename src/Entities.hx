@@ -353,13 +353,12 @@ static function random_weapon(x: Int, y: Int): Int {
     var e = Entity.make();
     Entity.set_position(e, x, y);
 
-    var weapon_tiles = [Tile.Sword1, Tile.Sword2, Tile.Sword3, Tile.Sword4, Tile.Sword5, Tile.Sword6];
-    Entity.draw_tile[e] = weapon_tiles[Math.floor(Math.min(5, level / 2))];
+    var tile_index = Math.floor(Math.min(5, level / 2));
+    Entity.draw_tile[e] = Tile.Swords[tile_index];
 
-    var weapon_names = ['copper sword', 'iron shank', 'big hammer'];
-    Entity.name[e] = Random.pick(weapon_names);
+    Entity.name[e] = 'Sword';
 
-    var attack_buff_value = Stats.get({min: 1, max: 1, scaling: 1.0}, level); 
+    var attack_buff_value = Stats.get({min: 1, max: 1, scaling: 1.0}, level);  
 
     var equip_plus_use_spells = Spells.random_equipment_spells(EquipmentType_Weapon);
 
@@ -398,18 +397,19 @@ static function random_armor(x: Int, y: Int): Int {
 
     Entity.set_position(e, x, y);
     var armor_type = Random.pick([EquipmentType_Head, EquipmentType_Chest, EquipmentType_Legs]);
-    var armor_names = [
-    EquipmentType_Head => 'helmet', 
-    EquipmentType_Chest => 'chainmail vest', 
-    EquipmentType_Legs => 'pants',
-    ];
-    var armor_tiles = [
-    EquipmentType_Head => [Tile.Head1, Tile.Head2, Tile.Head3, Tile.Head4, Tile.Head5, Tile.Head6],
-    EquipmentType_Chest => [Tile.Chest1, Tile.Chest2, Tile.Chest3, Tile.Chest4, Tile.Chest5, Tile.Chest6],
-    EquipmentType_Legs => [Tile.Legs1, Tile.Legs2, Tile.Legs3, Tile.Legs4, Tile.Legs5, Tile.Legs6],
-    ];
-    Entity.name[e] = armor_names[armor_type];
-    Entity.draw_tile[e] = armor_tiles[armor_type][Math.floor(Math.min(5, level / 2))];
+    Entity.name[e] = switch (armor_type) {
+        case EquipmentType_Head: 'Helmet'; 
+        case EquipmentType_Chest: 'Chestplate'; 
+        case EquipmentType_Legs: 'Pants';
+        case EquipmentType_Weapon: 'invalid';
+    }
+    var tile_index = Math.floor(Math.min(5, level / 2));
+    Entity.draw_tile[e] = switch (armor_type) {
+        case EquipmentType_Head: Tile.Heads[tile_index];
+        case EquipmentType_Chest: Tile.Chests[tile_index];
+        case EquipmentType_Legs: Tile.Legss[tile_index];
+        case EquipmentType_Weapon: Tile.None;
+    }
 
     var defense_total = Stats.get({min: 1, max: 2, scaling: 1.0}, level);
 

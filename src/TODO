@@ -1,20 +1,12 @@
 ----------------------------------------------------------------------------------
 TODO
 
+beat the game(or at least close) 3 times, ask Ilya to test
+
 ----------------------------------------------------------------------------------
 DONE
 
-fix using of targeted use entities via left-click not starting target mode
-increase teleport_room interval
-add DR to teleport rooms(double spell interval with each teleport)
-fix incomplete level clean-up when generation fails because of no path to stairs
-^fixes double stairs problem
-consolidate spell detail functions to Spells
-don't put location spells into very long connections
-rename EnchantEquipment to ImproveEquipment
-add EnchantEquipment(adds random equip spell)
-make spell room spread more varied, now can be 2 deep but also has a chance of being 0 depth
-modmovespeed potion
+
 
 ----------------------------------------------------------------------------------
 PROBLEMS
@@ -25,20 +17,17 @@ IDEAS
 boss mobs
     guaranteed powerful item drop
     big health pool
+    low chase distance so that player can choose when to engage
 
-    boss summon rituals
+boss summon rituals
     doing some sequence of actions summons a special boss
-        copying a copy scroll spawns copy scroll boss
-        spawning 3 skeletons in same room spawns a necromancer at stairs
-        killing 2 merchants spawns a merchant boss
+    copying a copy scroll spawns copy scroll boss
+    spawning 3 skeletons in same room spawns a necromancer at stairs
+    killing 2 merchants spawns a merchant boss
 
 find font that's not messed up in html5
     enemy letters are offset
     other letters have lower parts cut off unless there's another line under them
-
-custom equipment and item names
-    preset names that progress together with levels?
-    copper sword/dagger/staff/hammer -> iron -> ...
 
 improve locked things
     for chests, keys could drop be inserted into a mob's droptable
@@ -52,4 +41,21 @@ redistribute spells between scrolls and potions
 diversify spells more
     lots of spell variations are not utilized
 
+combust spell
+    explode enemy damaging everything(player too) around it in a radius
 
+sleep spell
+    like passify but turns enemy into neutral_to_aggressive(remember to remove Move component)
+
+copper to attack
+    ring/armor spell, passively converts all copper to attack(floor function), not too powerful, also scales worse as copper count increases
+
+copper to def
+
+copper item
+    drops from chests
+    copper just from enemies isn't interesting
+
+render better on death screen
+
+add darkened tiles for teleport and poison

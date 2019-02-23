@@ -18,6 +18,11 @@ typedef DamageNumber = {
     color: Int,
 };
 
+enum GameState {
+    GameState_Normal;
+    GameState_Dead;
+}
+
 @:publicFields
 class Main {
 // force unindent
@@ -57,6 +62,8 @@ static inline var charges_text_size = 8;
 
 static inline var max_rings = 2;
 
+var game_state = GameState_Normal;
+
 static var walls = Data.create2darray(map_width, map_height, false);
 static var tiles = Data.create2darray(map_width, map_height, Tile.None);
 static var rooms: Array<Room>;
@@ -78,6 +85,7 @@ var spell_damage_mod = 0;
 static var increase_drop_level = false;
 var player_is_invisible = false;
 
+var show_show_dev_button = false;
 var show_dev_buttons = false;
 var noclip_DEV = false;
 var nolos_DEV = false;
@@ -141,6 +149,22 @@ var targeting_for_use = false;
 var use_entity_that_needs_target = Entity.NONE;
 var use_target = Entity.NONE;
 
+var tutorial_text = [
+'TUTORIAL',
+turn_delimiter,
+'WASD to move',
+'SPACE to skip a turn',
+turn_delimiter,
+'Right-click on things to interact with them.',
+'You can interact with things on the map if they are next to you.',
+'You can interact with your equipment and items.',
+turn_delimiter,
+'Left-clicking performs some default actions.',
+'Left-click on enemies to attack them.',
+'Left-click on items and equipment on the ground to pick them up.',
+'Left-click on items in inventory to use them.',
+];
+
 function init() {
     Gfx.resizescreen(screen_width, screen_height, true);
     // Core.showstats = true;
@@ -186,7 +210,35 @@ function init() {
     Entities.read_name_corpus();
     LOS.calculate_rays();
 
+    restart_game();
     generate_level();
+}
+
+function restart_game() {
+    damage_numbers = new Array<DamageNumber>();
+    
+    for (e in Entity.all.copy()) {
+        Entity.remove(e);
+    }
+
+    player_spells = new Array<Spell>();
+    spells_this_turn = [for (i in 0...(Spells.last_prio + 1)) new Array<Spell>()];
+
+    current_level = 0;
+    current_floor = 0;
+    player_health = 10;
+    copper_count = 0;
+    player_pure_absorb = 0;
+    player_damage_shield = 0;
+
+    message_history = [for (i in 0...message_history_length_max) turn_delimiter];
+    var tutorial_i = tutorial_text.length; 
+    for (line in tutorial_text) {
+        message_history[tutorial_i] = line;
+        tutorial_i--;
+    }
+
+    Entities.generated_names = new Array<String>();
 }
 
 // Room is good if it's not a connection and isn't locked
@@ -1537,7 +1589,7 @@ function can_use_entity_on_target(e: Int): Bool {
     }
 }
 
-function update() {
+function update_normal() {
     var update_start = Timer.stamp();
 
     var player_acted = false;
@@ -1750,13 +1802,6 @@ function update() {
     }
     for (n in removed_damage_numbers) {
         damage_numbers.remove(n);
-    }
-
-    // DEAD indicator
-    // TODO: need a real transition
-    if (player_health <= 0) {
-        Text.size = 100;
-        Text.display(100, 100, 'DEAD', Col.RED);
     }
 
     //
@@ -2104,10 +2149,16 @@ function update() {
     //
     GUI.x = ui_x - 250;
     GUI.y = 0;
-    if (GUI.auto_text_button('Toggle dev')) {
-        show_dev_buttons = !show_dev_buttons;
+    if (show_show_dev_button) {
+        if (GUI.auto_text_button('Toggle dev')) {
+            show_dev_buttons = !show_dev_buttons;
+        }
     }
     if (show_dev_buttons) {
+        if (GUI.auto_text_button('Restart')) {
+            restart_game();
+            generate_level();
+        }
         if (GUI.auto_text_button('To first room')) {
             player_x = rooms[0].x;
             player_y = rooms[0].y;
@@ -2427,6 +2478,12 @@ function update() {
             add_message(turn_delimiter);
             added_message_this_turn = false;
         }
+
+        // DEAD indicator
+        if (player_health <= 0) {
+            add_message('You died.');
+            game_state = GameState_Dead;
+        }
     }
 
     // Update message canvas after all possible add_message() calls
@@ -2447,7 +2504,6 @@ function update() {
         Gfx.drawtoscreen();
     }
 
-
     if (frametime_graph_DEV) {
         var frame_time = Math.max(1 / 60.0, Timer.stamp() - update_start);
 
@@ -2463,6 +2519,35 @@ function update() {
 
     player_x_old = player_x;
     player_y_old = player_y;
+}
+
+var can_restart_timer = 0;
+static inline var can_restart_timer_max = 60;
+
+function update_dead() {
+    Text.size = 100;
+    Text.display(100, 100, 'DEAD', Col.RED);
+
+    can_restart_timer++;
+    if (can_restart_timer > can_restart_timer_max) {
+        Text.size = 50;
+        Text.display(100, 200, 'Press any key', Col.RED);
+
+        if (Input.pressed(Key.ANY)) {
+            can_restart_timer = 0;
+
+            game_state = GameState_Normal;
+            restart_game();
+            generate_level();
+        }
+    }
+}
+
+function update() {
+    switch (game_state) {
+        case GameState_Normal: update_normal();
+        case GameState_Dead: update_dead();
+    }
 }
 
 }
