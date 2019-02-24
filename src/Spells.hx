@@ -21,6 +21,7 @@ enum SpellType {
     SpellType_ModDropChance;
     SpellType_ModCopperDrop;
     SpellType_AoeDamage;
+    SpellType_Combust;
     SpellType_ModDropLevel;
     SpellType_Invisibility;
     SpellType_EnergyShield;
@@ -36,6 +37,7 @@ enum SpellType {
     SpellType_ImproveEquipment;
     SpellType_EnchantEquipment;
     SpellType_Passify;
+    SpellType_Sleep;
     SpellType_SwapHealth;
 
     SpellType_SummonGolem;
@@ -44,6 +46,9 @@ enum SpellType {
 
     SpellType_ModCopper;
     SpellType_ModSpellDamage;
+
+    SpellType_ModAttackByCopper;
+    SpellType_ModDefenseByCopper;
 }
 
 enum SpellDuration {
@@ -89,6 +94,7 @@ SpellType_ModDropLevel => 1,
 SpellType_EnergyShield => 1,
 SpellType_DamageShield => 1,
 SpellType_Passify => 1,
+SpellType_Sleep => 1,
 SpellType_ImproveEquipment => 1,
 SpellType_EnchantEquipment => 1,
 SpellType_ModCopper => 1,
@@ -99,9 +105,12 @@ SpellType_ModSpellDamage => 1,
 SpellType_ModHealthMax => 2,
 SpellType_ModHealth => 2,
 SpellType_ModAttack => 2,
+SpellType_ModAttackByCopper => 2,
+SpellType_ModDefenseByCopper => 2,
 SpellType_ModDefense => 2,
 SpellType_AoeDamage => 2,
 SpellType_ChainDamage => 2,
+SpellType_Combust => 2,
 
 SpellType_ModLevelHealth => 3,
 SpellType_ModLevelAttack => 3,
@@ -157,7 +166,8 @@ static function get_description(spell: Spell): String {
         case SpellType_AoeDamage: 'deal ${spell.value} damage to all visible enemies';
         case SpellType_ModUseCharges: 'add ${spell.value} use charges to item in your inventory';
         case SpellType_CopyItem: 'copy item in your inventory (copy is placed on the ground, must have free space around you or the spell fails and scroll disappears)';
-        case SpellType_Passify: 'passify an enemy(left-click on an enemy near you)';
+        case SpellType_Passify: 'passify an enemy';
+        case SpellType_Sleep: 'put an enemy to sleep';
         case SpellType_ImproveEquipment: 'improve weapon or armor, increasing it\'s attack or defense bonus permanently';
         case SpellType_EnchantEquipment: 'enchant weapon or armor, giving it a random equip spell';
         case SpellType_DamageShield: 'deal ${spell.value} damage to attackers';
@@ -169,6 +179,9 @@ static function get_description(spell: Spell): String {
         case SpellType_HealthLeech: 'all damage dealt to enemies also heals you';
         case SpellType_SwapHealth: 'swaps yours and target enemy\'s current health, doesn\'t affect max health';
         case SpellType_ModSpellDamage: 'increases all spell damage by ${spell.value}';
+        case SpellType_ModAttackByCopper: '+ to attack based on copper count';
+        case SpellType_ModDefenseByCopper: '+ to defense based on copper count';
+        case SpellType_Combust: 'blow up an enemy dealing ${spell.value} damage to everything nearby';
     }
 
     var interval = 
@@ -213,9 +226,11 @@ static function need_target(type: SpellType): Bool {
         case SpellType_ModUseCharges: true;
         case SpellType_CopyItem: true;
         case SpellType_Passify: true;
+        case SpellType_Sleep: true;
         case SpellType_ImproveEquipment: true;
         case SpellType_EnchantEquipment: true;
         case SpellType_SwapHealth: true;
+        case SpellType_Combust: true;
         default: false;
     }
 }
@@ -225,9 +240,11 @@ static function spell_can_be_used_on_target(type: SpellType, target: Int): Bool 
         case SpellType_ModUseCharges: Entity.item.exists(target) && !Entity.position.exists(target);
         case SpellType_CopyItem: Entity.item.exists(target) && !Entity.position.exists(target);
         case SpellType_Passify: Entity.combat.exists(target);
+        case SpellType_Sleep: Entity.combat.exists(target);
         case SpellType_ImproveEquipment: Entity.equipment.exists(target);
         case SpellType_EnchantEquipment: Entity.equipment.exists(target);
         case SpellType_SwapHealth: Entity.combat.exists(target);
+        case SpellType_Combust: Entity.combat.exists(target);
         default: false;
     }
 }
@@ -568,6 +585,18 @@ static function test(): Spell {
     }
 }
 
+static function mod_copper(amount: Int): Spell {
+    return {
+        type: SpellType_ModCopper,
+        duration_type: SpellDuration_Permanent,
+        duration: 0,
+        interval: 0,
+        interval_current: 0,
+        value: amount,
+        origin_name: "noname",
+    }
+}
+
 static function random_potion_spell_and_tile(level: Int, force_spell: SpellType) {
     var type = if (force_spell != null) {
         force_spell;
@@ -577,8 +606,7 @@ static function random_potion_spell_and_tile(level: Int, force_spell: SpellType)
             {v: SpellType_ModAttack, c: 1.0},
             {v: SpellType_ModDefense, c: 1.0},
             {v: SpellType_Invisibility, c: 0.25},
-            // {v: SpellType_ModMoveSpeed, c: 0.1},
-            {v: SpellType_ModMoveSpeed, c: 10000},
+            {v: SpellType_ModMoveSpeed, c: 0.1},
             ]);
     }
 
@@ -659,13 +687,16 @@ static function random_scroll_spell_and_tile(level: Int) {
         {v: SpellType_ChainDamage, c: 1.0},
         {v: SpellType_DamageShield, c: 1.0},
         {v: SpellType_EnergyShield, c: 1.0},
+        // TESTING: {v: SpellType_Combust, c: 1.0},
+        {v: SpellType_Combust, c: 100000.0},
 
         {v: SpellType_ModUseCharges, c: 0.5},
         {v: SpellType_CopyItem, c: 1.0},
         {v: SpellType_ImproveEquipment, c: 1.0},
-        {v: SpellType_EnchantEquipment, c: 1000.0},
+        {v: SpellType_EnchantEquipment, c: 1.0},
 
         {v: SpellType_Passify, c: 1.0},
+        {v: SpellType_Sleep, c: 1.0},
         {v: SpellType_SummonGolem, c: 1.0},
         {v: SpellType_SummonSkeletons, c: 1.0},
         {v: SpellType_SummonImp, c: 1.0},
@@ -680,10 +711,7 @@ static function random_scroll_spell_and_tile(level: Int) {
         case SpellType_Noclip: SpellDuration_EveryTurn;
         case SpellType_UncoverMap: SpellDuration_EveryTurn;
         case SpellType_ShowThings: SpellDuration_EveryTurn;
-        case SpellType_AoeDamage: SpellDuration_Permanent;
-        case SpellType_ChainDamage: SpellDuration_Permanent;
         case SpellType_DamageShield: SpellDuration_EveryTurn;
-
         case SpellType_HealthLeech: SpellDuration_EveryTurn;
         case SpellType_ModSpellDamage: SpellDuration_EveryTurn;
         default: SpellDuration_Permanent;
@@ -713,6 +741,7 @@ static function random_scroll_spell_and_tile(level: Int) {
         case SpellType_ImproveEquipment: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         case SpellType_DamageShield: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_ChainDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        case SpellType_Combust: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_ModSpellDamage: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         default: 0;
     }
@@ -739,8 +768,10 @@ static function random_scroll_spell_and_tile(level: Int) {
         case SpellType_EnergyShield: Tile.ScrollPhysical;
 
         case SpellType_Passify: Tile.ScrollMixed;
+        case SpellType_Sleep: Tile.ScrollMixed;
         case SpellType_ChainDamage: Tile.ScrollMixed;
         case SpellType_AoeDamage: Tile.ScrollMixed;
+        case SpellType_Combust: Tile.ScrollMixed;
 
         case SpellType_SummonGolem: Tile.ScrollFire;
         case SpellType_SummonSkeletons: Tile.ScrollFire;
@@ -915,18 +946,7 @@ static function statue_subere(level: Int): Array<Spell> {
 }
 
 static function statue_sera(level: Int): Array<Spell> {
-    var player_stat_buff = player_stat_buff_spell();
-    var copper_cost = {
-        type: SpellType_ModCopper,
-        duration_type: SpellDuration_Permanent,
-        duration: 0,
-        interval: 0,
-        interval_current: 0,
-        value: Stats.get({min: 2, max: 3, scaling: 1.0}, level),
-        origin_name: "noname",
-    };
-
-    return [player_stat_buff, copper_cost];
+    return [player_stat_buff_spell(), mod_copper(Stats.get({min: 2, max: 3, scaling: 1.0}, level))];
 }
 
 static function statue_ollopa(level: Int): Array<Spell> {
@@ -1121,20 +1141,26 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
             {v: SpellType_ChainDamage, c: 1.0},
             {v: SpellType_ModHealth, c: 1.0},
             {v: SpellType_EnergyShield, c: 1.0},
+            {v: SpellType_ModAttackByCopper, c: 1.0},
             ]);
         case EquipmentType_Head: Pick.value([
             {v: SpellType_ModHealthMax, c: 1.0},
             {v: SpellType_UncoverMap, c: 1.0},
             {v: SpellType_ShowThings, c: 1.0},
+            {v: SpellType_ModDefenseByCopper, c: 1.0},
             ]);
         case EquipmentType_Chest: Pick.value([
             {v: SpellType_ModDropChance, c: 1.0},
             {v: SpellType_ModCopperDrop, c: 1.0},
             {v: SpellType_ModHealthMax, c: 1.0},
             {v: SpellType_EnergyShield, c: 1.0},
+            {v: SpellType_ModAttackByCopper, c: 1.0},
+            {v: SpellType_ModDefenseByCopper, c: 1.0},
             ]);
         case EquipmentType_Legs: Pick.value([
             {v: SpellType_ModHealthMax, c: 1.0},
+            {v: SpellType_EnergyShield, c: 1.0},
+            {v: SpellType_ModAttackByCopper, c: 1.0},
             ]);
     }
 
@@ -1147,6 +1173,8 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
         case SpellType_ShowThings: SpellDuration_EveryTurn;
         case SpellType_ModDropChance: SpellDuration_EveryTurn;
         case SpellType_ModCopperDrop: SpellDuration_EveryTurn;
+        case SpellType_ModAttackByCopper: SpellDuration_EveryTurn;
+        case SpellType_ModDefenseByCopper: SpellDuration_EveryTurn;
         default: SpellDuration_Permanent;
     }
 

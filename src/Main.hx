@@ -81,6 +81,7 @@ var DEV_noclip = false;
 var DEV_nolos = false;
 var DEV_full_minimap = false;
 var DEV_frametime_graph = false;
+var DEV_nodeath = false;
 
 static var stairs_x = 0;
 static var stairs_y = 0;
@@ -102,8 +103,6 @@ static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1},
 static var current_level = 0;
 static var increment_level = true;
 static var current_floor = 0;
-static var current_ground_tile = Tile.Ground[0];
-static var current_ground_dark_tile = Tile.GroundDark[0];
 
 var start_targeting = false;
 var targeting_for_use = false;
@@ -269,8 +268,7 @@ function generate_level() {
         if (level_tile_index >= Tile.Stairs.length) {
             level_tile_index = 0;
         }
-        current_ground_tile = Tile.Ground[level_tile_index];
-        current_ground_dark_tile = Tile.GroundDark[level_tile_index];
+        var current_ground_tile = Tile.Ground[level_tile_index];
 
         // Clear walls inside rooms
         for (r in rooms) {
@@ -295,7 +293,7 @@ function generate_level() {
         for (dx in 1...6) {
             // Entities.random_weapon(Player.x + dx, Player.y);
             // Entities.random_armor(Player.x + dx, Player.y + 1);
-            // Entities.random_scroll(Player.x + dx, Player.y + 1);
+            Entities.random_scroll(Player.x + dx, Player.y + 1);
             // Entities.random_potion(Player.x + dx, Player.y + 2);
             // Entities.random_statue(Player.x + dx, Player.y + 3);
         }
@@ -1016,35 +1014,15 @@ function entity_attack_player(e: Int): Bool {
         absorb;
     };
     var damage = Std.int(Math.max(0, combat.attack - absorb));
-
-    // Apply pure absorb
-    if (Player.pure_absorb > damage) {
-        Player.pure_absorb -= damage;
-        damage = 0;
-    } else {
-        damage -= Player.pure_absorb;
-        Player.pure_absorb = 0;
-    }
-
-    damage_taken += damage;
-    damage_absorbed += (combat.attack - damage);
-
-    Player.health -= damage_taken;
-
     add_message(combat.message);
-    
+
     var target_name = if (Entity.name.exists(e)) {
         Entity.name[e];
     } else {
         'unnamed_target';
     }
-    if (damage_taken != 0) {
-        add_message('You take ${damage_taken} damage from $target_name.');
-        add_damage_number(-damage_taken);
-    }
-    if (damage_absorbed != 0) {
-        add_message('You absorb ${damage_absorbed} damage.');
-    }
+
+    damage_player(damage, ' from $target_name');
 
     // Can't move and attack in same turn
     if (Entity.move.exists(e)) {
@@ -1179,6 +1157,31 @@ function draw_entity(e: Int, x: Float, y: Float) {
     }
 }
 
+function damage_player(damage: Int, from_text: String = '') {
+    var actual_damage = damage;
+    // Apply pure absorb
+    if (Player.pure_absorb > actual_damage) {
+        Player.pure_absorb -= actual_damage;
+        actual_damage = 0;
+    } else {
+        actual_damage -= Player.pure_absorb;
+        Player.pure_absorb = 0;
+    }
+
+    var absorb_amount = damage - actual_damage;
+
+    Player.health -= actual_damage;
+
+    if (actual_damage > 0) {
+        add_message('You take ${actual_damage} damage${from_text}.');
+        add_damage_number(-actual_damage);
+    }
+
+    if (absorb_amount > 0) {
+        add_message('You absorb ${absorb_amount} damage${from_text}.');
+    }
+}
+
 function do_spell(spell: Spell, effect_message: Bool = true) {
     // NOTE: some infinite spells(buffs from items) are printed, some aren't
     // for example: printing that a sword increases ice attack every turn is NOT useful
@@ -1213,29 +1216,8 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 add_message('${spell.origin_name} heals you for ${spell.value} health.');
                 add_damage_number(spell.value);
             } else {
-                var damage = -1 * spell.value;
-
-                // Apply pure absorb
-                if (Player.pure_absorb > damage) {
-                    Player.pure_absorb -= damage;
-                    damage = 0;
-                } else {
-                    damage -= Player.pure_absorb;
-                    Player.pure_absorb = 0;
-                }
-
-                var absorb_amount = (-1 * spell.value) - damage;
-
-                Player.health -= damage;
-
-                if (damage > 0) {
-                    // TODO: what should be the description of the spell origin?
-                    add_message('You take ${damage} damage from ${spell.origin_name}.');
-                }
-
-                if (absorb_amount > 0) {
-                    add_message('You absorb ${absorb_amount} damage.');
-                }
+                // NOTE: damage needs to be positive
+                damage_player(-1 * spell.value, ' from ${spell.origin_name}');
             }
         }
         case SpellType_ModHealthMax: {
@@ -1347,6 +1329,29 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 }
             }
         }
+        case SpellType_Combust: {
+            var target_pos = Entity.position[use_target];
+
+            var combust_dst2 = 18; // 7x7 square around entity
+
+            // Player gets damaged too if he's close to target
+            if (Math.dst2(Player.x, Player.y, target_pos.x, target_pos.y) <= combust_dst2) {
+                damage_player(spell.value, ' from Combustion blast');
+            }
+            
+            var view_x = get_view_x();
+            var view_y = get_view_y();
+            // combust affects nearby entities
+            for (e in entities_with(Entity.combat)) {
+                if (Entity.position.exists(e)) {
+                    var pos = Entity.position[e];
+
+                    if (!out_of_view_bounds(pos.x, pos.y) && Math.dst2(pos.x, pos.y, target_pos.x, target_pos.y) <= combust_dst2) {
+                        player_attack_entity(e, spell.value);
+                    }
+                }
+            }
+        }
         case SpellType_ModDropLevel: {
             Player.increase_drop_level = true;
         }
@@ -1410,6 +1415,13 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             if (Entity.combat.exists(use_target)) {
                 Entity.combat[use_target].aggression = AggressionType_Passive;
                 add_message('You passify the enemy.');
+            }
+        }
+        case SpellType_Sleep: {
+            if (Entity.combat.exists(use_target)) {
+                Entity.combat[use_target].aggression = AggressionType_NeutralToAggressive;
+                Entity.move.remove(use_target);
+                add_message('You put the enemy to sleep.');
             }
         }
         case SpellType_ImproveEquipment: {
@@ -1532,13 +1544,19 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             do_chain({x: Player.x, y: Player.y}, entities_with(Entity.combat), spell.value);
         }
         case SpellType_ModCopper: {
-            Player.copper_count -= spell.value;
+            Player.copper_count += spell.value;
             if (Player.copper_count < 0) {
                 Player.copper_count = 0;
             }
         }
         case SpellType_ModSpellDamage: {
             Player.spell_damage_mod += spell.value;
+        }
+        case SpellType_ModAttackByCopper: {
+            Player.attack_mod += Math.ceil(Math.sqrt(Player.copper_count / 10));
+        }
+        case SpellType_ModDefenseByCopper: {
+            Player.defense_mod += 5 * Math.ceil(Math.sqrt(Player.copper_count / 10));
         }
     }
 }
@@ -1570,7 +1588,8 @@ function render_world() {
                 if (position_visible(x, y)) {
                     new_tile = tiles[map_x][map_y];
                 } else {
-                    new_tile = current_ground_dark_tile;
+                    // NOTE: dark version of tiles is to the right on the tilesheet, hence the (+ 1)
+                    new_tile = tiles[map_x][map_y] + 1;
                 }
             }
 
@@ -2065,7 +2084,7 @@ function update_normal() {
     // Left click action
     //
     // Target entity for use, can't target the use entity itself
-    // If entity is on the map, it must be next to player
+    // Check that target is appropriate for spell
     if (targeting_for_use && !turn_ended && Mouse.leftclick() && hovered_anywhere != use_entity_that_needs_target) {
         if (can_use_entity_on_target(hovered_anywhere)) {
             use_target = hovered_anywhere;
@@ -2145,6 +2164,9 @@ function update_normal() {
         }
         if (GUI.auto_text_button('Toggle frametime graph')) {
             DEV_frametime_graph = !DEV_frametime_graph;
+        }
+        if (GUI.auto_text_button('Toggle nodeath')) {
+            DEV_nodeath = !DEV_nodeath;
         }
         if (GUI.auto_text_button('Next floor')) {
             if (increment_level) {
@@ -2394,7 +2416,7 @@ function update_normal() {
         }
 
         // DEAD indicator
-        if (Player.health <= 0) {
+        if (Player.health <= 0 && !DEV_nodeath) {
             add_message('You died.');
             game_state = GameState_Dead;
         }
@@ -2450,7 +2472,7 @@ function update_dead() {
     can_restart_timer++;
     if (can_restart_timer > can_restart_timer_max) {
         Text.size = 50;
-        Text.display(100, 200, 'Press any key', Col.RED);
+        Text.display(100, 200, 'Press any key to continue', Col.RED);
 
         if (Input.pressed(Key.ANY)) {
             can_restart_timer = 0;

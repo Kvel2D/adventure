@@ -4,7 +4,7 @@
   <set name="windowheight" value="1000" />
   
 	<meta 
-    title="Raider" 
+    title="Adventure" 
     package="com.kvel2d.adventure" 
     version="1.0.0" 
     company="Dmitry Degtyarev" 

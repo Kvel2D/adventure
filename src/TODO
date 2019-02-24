@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------------------
 TODO
 
-beat the game(or at least close) 3 times, ask Ilya to test
+beat the game(or at least close) 3 times, test
 
 ----------------------------------------------------------------------------------
 DONE
@@ -10,6 +10,9 @@ DONE
 
 ----------------------------------------------------------------------------------
 PROBLEMS
+
+haxegon's old starling version has Uint,Int error in VertexData.set_numVertices()
+openfl release has an error in compress/uncompress for flash (github.com/openfl/starling/issues/117)
 
 ----------------------------------------------------------------------------------
 IDEAS
@@ -37,21 +40,3 @@ redistribute spells between scrolls and potions
 diversify spells more
     lots of spell variations are not utilized
 
-combust spell
-    explode enemy damaging everything(player too) around it in a radius
-
-sleep spell
-    like passify but turns enemy into neutral_to_aggressive(remember to remove Move component)
-
-copper to attack
-    ring/armor spell, passively converts all copper to attack(floor function), not too powerful, also scales worse as copper count increases
-
-copper to def
-
-copper item
-    drops from chests
-    copper just from enemies isn't interesting
-
-render better on death screen
-
-add darkened tiles for teleport and poison

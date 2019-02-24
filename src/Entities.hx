@@ -334,6 +334,7 @@ static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
                 {v: Entities.random_armor, c: 6.0},
                 {v: Entities.random_potion, c: 3.0},
                 {v: Entities.random_ring, c: 2.0},
+                {v: Entities.coins, c: 2000000.0},
                 ])(x, y));
         }
         // For locked chests
@@ -826,6 +827,28 @@ static function imp(x: Int, y: Int): Int {
         attacked_by_player: false,
         range_squared: 9,
         target: CombatTarget_Enemy,
+    };
+
+    Entity.validate(e);
+
+    return e;
+}
+
+static function coins(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    var level = Main.current_level;
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Coins';
+    Entity.description[e] = 'A bunch of copper coins';
+    Entity.draw_tile[e] = Tile.Coins;
+    Entity.use[e] = {
+        spells: [Spells.mod_copper(Stats.get({min: 1, max: 2, scaling: 1.0}, level))],
+        charges: 1,
+        consumable: true,
+        flavor_text: 'You pick up the coins.',
+        need_target: false,
     };
 
     Entity.validate(e);
