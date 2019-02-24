@@ -29,24 +29,24 @@ class LOS {
     }
 
     static function calculate_rays() {
-        var center_x = Math.floor(Main.view_width / 2);
-        var center_y = Math.floor(Main.view_height / 2);
+        var center_x = Math.floor(Main.VIEW_HEIGHT / 2);
+        var center_y = Math.floor(Main.VIEW_HEIGHT / 2);
 
         // top row
-        for (x in 0...Main.view_width) {
+        for (x in 0...Main.VIEW_HEIGHT) {
             rays.push(ray(center_x, center_y, x, 0));
         }
         // bottom row
-        for (x in 0...Main.view_width) {
-            rays.push(ray(center_x, center_y, x, Main.view_height - 1));
+        for (x in 0...Main.VIEW_HEIGHT) {
+            rays.push(ray(center_x, center_y, x, Main.VIEW_HEIGHT - 1));
         }
         // left column
-        for (y in 0...Main.view_height) {
+        for (y in 0...Main.VIEW_HEIGHT) {
             rays.push(ray(center_x, center_y, 0, y));
         }
         // right column
-        for (y in 0...Main.view_height) {
-            rays.push(ray(center_x, center_y, Main.view_width - 1, y));
+        for (y in 0...Main.VIEW_HEIGHT) {
+            rays.push(ray(center_x, center_y, Main.VIEW_HEIGHT - 1, y));
         }
 
         // Sort points in rays by distance
@@ -66,12 +66,12 @@ class LOS {
         }
     }
 
-    static var free_map = Data.create2darray(Main.view_width, Main.view_height, false);
+    static var free_map = Data.create2darray(Main.VIEW_HEIGHT, Main.VIEW_HEIGHT, false);
     static function update_los(los: Array<Array<Bool>>) {
-        var start_x = Main.player_x - Math.floor(Main.view_width / 2);
-        var start_y = Main.player_y - Math.floor(Main.view_height / 2);
+        var start_x = Player.x - Math.floor(Main.VIEW_HEIGHT / 2);
+        var start_y = Player.y - Math.floor(Main.VIEW_HEIGHT / 2);
 
-        Main.get_free_map(start_x, start_y, Main.view_width, Main.view_height, free_map, false, false, true);
+        Main.get_free_map(start_x, start_y, Main.VIEW_HEIGHT, Main.VIEW_HEIGHT, free_map, false, false, true);
 
         for (ray in rays) {
             var obstruction = false;

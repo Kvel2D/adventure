@@ -8,7 +8,7 @@ using MathExtensions;
 class Path {
 // force unindent
 
-static inline var infinity = 10000000;
+static inline var INFINITY = 10000000;
 static var closed: Array<Array<Bool>>;
 static var open: Array<Array<Bool>>;
 static var g_score: Array<Array<Int>>;
@@ -62,21 +62,21 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
 
     for (x in 0...area_width) {
         for (y in 0...area_height) {
-            g_score[x][y] = infinity;
+            g_score[x][y] = INFINITY;
         }
     }
     g_score[x1][y1] = 0;
 
     for (x in 0...area_width) {
         for (y in 0...area_height) {
-            f_score[x][y] = infinity;
+            f_score[x][y] = INFINITY;
         }
     }
     f_score[x1][y1] = heuristic_score(x1, y1, x2, y2);
 
     while (open_queue.length != 0) {
         var current = function(): Vec2i {
-            var lowest_score = infinity;
+            var lowest_score = INFINITY;
             var lowest_node: Vec2i = {x: -1, y: -1};
             for (node in open_queue) {
                 var f_score = f_score[node.x][node.y];
@@ -135,12 +135,12 @@ static function astar_internal(x1:Int, y1:Int, x2:Int, y2:Int, area_x: Int, area
     return new Array<Vec2i>();
 }
 
-static var view_closed = Data.create2darray(Main.view_width, Main.view_height, false);
-static var view_open = Data.create2darray(Main.view_width, Main.view_height, false);
-static var view_g_score = Data.create2darray(Main.view_width, Main.view_height, 0);
-static var view_f_score = Data.create2darray(Main.view_width, Main.view_height, 0);
-static var view_prev = [for (x in 0...Main.view_width) [for (y in 0...Main.view_height) {x: -1, y: -1}]];
-static var view_free_map = Data.create2darray(Main.view_width, Main.view_height, false);
+static var view_closed = Data.create2darray(Main.VIEW_HEIGHT, Main.VIEW_HEIGHT, false);
+static var view_open = Data.create2darray(Main.VIEW_HEIGHT, Main.VIEW_HEIGHT, false);
+static var view_g_score = Data.create2darray(Main.VIEW_HEIGHT, Main.VIEW_HEIGHT, 0);
+static var view_f_score = Data.create2darray(Main.VIEW_HEIGHT, Main.VIEW_HEIGHT, 0);
+static var view_prev = [for (x in 0...Main.VIEW_HEIGHT) [for (y in 0...Main.VIEW_HEIGHT) {x: -1, y: -1}]];
+static var view_free_map = Data.create2darray(Main.VIEW_HEIGHT, Main.VIEW_HEIGHT, false);
 
 static function astar_view(x1:Int, y1:Int, x2:Int, y2:Int): Array<Vec2i> {
     closed = view_closed;
@@ -150,15 +150,15 @@ static function astar_view(x1:Int, y1:Int, x2:Int, y2:Int): Array<Vec2i> {
     prev = view_prev;
     free_map = view_free_map;
 
-    return astar_internal(x1, y1, x2, y2, Main.get_view_x(), Main.get_view_y(), Main.view_width, Main.view_height);
+    return astar_internal(x1, y1, x2, y2, Main.get_view_x(), Main.get_view_y(), Main.VIEW_HEIGHT, Main.VIEW_HEIGHT);
 }
 
-static var map_closed = Data.create2darray(Main.map_width, Main.map_height, false);
-static var map_open = Data.create2darray(Main.map_width, Main.map_height, false);
-static var map_g_score = Data.create2darray(Main.map_width, Main.map_height, 0);
-static var map_f_score = Data.create2darray(Main.map_width, Main.map_height, 0);
-static var map_prev = [for (x in 0...Main.map_width) [for (y in 0...Main.map_height) {x: -1, y: -1}]];
-static var map_free_map = Data.create2darray(Main.map_width, Main.map_height, false);
+static var map_closed = Data.create2darray(Main.MAP_WIDTH, Main.MAP_HEIGHT, false);
+static var map_open = Data.create2darray(Main.MAP_WIDTH, Main.MAP_HEIGHT, false);
+static var map_g_score = Data.create2darray(Main.MAP_WIDTH, Main.MAP_HEIGHT, 0);
+static var map_f_score = Data.create2darray(Main.MAP_WIDTH, Main.MAP_HEIGHT, 0);
+static var map_prev = [for (x in 0...Main.MAP_WIDTH) [for (y in 0...Main.MAP_HEIGHT) {x: -1, y: -1}]];
+static var map_free_map = Data.create2darray(Main.MAP_WIDTH, Main.MAP_HEIGHT, false);
 
 static function astar_map(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
     closed = map_closed;
@@ -168,7 +168,7 @@ static function astar_map(x1:Int, y1:Int, x2:Int, y2:Int):Array<Vec2i> {
     prev = map_prev;
     free_map = map_free_map;
 
-    return astar_internal(x1, y1, x2, y2, 0, 0, Main.map_width, Main.map_height);
+    return astar_internal(x1, y1, x2, y2, 0, 0, Main.MAP_WIDTH, Main.MAP_HEIGHT);
 }
 
 }

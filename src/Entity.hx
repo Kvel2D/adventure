@@ -154,7 +154,6 @@ static inline var DURATION_INFINITE = -1;
 static inline var DURATION_LEVEL = -2;
 static inline var NULL_INT = -1;
 static inline var NULL_STRING = 'null';
-static inline var random_move_chance = 50;
 
 
 static var position = new Map<Int, Position>();
@@ -500,7 +499,7 @@ static function validate(e: Int) {
     }
 }
 
-static var position_map = Data.create2darray(Main.map_width, Main.map_height, Entity.NONE);
+static var position_map = Data.create2darray(Main.MAP_WIDTH, Main.MAP_HEIGHT, Entity.NONE);
 
 static function set_position(e: Int, x: Int, y: Int) {
     if (position.exists(e)) {

@@ -27,103 +27,65 @@ enum GameState {
 class Main {
 // force unindent
 
-static inline var screen_width = 1600;
-static inline var screen_height = 1000;
-static inline var tilesize = 8;
-static inline var map_width = 125;
-static inline var map_height = 125;
-static inline var view_width = 31;
-static inline var view_height = 31;
-static inline var world_scale = 4;
-static inline var minimap_scale = 4;
-static inline var minimap_x = 0;
-static inline var minimap_y = 0;
-static inline var room_size_min = 5;
-static inline var room_size_max = 15;
+static inline var SCREEN_WIDTH = 1600;
+static inline var SCREEN_HEIGHT = 1000;
+static inline var TILESIZE = 8;
+static inline var MAP_WIDTH = 125;
+static inline var MAP_HEIGHT = 125;
+static inline var VIEW_WIDTH = 31;
+static inline var VIEW_HEIGHT = 31;
+static inline var WORLD_SCALE = 4;
+static inline var MINIMAP_SCALE = 4;
+static inline var MINIMAP_X = 0;
+static inline var MINIMAP_Y = 0;
+static inline var ROOM_SIZE_MIN = 5;
+static inline var ROOM_SIZE_MAX = 15;
+static inline var RINGS_MAX = 2;
+static inline var PLAYER_SPELLS_MAX = 10;
 
-static inline var ui_x = tilesize * view_width * world_scale + 13;
-static inline var player_stats_y = 0;
-static inline var player_stats_numbers_offset = 85;
-static inline var equipment_y = 135;
-static inline var equipment_amount = 4;
-static inline var inventory_y = 210;
-static inline var inventory_width = 4;
-static inline var inventory_height = 2;
-static inline var spells_list_y = 300;
-static inline var message_history_y = 600;
-static inline var message_history_length_max = 20;
-static inline var turn_delimiter = '------------------------------';
-static inline var hovered_tooltip_wordwrap = 400;
-static inline var ui_wordwrap = 600;
-static inline var draw_char_size = 32;
-static inline var ui_text_size = 14;
-static inline var player_hud_text_size = 8;
-static inline var charges_text_size = 8;
-
-static inline var max_rings = 2;
+static inline var UI_X = TILESIZE * VIEW_WIDTH * WORLD_SCALE + 13;
+static inline var PLAYER_STATS_Y = 0;
+static inline var PLAYER_STATS_NUMBERS_OFFSET = 85;
+static inline var EQUIPMENT_Y = 135;
+static inline var EQUIPMENT_COUNT = 4;
+static inline var INVENTORY_Y = 210;
+static inline var INVENTORY_WIDTH = 4;
+static inline var INVENTORY_HEIGHT = 2;
+static inline var SPELL_LIST_Y = 300;
+static inline var MESSAGES_Y = 600;
+static inline var MESSAGES_LENGTH_MAX = 20;
+static inline var TURN_DELIMITER = '------------------------------';
+static inline var TOOLTIP_WORDWRAP = 400;
+static inline var UI_WORDWRAP = 600;
+static inline var DRAW_CHAR_TEXT_SIZE = 32;
+static inline var UI_TEXT_SIZE = 14;
+static inline var PLAYER_HP_HUD_TEXT_SIZE = 8;
+static inline var CHARGES_TEXT_SIZE = 8;
 
 var game_state = GameState_Normal;
 
-static var walls = Data.create2darray(map_width, map_height, false);
-static var tiles = Data.create2darray(map_width, map_height, Tile.None);
+static var walls = Data.create2darray(MAP_WIDTH, MAP_HEIGHT, false);
+static var tiles = Data.create2darray(MAP_WIDTH, MAP_HEIGHT, Tile.None);
 static var rooms: Array<Room>;
 static var visited_room = new Array<Bool>();
-var tile_canvas_state = Data.create2darray(view_width, view_height, Tile.None);
-var los = Data.create2darray(view_width, view_height, false);
-var need_to_update_message_canvas = true;
+var tile_canvas_state = Data.create2darray(VIEW_WIDTH, VIEW_HEIGHT, Tile.None);
+var los = Data.create2darray(VIEW_WIDTH, VIEW_HEIGHT, false);
+var need_to_update_messages_canvas = true;
 
 var damage_numbers = new Array<DamageNumber>();
 
-var noclip = false;
-var nolos = false;
-var show_things = false;
-var health_leech = false;
-var movespeed_mod = 0;
-var dropchance_mod = 0;
-var copper_drop_mod = 0;
-var spell_damage_mod = 0;
-static var increase_drop_level = false;
-var player_is_invisible = false;
-
-var show_show_dev_button = false;
-var show_dev_buttons = false;
-var noclip_DEV = false;
-var nolos_DEV = false;
-var full_minimap_DEV = false;
-var frametime_graph_DEV = false;
-var draw_invisible_entities = true;
-
-static var player_x = 0;
-static var player_y = 0;
-var player_x_old = -1;
-var player_y_old = -1;
-var player_health = 10;
-var copper_count = 0;
-var player_room = -1;
-var player_pure_absorb = 0;
-var player_damage_shield = 0;
+static inline var SHOW_SHOW_BUTTONS_BUTTON = true;
+static inline var DRAW_INVISIBLE_ENTITIES = true;
+var DEV_show_buttons = false;
+var DEV_noclip = false;
+var DEV_nolos = false;
+var DEV_full_minimap = false;
+var DEV_frametime_graph = false;
 
 static var stairs_x = 0;
 static var stairs_y = 0;
 
-var player_health_max = 10;
-var player_health_max_mod = 0;
-var player_attack = 1;
-var player_attack_mod = 0;
-var player_defense = 0;
-var player_defense_mod = 0;
-var player_damage_shield_mod = 0;
-
-var player_equipment = [
-EquipmentType_Head => Entity.NONE,
-EquipmentType_Chest => Entity.NONE,
-EquipmentType_Legs => Entity.NONE,
-EquipmentType_Weapon => Entity.NONE,
-];
-var player_spells = new Array<Spell>();
-static inline var player_spells_max = 10;
-static var location_spells = [for (x in 0...map_width) [for (y in 0...map_height) new Array<Spell>()]];
-var inventory = Data.create2darray(inventory_width, inventory_height, Entity.NONE);
+static var location_spells = [for (x in 0...MAP_WIDTH) [for (y in 0...MAP_HEIGHT) new Array<Spell>()]];
 var spells_this_turn = [for (i in 0...(Spells.last_prio + 1)) new Array<Spell>()];
 
 var attack_target = Entity.NONE;
@@ -131,7 +93,7 @@ var interact_target = Entity.NONE;
 var interact_target_x: Int;
 var interact_target_y: Int;
 
-var message_history = [for (i in 0...message_history_length_max) turn_delimiter];
+var messages = [for (i in 0...MESSAGES_LENGTH_MAX) TURN_DELIMITER];
 var added_message_this_turn = false;
 
 static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
@@ -140,7 +102,6 @@ static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1},
 static var current_level = 0;
 static var increment_level = true;
 static var current_floor = 0;
-static var current_stairs_tile = Tile.Stairs[0];
 static var current_ground_tile = Tile.Ground[0];
 static var current_ground_dark_tile = Tile.GroundDark[0];
 
@@ -149,59 +110,42 @@ var targeting_for_use = false;
 var use_entity_that_needs_target = Entity.NONE;
 var use_target = Entity.NONE;
 
-var tutorial_text = [
-'TUTORIAL',
-turn_delimiter,
-'WASD to move',
-'SPACE to skip a turn',
-turn_delimiter,
-'Right-click on things to interact with them.',
-'You can interact with things on the map if they are next to you.',
-'You can interact with your equipment and items.',
-turn_delimiter,
-'Left-clicking performs some default actions.',
-'Left-click on enemies to attack them.',
-'Left-click on items and equipment on the ground to pick them up.',
-'Left-click on items in inventory to use them.',
-];
-
 function init() {
-    Gfx.resizescreen(screen_width, screen_height, true);
+    Gfx.resizescreen(SCREEN_WIDTH, SCREEN_HEIGHT, true);
     // Core.showstats = true;
     Text.font = 'pixelfj8';
-    Gfx.loadtiles('tiles', tilesize, tilesize);
-    Gfx.createimage('tiles_canvas', tilesize * view_width, tilesize * view_height);
+    Gfx.loadtiles('tiles', TILESIZE, TILESIZE);
+    Gfx.createimage('tiles_canvas', TILESIZE * VIEW_WIDTH, TILESIZE * VIEW_HEIGHT);
     Gfx.createimage('frametime_canvas', 100, 50);
     Gfx.createimage('frametime_canvas2', 100, 50);
-    Gfx.createimage('message_canvas', ui_wordwrap, 320);
+    Gfx.createimage('messages_canvas', UI_WORDWRAP, 320);
 
 
     // Draw equipment and inventory boxes
-    Gfx.createimage('ui_canvas', ui_wordwrap, screen_height);
+    Gfx.createimage('ui_canvas', UI_WORDWRAP, SCREEN_HEIGHT);
     Gfx.drawtoimage('ui_canvas');
 
-
     Gfx.scale(1, 1, 0, 0);
-    Text.size = ui_text_size;
-    var player_stats = "";
-    player_stats += '\nHealth:';
-    player_stats += '\nAttack:';
-    player_stats += '\nDefense:';
-    player_stats += '\nShield:';
-    player_stats += '\nCopper:\n ';
-    Text.display(0, player_stats_y, player_stats);
-    Text.display(0, equipment_y - Text.height() - 2, 'EQUIPMENT');
-    Text.display(0, inventory_y - Text.height() - 2, 'INVENTORY');
+    Text.size = UI_TEXT_SIZE;
+    var player_stats_left_text = "";
+    player_stats_left_text += '\nHealth:';
+    player_stats_left_text += '\nAttack:';
+    player_stats_left_text += '\nDefense:';
+    player_stats_left_text += '\nShield:';
+    player_stats_left_text += '\nCopper:\n ';
+    Text.display(0, PLAYER_STATS_Y, player_stats_left_text);
+    Text.display(0, EQUIPMENT_Y - Text.height() - 2, 'EQUIPMENT');
+    Text.display(0, INVENTORY_Y - Text.height() - 2, 'INVENTORY');
     
-    Gfx.scale(world_scale, world_scale, 0, 0);
+    Gfx.scale(WORLD_SCALE, WORLD_SCALE, 0, 0);
     var armor_i = 0;
     for (equipment_type in Type.allEnums(EquipmentType)) {
-        Gfx.drawbox(0 + armor_i * tilesize * world_scale, equipment_y, tilesize * world_scale, tilesize * world_scale, Col.WHITE);
+        Gfx.drawbox(0 + armor_i * TILESIZE * WORLD_SCALE, EQUIPMENT_Y, TILESIZE * WORLD_SCALE, TILESIZE * WORLD_SCALE, Col.WHITE);
         armor_i++;
     }
-    for (x in 0...inventory_width) {
-        for (y in 0...inventory_height) {
-            Gfx.drawbox(0 + x * tilesize * world_scale, inventory_y + y * tilesize * world_scale, tilesize * world_scale, tilesize * world_scale, Col.WHITE);
+    for (x in 0...INVENTORY_WIDTH) {
+        for (y in 0...INVENTORY_HEIGHT) {
+            Gfx.drawbox(0 + x * TILESIZE * WORLD_SCALE, INVENTORY_Y + y * TILESIZE * WORLD_SCALE, TILESIZE * WORLD_SCALE, TILESIZE * WORLD_SCALE, Col.WHITE);
         }
     }
 
@@ -221,20 +165,36 @@ function restart_game() {
         Entity.remove(e);
     }
 
-    player_spells = new Array<Spell>();
+    Player.spells = new Array<Spell>();
     spells_this_turn = [for (i in 0...(Spells.last_prio + 1)) new Array<Spell>()];
 
     current_level = 0;
     current_floor = 0;
-    player_health = 10;
-    copper_count = 0;
-    player_pure_absorb = 0;
-    player_damage_shield = 0;
+    Player.health = 10;
+    Player.copper_count = 0;
+    Player.pure_absorb = 0;
+    Player.damage_shield = 0;
 
-    message_history = [for (i in 0...message_history_length_max) turn_delimiter];
+    // Insert tutorial into messages
+    var tutorial_text = [
+    'TUTORIAL',
+    TURN_DELIMITER,
+    'WASD to move',
+    'SPACE to skip a turn',
+    TURN_DELIMITER,
+    'Right-click on things to interact with them.',
+    'You can interact with things on the map if they are next to you.',
+    'You can interact with your equipment and items.',
+    TURN_DELIMITER,
+    'Left-clicking performs some default actions.',
+    'Left-click on enemies to attack them.',
+    'Left-click on items and equipment on the ground to pick them up.',
+    'Left-click on items in inventory to use them.',
+    ];
+    messages = [for (i in 0...MESSAGES_LENGTH_MAX) TURN_DELIMITER];
     var tutorial_i = tutorial_text.length; 
     for (line in tutorial_text) {
-        message_history[tutorial_i] = line;
+        messages[tutorial_i] = line;
         tutorial_i--;
     }
 
@@ -265,9 +225,9 @@ function generate_level() {
         }
 
         // Remove level-specific player spells
-        for (spell in player_spells.copy()) {
+        for (spell in Player.spells.copy()) {
             if (spell.duration == Entity.DURATION_LEVEL) {
-                player_spells.remove(spell);
+                Player.spells.remove(spell);
             }
         }
         // Remove spells about to be casted
@@ -279,8 +239,8 @@ function generate_level() {
             }
         }
         // Remove location spells
-        for (x in 0...map_width) {
-            for (y in 0...map_height) {
+        for (x in 0...MAP_WIDTH) {
+            for (y in 0...MAP_HEIGHT) {
                 if (location_spells[x][y].length > 0) {
                     location_spells[x][y] = new Array<Spell>();
                 }
@@ -288,8 +248,8 @@ function generate_level() {
         }
 
         // Clear wall and tile data
-        for (x in 0...map_width) {
-            for (y in 0...map_height) {
+        for (x in 0...MAP_WIDTH) {
+            for (y in 0...MAP_HEIGHT) {
                 walls[x][y] = true;
                 tiles[x][y] = Tile.Black;
             }
@@ -309,7 +269,6 @@ function generate_level() {
         if (level_tile_index >= Tile.Stairs.length) {
             level_tile_index = 0;
         }
-        current_stairs_tile = Tile.Stairs[level_tile_index];
         current_ground_tile = Tile.Ground[level_tile_index];
         current_ground_dark_tile = Tile.GroundDark[level_tile_index];
 
@@ -329,16 +288,16 @@ function generate_level() {
         visited_room = [for (i in 0...rooms.length) false];
 
         // Set start position to first room, before generating entities so that generation uses the new player position in collision checks
-        player_room = 0;
-        player_x = rooms[0].x;
-        player_y = rooms[0].y;
+        Player.room = 0;
+        Player.x = rooms[0].x;
+        Player.y = rooms[0].y;
         
         for (dx in 1...6) {
-            // Entities.random_weapon(player_x + dx, player_y);
-            // Entities.random_armor(player_x + dx, player_y + 1);
-            // Entities.random_scroll(player_x + dx, player_y + 2);
-            Entities.random_potion(player_x + dx, player_y + 2);
-            // Entities.random_statue(player_x + dx, player_y + 2);
+            // Entities.random_weapon(Player.x + dx, Player.y);
+            // Entities.random_armor(Player.x + dx, Player.y + 1);
+            // Entities.random_scroll(Player.x + dx, Player.y + 1);
+            // Entities.random_potion(Player.x + dx, Player.y + 2);
+            // Entities.random_statue(Player.x + dx, Player.y + 3);
         }
 
         // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
@@ -346,13 +305,13 @@ function generate_level() {
         stairs_x = r.x + Math.floor(r.width / 2);
         stairs_y = r.y + Math.floor(r.height / 2);
         Entities.stairs(stairs_x, stairs_y);
-    } while (Path.astar_map(player_x, player_y, stairs_x, stairs_y).length == 0);
+    } while (Path.astar_map(Player.x, Player.y, stairs_x, stairs_y).length == 0);
 
     GenerateWorld.fill_rooms_with_entities();
 
     // Reset old pos to force los update, very small chance of player spawning in same position and los not updating
-    player_x_old = -1;
-    player_y_old = -1;
+    Player.x_old = -1;
+    Player.y_old = -1;
 }
 
 static var time_stamp = 0.0;
@@ -367,45 +326,49 @@ static function timer_end() {
 }
 
 inline function screen_x(x) {
-    return unscaled_screen_x(x) * world_scale;
+    return unscaled_screen_x(x) * WORLD_SCALE;
 }
 inline function screen_y(y) {
-    return unscaled_screen_y(y) * world_scale;
+    return unscaled_screen_y(y) * WORLD_SCALE;
 }
 inline function unscaled_screen_x(x) {
-    return (x - player_x + Math.floor(view_width / 2)) * tilesize;
+    return (x - Player.x + Math.floor(VIEW_WIDTH / 2)) * TILESIZE;
 }
 inline function unscaled_screen_y(y) {
-    return (y - player_y + Math.floor(view_height / 2)) * tilesize;
+    return (y - Player.y + Math.floor(VIEW_HEIGHT / 2)) * TILESIZE;
 }
-static inline function get_view_x(): Int { return player_x - Math.floor(view_width / 2); }
-static inline function get_view_y(): Int { return player_y - Math.floor(view_width / 2); }
+static inline function get_view_x(): Int { return Player.x - Math.floor(VIEW_WIDTH / 2); }
+static inline function get_view_y(): Int { return Player.y - Math.floor(VIEW_WIDTH / 2); }
 
 static inline function out_of_map_bounds(x, y) {
-    return x < 0 || y < 0 || x >= map_width || y >= map_height;
+    return x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT;
 }
 
 inline function out_of_view_bounds(x, y) {
-    return x < (player_x - Math.floor(view_width / 2)) || y < (player_y - Math.floor(view_height / 2)) || x > (player_x + Math.floor(view_width / 2)) || y > (player_y + Math.floor(view_height / 2));
+    return x < (Player.x - Math.floor(VIEW_WIDTH / 2)) || y < (Player.y - Math.floor(VIEW_HEIGHT / 2)) || x > (Player.x + Math.floor(VIEW_WIDTH / 2)) || y > (Player.y + Math.floor(VIEW_HEIGHT / 2));
 }
 
 static function get_drop_entity_level(): Int {
     return 
-    if (increase_drop_level) {
+    if (Player.increase_drop_level) {
         current_level + 1;
     } else {
         current_level;
     }
 }
 
-function player_next_to(pos: Position): Bool {
-    return Math.abs(player_x - pos.x) <= 1 && Math.abs(player_y - pos.y) <= 1;
+static function get_level_tile_index(): Int {
+    return Math.round(current_floor / 3);
 }
 
-function add_message(message: String) {
-    message_history.insert(0, message);
+function player_next_to(pos: Position): Bool {
+    return Math.abs(Player.x - pos.x) <= 1 && Math.abs(Player.y - pos.y) <= 1;
+}
+
+function add_message(new_message: String) {
+    messages.insert(0, new_message);
     added_message_this_turn = true;
-    need_to_update_message_canvas = true;
+    need_to_update_messages_canvas = true;
 }
 
 function add_damage_number(value: Int) {
@@ -436,17 +399,7 @@ static function get_room_index(x: Int, y: Int): Int {
 }
 
 inline function position_visible(x: Int, y: Int): Bool {
-    return !los[x][y] || nolos || nolos_DEV;
-}
-
-function player_absorb(): Int {
-    // 82 def = absorb at least 8, absorb 9 20% of the time
-    var total_defense = player_defense + player_defense_mod;
-    var absorb: Int = Math.floor(total_defense / 10);
-    if (Random.chance((total_defense % 10) * 10)) {
-        absorb++;
-    }
-    return absorb;
+    return !los[x][y] || Player.nolos || DEV_nolos;
 }
 
 static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, free_map: Array<Array<Bool>> = null, include_player: Bool = true, include_entities: Bool = true, include_doors: Bool = true): Array<Array<Bool>> {
@@ -487,8 +440,8 @@ static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, free_map
         }
     }
 
-    if (include_player && Math.point_box_intersect(player_x, player_y, x1, y1, width, height)) {
-        free_map[player_x - x1][player_y - y1] = false;
+    if (include_player && Math.point_box_intersect(Player.x, Player.y, x1, y1, width, height)) {
+        free_map[Player.x - x1][Player.y - y1] = false;
     }
 
     return free_map;
@@ -497,8 +450,8 @@ static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, free_map
 function try_buy_entity(e: Int) {
     var buy = Entity.buy[e];
 
-    if (copper_count >= buy.cost) {
-        copper_count -= buy.cost;
+    if (Player.copper_count >= buy.cost) {
+        Player.copper_count -= buy.cost;
 
         Entity.buy.remove(e);
 
@@ -512,7 +465,7 @@ function drop_entity_from_entity(e: Int) {
     var drop_entity = Entity.drop_entity[e];
     var pos = Entity.position[e];
 
-    var chance = drop_entity.chance + dropchance_mod;
+    var chance = drop_entity.chance + Player.dropchance_mod;
     if (chance < 0) {
         chance = 0;
     } else if (chance > 100) {
@@ -556,12 +509,12 @@ function try_open_entity(e: Int) {
 
     if (locked.need_key) {
         // Normal locked need a matching key, search for it in inventory
-        for (y in 0...inventory_height) {
-            for (x in 0...inventory_width) {
-                if (Entity.unlocker.exists(inventory[x][y]) && !Entity.position.exists(inventory[x][y]) && Entity.unlocker[inventory[x][y]].color == locked.color) {
+        for (y in 0...INVENTORY_HEIGHT) {
+            for (x in 0...INVENTORY_WIDTH) {
+                if (Entity.unlocker.exists(Player.inventory[x][y]) && !Entity.position.exists(Player.inventory[x][y]) && Entity.unlocker[Player.inventory[x][y]].color == locked.color) {
                     // Found unlocker, remove unlocker and unlock locked entity
                     add_message('You unlock $locked_name.');
-                    Entity.remove(inventory[x][y]);
+                    Entity.remove(Player.inventory[x][y]);
 
                     drop_from_locked();
                     Entity.remove(e);
@@ -597,12 +550,12 @@ function use_entity(e: Int) {
             } else {
                 'unnamed_origin';
             }
-            player_spells.push(Spells.copy(spell));
+            Player.spells.push(Spells.copy(spell));
 
             // If too many player spells, remove older ones
-            if (player_spells.length > player_spells_max) {
+            if (Player.spells.length > PLAYER_SPELLS_MAX) {
                 add_message('Too many active spells, an old spell was removed.');
-                player_spells.shift();
+                Player.spells.shift();
             }
         }
     }
@@ -620,7 +573,7 @@ function use_entity(e: Int) {
 
 function equip_entity(e: Int) {
     var e_equipment = Entity.equipment[e];
-    var old_e = player_equipment[e_equipment.type];
+    var old_e = Player.equipment[e_equipment.type];
 
     // Remove entity from map
     if (Entity.equipment.exists(old_e) && !Entity.position.exists(old_e)) {
@@ -646,17 +599,17 @@ function equip_entity(e: Int) {
     }
     add_message('You equip ${Entity.name[e]}.');
 
-    player_equipment[e_equipment.type] = e;
+    Player.equipment[e_equipment.type] = e;
 }
 
 function move_entity_into_inventory(e: Int) {
     var item = Entity.item[e];
 
     // Clear picked up entity from any inventory slots if it was there before, if this is not done and there is an empty slot before the old slot of the new entity, then inventory will have two references to this item
-    for (y in 0...inventory_height) {
-        for (x in 0...inventory_width) {
-            if (inventory[x][y] == e) {
-                inventory[x][y] = Entity.NONE;
+    for (y in 0...INVENTORY_HEIGHT) {
+        for (x in 0...INVENTORY_WIDTH) {
+            if (Player.inventory[x][y] == e) {
+                Player.inventory[x][y] = Entity.NONE;
             }
         }
     }
@@ -664,15 +617,15 @@ function move_entity_into_inventory(e: Int) {
     if (item.type == ItemType_Ring) {
         // Entity is a ring, need to check that there are ring slots available
         var ring_count = 0;
-        for (y in 0...inventory_height) {
-            for (x in 0...inventory_width) {
-                if (Entity.item.exists(inventory[x][y]) && !Entity.position.exists(inventory[x][y])) {
-                    var other_item = Entity.item[inventory[x][y]];
+        for (y in 0...INVENTORY_HEIGHT) {
+            for (x in 0...INVENTORY_WIDTH) {
+                if (Entity.item.exists(Player.inventory[x][y]) && !Entity.position.exists(Player.inventory[x][y])) {
+                    var other_item = Entity.item[Player.inventory[x][y]];
                     if (other_item.type == ItemType_Ring) {
                         ring_count++;
 
-                        if (ring_count >= max_rings) {
-                            add_message('Can\'t have more than $max_rings rings.');
+                        if (ring_count >= RINGS_MAX) {
+                            add_message('Can\'t have more than $RINGS_MAX rings.');
                             return;
                         }
                     }
@@ -682,13 +635,13 @@ function move_entity_into_inventory(e: Int) {
     }
 
     // Flip loop order so that rows are filled first
-    for (y in 0...inventory_height) {
-        for (x in 0...inventory_width) {
+    for (y in 0...INVENTORY_HEIGHT) {
+        for (x in 0...INVENTORY_WIDTH) {
             // Inventory slot is free if it points to entity that is not an item(removed) or an entity that is an item but has position(dropped on map)
-            var doesnt_exist = !Entity.item.exists(inventory[x][y]);
-            var not_in_inventory = Entity.item.exists(inventory[x][y]) && Entity.position.exists(inventory[x][y]);
+            var doesnt_exist = !Entity.item.exists(Player.inventory[x][y]);
+            var not_in_inventory = Entity.item.exists(Player.inventory[x][y]) && Entity.position.exists(Player.inventory[x][y]);
             if (doesnt_exist || not_in_inventory) {
-                inventory[x][y] = e;
+                Player.inventory[x][y] = e;
 
                 add_message('You pick up ${Entity.name[e]}.');
                 Entity.remove_position(e);
@@ -702,14 +655,14 @@ function move_entity_into_inventory(e: Int) {
 
 function free_position_around_player(): Vec2i {
     // Search for free position around player
-    var free_map = get_free_map(player_x - 1, player_y - 1, 3, 3);
+    var free_map = get_free_map(Player.x - 1, Player.y - 1, 3, 3);
 
     var free_x: Int = -1;
     var free_y: Int = -1;
     for (dx in -1...2) {
         for (dy in -1...2) {
-            var x = player_x + dx;
-            var y = player_y + dy;
+            var x = Player.x + dx;
+            var y = Player.y + dy;
             if (!out_of_map_bounds(x, y) && free_map[dx + 1][dy + 1]) {
                 return {x: x, y: y};
                 break;
@@ -793,7 +746,7 @@ function move_entity(e: Int) {
         var friendly_y = -1;
         var closest_enemy_dst = 10000000.0;
         var closest_friendly_dst = 10000000.0;
-        var player_dst = Math.dst2(player_x, player_y, pos.x, pos.y);
+        var player_dst = Math.dst2(Player.x, Player.y, pos.x, pos.y);
 
         for (other_e in entities_with(Entity.combat)) {
             // Skip itself
@@ -837,9 +790,9 @@ function move_entity(e: Int) {
 
         switch (move.target) {
             case MoveTarget_PlayerOnly: {
-                if (!player_is_invisible) {
-                    target_x = player_x;
-                    target_y = player_y;
+                if (!Player.invisible) {
+                    target_x = Player.x;
+                    target_y = Player.y;
                 }
             }
             case MoveTarget_EnemyOnly: {
@@ -853,10 +806,10 @@ function move_entity(e: Int) {
                     // Chase friendly if there's one and it's within chase dst
                     target_x = friendly_x;
                     target_y = friendly_y;
-                } else if (!player_is_invisible) {
+                } else if (!Player.invisible) {
                     // Otherwise chase player
-                    target_x = player_x;
-                    target_y = player_y;
+                    target_x = Player.x;
+                    target_y = Player.y;
                 }
             }
             case MoveTarget_EnemyOverPlayer: {
@@ -864,10 +817,10 @@ function move_entity(e: Int) {
                     // Chase enemy if there's one and it's within chase dst
                     target_x = enemy_x;
                     target_y = enemy_y;
-                } else if (!player_is_invisible) {
+                } else if (!Player.invisible) {
                     // Otherwise chase player
-                    target_x = player_x;
-                    target_y = player_y;
+                    target_x = Player.x;
+                    target_y = Player.y;
                 }
             }
         }
@@ -911,7 +864,7 @@ function move_entity(e: Int) {
             }
         }
         case MoveType_Random: {
-            if (Random.chance(Entity.random_move_chance)) {
+            if (Random.chance(50)) {
                 random_move();
             }
         }
@@ -942,7 +895,7 @@ function move_entity(e: Int) {
                     Entity.set_position(e, pos.x + Math.sign(dx), pos.y + Math.sign(dy));
                 }
             } else {
-                if (Random.chance(Entity.random_move_chance)) {
+                if (Random.chance(50)) {
                     random_move();
                 }
             }
@@ -1033,7 +986,7 @@ function entity_attack_player(e: Int): Bool {
             type: MoveType_Astar,
             cant_move: false,
             successive_moves: 0,
-            chase_dst: Main.view_width, // chase forever
+            chase_dst: Main.VIEW_WIDTH, // chase forever
             target: MoveTarget_FriendlyOverPlayer,
         }
     }
@@ -1053,22 +1006,30 @@ function entity_attack_player(e: Int): Bool {
     var damage_taken = 0;
     var damage_absorbed = 0;
 
-    var absorb = player_absorb();
+    var absorb = {
+        // 82 def = absorb at least 8, absorb 9 20% of the time
+        var total_defense = Player.defense + Player.defense_mod;
+        var absorb: Int = Math.floor(total_defense / 10);
+        if (Random.chance((total_defense % 10) * 10)) {
+            absorb++;
+        }
+        absorb;
+    };
     var damage = Std.int(Math.max(0, combat.attack - absorb));
 
     // Apply pure absorb
-    if (player_pure_absorb > damage) {
-        player_pure_absorb -= damage;
+    if (Player.pure_absorb > damage) {
+        Player.pure_absorb -= damage;
         damage = 0;
     } else {
-        damage -= player_pure_absorb;
-        player_pure_absorb = 0;
+        damage -= Player.pure_absorb;
+        Player.pure_absorb = 0;
     }
 
     damage_taken += damage;
     damage_absorbed += (combat.attack - damage);
 
-    player_health -= damage_taken;
+    Player.health -= damage_taken;
 
     add_message(combat.message);
     
@@ -1108,7 +1069,7 @@ function entity_attack(e: Int): Bool {
     }
 
     // Attack player if in range, prio player over friendlies
-    if (combat.target == CombatTarget_FriendlyThenPlayer && Math.dst2(player_x_old, player_y_old, pos.x, pos.y) <= combat.range_squared) {
+    if (combat.target == CombatTarget_FriendlyThenPlayer && Math.dst2(Player.x_old, Player.y_old, pos.x, pos.y) <= combat.range_squared) {
         return entity_attack_player(e);
     }
 
@@ -1146,7 +1107,7 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
     var combat = Entity.combat[e];
 
     if (is_spell) {
-        attack += spell_damage_mod;
+        attack += Player.spell_damage_mod;
     }
 
     combat.health -= attack;
@@ -1159,10 +1120,10 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
     }
     add_message('You attack $target_name for $attack.');
 
-    if (health_leech) {
-        player_health += attack;
-        if (player_health > player_health_max) {
-            player_health = player_health_max;
+    if (Player.health_leech) {
+        Player.health += attack;
+        if (Player.health > Player.health_max) {
+            Player.health = Player.health_max;
         }
         add_message('Health leech heals you for $attack.');
     }
@@ -1174,9 +1135,9 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
         if (Entity.give_copper_on_death.exists(e)) {
             var give_copper = Entity.give_copper_on_death[e];
 
-            var drop_amount = Math.round(Random.int(give_copper.min, give_copper.max) * (1.0 + (copper_drop_mod / 100.0)));
+            var drop_amount = Math.round(Random.int(give_copper.min, give_copper.max) * (1.0 + (Player.copper_drop_mod / 100.0)));
             if (drop_amount > 0) {
-                copper_count += drop_amount;
+                Player.copper_count += drop_amount;
                 add_message('$target_name drops $drop_amount copper.');
             }
         }
@@ -1187,16 +1148,17 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
     }
 }
 
+// TODO: optimize this, currently perfomance is bad when there are many entities on screen each with charge indicator
 function draw_entity(e: Int, x: Float, y: Float) {
     if (Entity.draw_char.exists(e)) {
         // Draw char
         var draw_char = Entity.draw_char[e];
-        Text.size = draw_char_size;
+        Text.size = DRAW_CHAR_TEXT_SIZE;
         Text.display(x, y, draw_char.char, draw_char.color);
     } else if (Entity.draw_tile.exists(e)) {
         // Draw tile
         Gfx.drawtile(x, y, 'tiles', Entity.draw_tile[e]);
-    } else if (draw_invisible_entities) {
+    } else if (DRAW_INVISIBLE_ENTITIES) {
         // Draw invisible entities as question mark
         Gfx.drawtile(x, y, 'tiles', Tile.None);
     }
@@ -1205,13 +1167,13 @@ function draw_entity(e: Int, x: Float, y: Float) {
     if (Entity.use.exists(e)) {
         var use = Entity.use[e];
 
-        Text.size = charges_text_size;
+        Text.size = CHARGES_TEXT_SIZE;
         Text.display(x, y, '${use.charges}', Col.WHITE);
     }
 
     // Draw health bar
     if (Entity.combat.exists(e)) {
-        Text.size = charges_text_size;
+        Text.size = CHARGES_TEXT_SIZE;
         var combat = Entity.combat[e];
         Text.display(x, y - 10, '${combat.health}/${combat.health_max}');
     }
@@ -1233,9 +1195,9 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         var path = Path.astar_map(pos.x, pos.y, stairs_x, stairs_y);
 
         if (path.length > 0) {
-            player_x = pos.x;
-            player_y = pos.y;
-            player_room = room_i;
+            Player.x = pos.x;
+            Player.y = pos.y;
+            Player.room = room_i;
             return true;
         } else {
             return false;
@@ -1246,7 +1208,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_ModHealth: {
             // Negative health changes are affected by player defences
             if (spell.value >= 0) {
-                player_health += spell.value;
+                Player.health += spell.value;
 
                 add_message('${spell.origin_name} heals you for ${spell.value} health.');
                 add_damage_number(spell.value);
@@ -1254,17 +1216,17 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 var damage = -1 * spell.value;
 
                 // Apply pure absorb
-                if (player_pure_absorb > damage) {
-                    player_pure_absorb -= damage;
+                if (Player.pure_absorb > damage) {
+                    Player.pure_absorb -= damage;
                     damage = 0;
                 } else {
-                    damage -= player_pure_absorb;
-                    player_pure_absorb = 0;
+                    damage -= Player.pure_absorb;
+                    Player.pure_absorb = 0;
                 }
 
                 var absorb_amount = (-1 * spell.value) - damage;
 
-                player_health -= damage;
+                Player.health -= damage;
 
                 if (damage > 0) {
                     // TODO: what should be the description of the spell origin?
@@ -1278,9 +1240,9 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModHealthMax: {
             if (spell.duration_type == SpellDuration_Permanent) {
-                player_health_max += spell.value;
+                Player.health_max += spell.value;
             } else {
-                player_health_max_mod += spell.value;
+                Player.health_max_mod += spell.value;
             }
             
             if (spell.duration_type == SpellDuration_Permanent) {
@@ -1289,14 +1251,14 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModAttack: {
             if (spell.duration_type == SpellDuration_Permanent) {
-                player_attack += spell.value;
+                Player.attack += spell.value;
 
                 // Attack can't be negative
-                if (player_attack < 0) {
-                    player_attack = 0;
+                if (Player.attack < 0) {
+                    Player.attack = 0;
                 }
             } else {
-                player_attack_mod += spell.value;
+                Player.attack_mod += spell.value;
             }
 
             if (spell.duration_type == SpellDuration_Permanent) {
@@ -1305,9 +1267,9 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModDefense: {
             if (spell.duration_type == SpellDuration_Permanent) {
-                player_defense += spell.value;
+                Player.defense += spell.value;
             } else {
-                player_defense_mod += spell.value;
+                Player.defense_mod += spell.value;
             }
 
             if (spell.duration_type == SpellDuration_Permanent) {
@@ -1341,16 +1303,16 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
         }
         case SpellType_Nolos: {
-            nolos = true;
+            Player.nolos = true;
         }
         case SpellType_Noclip: {
-            noclip = true;
+            Player.noclip = true;
         }
         case SpellType_ShowThings: {
-            show_things = true;
+            Player.show_things = true;
         }
         case SpellType_HealthLeech: {
-            health_leech = true;
+            Player.health_leech = true;
         }
         case SpellType_NextFloor: {
             if (increment_level) {
@@ -1363,13 +1325,13 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             add_message('You go up to the next floor.');
         }
         case SpellType_ModMoveSpeed: {
-            movespeed_mod += spell.value;
+            Player.movespeed_mod += spell.value;
         }
         case SpellType_ModDropChance: {
-            dropchance_mod += spell.value;
+            Player.dropchance_mod += spell.value;
         }
         case SpellType_ModCopperDrop: {
-            copper_drop_mod += spell.value;
+            Player.copper_drop_mod += spell.value;
         }
         case SpellType_AoeDamage: {
             var view_x = get_view_x();
@@ -1386,7 +1348,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
         }
         case SpellType_ModDropLevel: {
-            increase_drop_level = true;
+            Player.increase_drop_level = true;
         }
         case SpellType_ModLevelHealth: {
             for (e in entities_with(Entity.combat)) {
@@ -1409,11 +1371,11 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
         }
         case SpellType_Invisibility: {
-            player_is_invisible = true;
+            Player.invisible = true;
         }
         case SpellType_EnergyShield: {
-            if (player_pure_absorb < spell.value) {
-                player_pure_absorb = spell.value;
+            if (Player.pure_absorb < spell.value) {
+                Player.pure_absorb = spell.value;
             }
         }
         case SpellType_ModUseCharges: {
@@ -1474,11 +1436,11 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_SwapHealth: {
             if (Entity.combat.exists(use_target)) {
-                var temp = player_health;
+                var temp = Player.health;
                 var combat = Entity.combat[use_target];
-                player_health = combat.health;
-                if (player_health > player_health_max) {
-                    player_health = player_health_max;
+                Player.health = combat.health;
+                if (Player.health > Player.health_max) {
+                    Player.health = Player.health_max;
                 }
                 combat.health = temp;
 
@@ -1487,9 +1449,9 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_DamageShield: {
             if (spell.duration_type == SpellDuration_Permanent) {
-                player_damage_shield += spell.value;
+                Player.damage_shield += spell.value;
             } else {
-                player_damage_shield_mod += spell.value;
+                Player.damage_shield_mod += spell.value;
             }
 
             if (spell.duration_type == SpellDuration_Permanent) {
@@ -1567,16 +1529,16 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 }
             }
 
-            do_chain({x: player_x, y: player_y}, entities_with(Entity.combat), spell.value);
+            do_chain({x: Player.x, y: Player.y}, entities_with(Entity.combat), spell.value);
         }
         case SpellType_ModCopper: {
-            copper_count -= spell.value;
-            if (copper_count < 0) {
-                copper_count = 0;
+            Player.copper_count -= spell.value;
+            if (Player.copper_count < 0) {
+                Player.copper_count = 0;
             }
         }
         case SpellType_ModSpellDamage: {
-            spell_damage_mod += spell.value;
+            Player.spell_damage_mod += spell.value;
         }
     }
 }
@@ -1589,14 +1551,236 @@ function can_use_entity_on_target(e: Int): Bool {
     }
 }
 
+function render_world() {
+    var view_x = get_view_x();
+    var view_y = get_view_y();
+
+    // Tiles
+    Gfx.scale(1, 1, 0, 0);
+    Gfx.drawtoimage('tiles_canvas');
+    for (x in 0...VIEW_WIDTH) {
+        for (y in 0...VIEW_HEIGHT) {
+            var map_x = view_x + x;
+            var map_y = view_y + y;
+
+            var new_tile = Tile.None;
+            if (out_of_map_bounds(map_x, map_y) || walls[map_x][map_y]) {
+                new_tile = Tile.Black;
+            } else {
+                if (position_visible(x, y)) {
+                    new_tile = tiles[map_x][map_y];
+                } else {
+                    new_tile = current_ground_dark_tile;
+                }
+            }
+
+            if (new_tile != tile_canvas_state[x][y]) {
+                Gfx.drawtile(unscaled_screen_x(map_x), unscaled_screen_y(map_y), 'tiles', new_tile);
+                tile_canvas_state[x][y] = new_tile;
+            }
+        }
+    }
+    Gfx.drawtoscreen();
+
+    Gfx.clearscreen(Col.BLACK);
+    Gfx.scale(WORLD_SCALE, WORLD_SCALE, 0, 0);
+    Gfx.drawimage(0, 0, "tiles_canvas");
+
+    // Entities
+    Text.size = DRAW_CHAR_TEXT_SIZE;
+    for (e in entities_with(Entity.position)) {
+        var pos = Entity.position[e];
+        if (!out_of_view_bounds(pos.x, pos.y) && position_visible(pos.x - view_x, pos.y - view_y)) {
+            draw_entity(e, screen_x(pos.x), screen_y(pos.y));
+        }
+    }
+
+    // Player, draw as parts of each equipment
+    for (equipment_type in Type.allEnums(EquipmentType)) {
+        var e = Player.equipment[equipment_type];
+
+        // Check that equipment exists, is equipped and has a draw tile
+        // Otherwise draw default equipment(naked)
+        var equipment_tile = if (Entity.equipment.exists(e) && !Entity.position.exists(e) && Entity.draw_tile.exists(e)) {
+            Entity.draw_tile[e];
+        } else {
+            switch (equipment_type) {
+                case EquipmentType_Weapon: Tile.None;
+                case EquipmentType_Head: Tile.Head0;
+                case EquipmentType_Chest: Tile.Chest0;
+                case EquipmentType_Legs: Tile.Legs0;
+            }
+        }
+
+        var x_offset = if (equipment_type == EquipmentType_Weapon) {
+            // Draw sword a bit to the side
+            0.3 * TILESIZE * WORLD_SCALE;
+        } else {
+            0;
+        }
+
+        var y_offset = switch (equipment_type) {
+            case EquipmentType_Head: -2 * WORLD_SCALE;
+            case EquipmentType_Legs: 3 * WORLD_SCALE;
+            default: 0;
+        }
+
+        if (equipment_tile != Tile.None) {
+            Gfx.drawtile(screen_x(Player.x) + x_offset, screen_y(Player.y) + y_offset, 'tiles', equipment_tile); 
+        }
+    }
+
+    // Health above player
+    Gfx.scale(1, 1, 0, 0);
+    Text.size = PLAYER_HP_HUD_TEXT_SIZE;
+    Text.display(screen_x(Player.x), screen_y(Player.y) - 10, '${Player.health}/${Player.health_max + Player.health_max_mod}');
+
+    // Damage numbers
+    var removed_damage_numbers = new Array<DamageNumber>();
+    for (n in damage_numbers) {
+        Text.display(screen_x(Player.x) + n.x_offset, screen_y(Player.y) - n.time / 5, '${n.value}', n.color);
+
+        n.time++;
+        if (n.time > 180) {
+            removed_damage_numbers.push(n);
+        }
+    }
+    for (n in removed_damage_numbers) {
+        damage_numbers.remove(n);
+    }
+
+    //
+    // UI
+    //
+    Gfx.scale(1, 1, 0, 0);
+    Text.size = UI_TEXT_SIZE;
+
+    //
+    // Player stats
+    //
+    var player_stats_right_text = "";
+    player_stats_right_text += '\n${Player.health}/${Player.health_max + Player.health_max_mod}';
+    player_stats_right_text += '\n${Player.attack + Player.attack_mod}';
+    player_stats_right_text += '\n${Player.defense + Player.defense_mod}';
+    player_stats_right_text += '\n${Player.pure_absorb}';
+    player_stats_right_text += '\n${Player.copper_count}';
+    Text.display(UI_X + PLAYER_STATS_NUMBERS_OFFSET, PLAYER_STATS_Y, player_stats_right_text);
+
+    //
+    // Equipment
+    //
+    Gfx.scale(WORLD_SCALE, WORLD_SCALE, 0, 0);
+    Text.size = DRAW_CHAR_TEXT_SIZE;
+    var armor_i = 0;
+    for (equipment_type in Type.allEnums(EquipmentType)) {
+        // Equipment
+        var e = Player.equipment[equipment_type];
+        if (Entity.equipment.exists(e) && !Entity.position.exists(e)) {
+            draw_entity(e, UI_X + armor_i * TILESIZE * WORLD_SCALE, EQUIPMENT_Y);
+        }
+
+        armor_i++;
+    }
+
+    Gfx.scale(1, 1, 0, 0);
+    Gfx.drawimage(UI_X, 0, 'ui_canvas');
+
+    //
+    // Inventory
+    //
+    Gfx.scale(WORLD_SCALE, WORLD_SCALE, 0, 0);
+    Text.size = DRAW_CHAR_TEXT_SIZE;
+    for (x in 0...INVENTORY_WIDTH) {
+        for (y in 0...INVENTORY_HEIGHT) {
+            var e = Player.inventory[x][y];
+            if (Entity.item.exists(e) && !Entity.position.exists(e)) {
+                draw_entity(e, UI_X + x * TILESIZE * WORLD_SCALE, INVENTORY_Y + y * TILESIZE * WORLD_SCALE);
+            }
+        }
+    }
+
+    //
+    // Active spells list
+    //
+    Gfx.scale(1, 1, 0, 0);
+    Text.size = UI_TEXT_SIZE;
+    var active_spells = 'SPELLS';
+    for (s in Player.spells) {
+        active_spells += '\n' + Spells.get_description(s);
+    }
+    Text.wordwrap = UI_WORDWRAP;
+    Text.display(UI_X, SPELL_LIST_Y, active_spells);
+
+    // Use targeting icon
+    if (targeting_for_use) {
+        Text.display(Mouse.x, Mouse.y, 'LEFT CLICK TARGET');
+    }
+
+    //
+    // Messages
+    //
+    Gfx.drawimage(UI_X, MESSAGES_Y + 50, 'messages_canvas');
+
+    //
+    // Minimap
+    //
+    
+    // Update seen status for entities drawn on minimap
+    for (e in entities_with(Entity.draw_on_minimap)) {
+        var draw_on_minimap = Entity.draw_on_minimap[e];
+
+        if (!draw_on_minimap.seen && Entity.position.exists(e)) {
+            var pos = Entity.position[e];
+            if (!out_of_view_bounds(pos.x, pos.y) && position_visible(pos.x - view_x, pos.y - view_y)) {
+                draw_on_minimap.seen = true;
+            }
+        }
+    }
+
+    // TODO: cache the minimap image
+    // TODO: try to remove overlapping while keeping minimap transparent? not sure if possible
+    
+    // Draw rooms
+
+    // Draw connections first, then rooms
+    // Draw rooms filled in to cover up intersecting connections
+    for (i in 0...rooms.length) {
+        var r = rooms[i];
+        if ((visited_room[i] || DEV_full_minimap) && r.is_connection) {
+            Gfx.fillbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.BLACK);
+            Gfx.drawbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.WHITE);
+        }
+    }
+    for (i in 0...rooms.length) {
+        var r = rooms[i];
+        if ((visited_room[i] || DEV_full_minimap) && !r.is_connection) {
+            Gfx.fillbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.BLACK);
+            Gfx.drawbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.WHITE);
+        }
+    }
+
+    // Draw seen things
+    for (e in entities_with(Entity.draw_on_minimap)) {
+        var draw_on_minimap = Entity.draw_on_minimap[e];
+
+        if ((draw_on_minimap.seen || Player.show_things || DEV_full_minimap) && Entity.position.exists(e)) {
+            var pos = Entity.position[e];
+            Gfx.fillbox(MINIMAP_X + pos.x * MINIMAP_SCALE, MINIMAP_Y + pos.y * MINIMAP_SCALE, MINIMAP_SCALE * 1.5, MINIMAP_SCALE * 1.5, draw_on_minimap.color);
+        }
+    }
+
+    // Draw player
+    Gfx.fillbox(MINIMAP_X + Player.x * MINIMAP_SCALE, MINIMAP_Y + Player.y * MINIMAP_SCALE, MINIMAP_SCALE, MINIMAP_SCALE, Col.RED);
+}
+
 function update_normal() {
     var update_start = Timer.stamp();
 
-    var player_acted = false;
+    var turn_ended = false;
 
     // Space key skips turn
     if (Input.justpressed(Key.SPACE)) {
-        player_acted = true;
+        turn_ended = true;
     }
 
     // 
@@ -1625,18 +1809,18 @@ function update_normal() {
     }
     if (player_dx != 0 || player_dy != 0) {
         // If movespeed is increased, try moving extra times in same direction
-        var move_amount = 1 + movespeed_mod;
+        var move_amount = 1 + Player.movespeed_mod;
 
         for (i in 0...move_amount) {
-            if (!out_of_map_bounds(player_x + player_dx, player_y + player_dy)) {
-                var free_map = get_free_map(player_x + player_dx, player_y + player_dy, 1, 1);
+            if (!out_of_map_bounds(Player.x + player_dx, Player.y + player_dy)) {
+                var free_map = get_free_map(Player.x + player_dx, Player.y + player_dy, 1, 1);
 
-                var noclipping_through_wall = walls[player_x + player_dx][player_y + player_dy] && (noclip || noclip_DEV);
+                var noclipping_through_wall = walls[Player.x + player_dx][Player.y + player_dy] && (Player.noclip || DEV_noclip);
 
                 if (free_map[0][0] || noclipping_through_wall) {
-                    player_x += player_dx;
-                    player_y += player_dy;
-                    player_acted = true;
+                    Player.x += player_dx;
+                    Player.y += player_dy;
+                    turn_ended = true;
                 }
             }
         }
@@ -1646,15 +1830,15 @@ function update_normal() {
     var view_y = get_view_y();
 
     // Update LOS after movement
-    if (player_x != player_x_old || player_y != player_y_old) {
+    if (Player.x != Player.x_old || Player.y != Player.y_old) {
         LOS.update_los(los);
     }
 
     //
     // Find entity under mouse
     //
-    var mouse_map_x = Math.floor(Mouse.x / world_scale / tilesize + player_x - Math.floor(view_width / 2));
-    var mouse_map_y = Math.floor(Mouse.y / world_scale / tilesize + player_y - Math.floor(view_height / 2));
+    var mouse_map_x = Math.floor(Mouse.x / WORLD_SCALE / TILESIZE + Player.x - Math.floor(VIEW_WIDTH / 2));
+    var mouse_map_y = Math.floor(Mouse.y / WORLD_SCALE / TILESIZE + Player.y - Math.floor(VIEW_HEIGHT / 2));
 
     // Check for entities on map
     var hovered_map = Entity.NONE;
@@ -1676,26 +1860,26 @@ function update_normal() {
         }
     } else {
         // Check if hovering over inventory or equipment
-        var mouse_inventory_x = Math.floor((Mouse.x - ui_x) / world_scale / tilesize);
-        var mouse_inventory_y = Math.floor((Mouse.y - inventory_y) / world_scale / tilesize);
-        var mouse_equip_x = Math.floor((Mouse.x - ui_x) / world_scale / tilesize);
-        var mouse_equip_y = Math.floor((Mouse.y - equipment_y) / world_scale / tilesize);
+        var mouse_inventory_x = Math.floor((Mouse.x - UI_X) / WORLD_SCALE / TILESIZE);
+        var mouse_INVENTORY_Y = Math.floor((Mouse.y - INVENTORY_Y) / WORLD_SCALE / TILESIZE);
+        var mouse_equip_x = Math.floor((Mouse.x - UI_X) / WORLD_SCALE / TILESIZE);
+        var mouse_equip_y = Math.floor((Mouse.y - EQUIPMENT_Y) / WORLD_SCALE / TILESIZE);
 
         function hovering_inventory(x, y) {
-            return x >= 0 && y >= 0 && x < inventory_width && y < inventory_height;
+            return x >= 0 && y >= 0 && x < INVENTORY_WIDTH && y < INVENTORY_HEIGHT;
         }
         function hovering_equipment(x, y) {
-            return y == 0 && x >= 0 && x < equipment_amount;
+            return y == 0 && x >= 0 && x < EQUIPMENT_COUNT;
         }
 
-        if (hovering_inventory(mouse_inventory_x, mouse_inventory_y)) {
-            hovered_anywhere = inventory[mouse_inventory_x][mouse_inventory_y];
-            hovered_anywhere_x = ui_x + mouse_inventory_x * tilesize * world_scale;
-            hovered_anywhere_y = inventory_y + mouse_inventory_y * tilesize * world_scale;
+        if (hovering_inventory(mouse_inventory_x, mouse_INVENTORY_Y)) {
+            hovered_anywhere = Player.inventory[mouse_inventory_x][mouse_INVENTORY_Y];
+            hovered_anywhere_x = UI_X + mouse_inventory_x * TILESIZE * WORLD_SCALE;
+            hovered_anywhere_y = INVENTORY_Y + mouse_INVENTORY_Y * TILESIZE * WORLD_SCALE;
         } else if (hovering_equipment(mouse_equip_x, mouse_equip_y)) {
-            hovered_anywhere = player_equipment[Type.allEnums(EquipmentType)[mouse_equip_x]];
-            hovered_anywhere_x = ui_x + mouse_equip_x * tilesize * world_scale;
-            hovered_anywhere_y = equipment_y;
+            hovered_anywhere = Player.equipment[Type.allEnums(EquipmentType)[mouse_equip_x]];
+            hovered_anywhere_x = UI_X + mouse_equip_x * TILESIZE * WORLD_SCALE;
+            hovered_anywhere_y = EQUIPMENT_Y;
         }
     }
 
@@ -1705,176 +1889,13 @@ function update_normal() {
         Entity.print(hovered_anywhere);
     }
 
-    //
-    // Render
-    //
-
-
-    // Tiles
-    Gfx.scale(1, 1, 0, 0);
-    Gfx.drawtoimage('tiles_canvas');
-    for (x in 0...view_width) {
-        for (y in 0...view_height) {
-            var map_x = view_x + x;
-            var map_y = view_y + y;
-
-            var new_tile = Tile.None;
-            if (out_of_map_bounds(map_x, map_y) || walls[map_x][map_y]) {
-                new_tile = Tile.Black;
-            } else {
-                if (position_visible(x, y)) {
-                    new_tile = tiles[map_x][map_y];
-                } else {
-                    new_tile = current_ground_dark_tile;
-                }
-            }
-
-            if (new_tile != tile_canvas_state[x][y]) {
-                Gfx.drawtile(unscaled_screen_x(map_x), unscaled_screen_y(map_y), 'tiles', new_tile);
-                tile_canvas_state[x][y] = new_tile;
-            }
-        }
-    }
-    Gfx.drawtoscreen();
-
-    Gfx.clearscreen(Col.BLACK);
-    Gfx.scale(world_scale, world_scale, 0, 0);
-    Gfx.drawimage(0, 0, "tiles_canvas");
-
-    // Entities
-    Text.size = draw_char_size;
-    for (e in entities_with(Entity.position)) {
-        var pos = Entity.position[e];
-        if (!out_of_view_bounds(pos.x, pos.y) && position_visible(pos.x - view_x, pos.y - view_y)) {
-            draw_entity(e, screen_x(pos.x), screen_y(pos.y));
-        }
-    }
-
-    // Player, draw as parts of each equipment
-    for (equipment_type in Type.allEnums(EquipmentType)) {
-        var e = player_equipment[equipment_type];
-
-        // Check that equipment exists, is equipped and has a draw tile
-        // Otherwise draw default equipment(naked)
-        var equipment_tile = if (Entity.equipment.exists(e) && !Entity.position.exists(e) && Entity.draw_tile.exists(e)) {
-            Entity.draw_tile[e];
-        } else {
-            switch (equipment_type) {
-                case EquipmentType_Weapon: Tile.None;
-                case EquipmentType_Head: Tile.Head0;
-                case EquipmentType_Chest: Tile.Chest0;
-                case EquipmentType_Legs: Tile.Legs0;
-            }
-        }
-
-        var x_offset = if (equipment_type == EquipmentType_Weapon) {
-            // Draw sword a bit to the side
-            0.3 * tilesize * world_scale;
-        } else {
-            0;
-        }
-
-        var y_offset = switch (equipment_type) {
-            case EquipmentType_Head: -2 * world_scale;
-            case EquipmentType_Legs: 3 * world_scale;
-            default: 0;
-        }
-
-        if (equipment_tile != Tile.None) {
-            Gfx.drawtile(screen_x(player_x) + x_offset, screen_y(player_y) + y_offset, 'tiles', equipment_tile); 
-        }
-    }
-
-    // Health above player
-    Gfx.scale(1, 1, 0, 0);
-    Text.size = player_hud_text_size;
-    Text.display(screen_x(player_x), screen_y(player_y) - 10, '${player_health}/${player_health_max + player_health_max_mod}');
-
-    // Damage numbers
-    var removed_damage_numbers = new Array<DamageNumber>();
-    for (n in damage_numbers) {
-        Text.display(screen_x(player_x) + n.x_offset, screen_y(player_y) - n.time / 5, '${n.value}', n.color);
-
-        n.time++;
-        if (n.time > 180) {
-            removed_damage_numbers.push(n);
-        }
-    }
-    for (n in removed_damage_numbers) {
-        damage_numbers.remove(n);
-    }
-
-    //
-    // UI
-    //
-    Gfx.scale(1, 1, 0, 0);
-    Text.size = ui_text_size;
-
-    //
-    // Player stats
-    //
-    var player_stats = "";
-    player_stats += '\n${player_health}/${player_health_max + player_health_max_mod}';
-    player_stats += '\n${player_attack + player_attack_mod}';
-    player_stats += '\n${player_defense + player_defense_mod}';
-    player_stats += '\n${player_pure_absorb}';
-    player_stats += '\n${copper_count}';
-    Text.display(ui_x + player_stats_numbers_offset, player_stats_y, player_stats);
-
-    //
-    // Equipment
-    //
-    Gfx.scale(world_scale, world_scale, 0, 0);
-    Text.size = draw_char_size;
-    var armor_i = 0;
-    for (equipment_type in Type.allEnums(EquipmentType)) {
-        // Equipment
-        var e = player_equipment[equipment_type];
-        if (Entity.equipment.exists(e) && !Entity.position.exists(e)) {
-            draw_entity(e, ui_x + armor_i * tilesize * world_scale, equipment_y);
-        }
-
-        armor_i++;
-    }
-
-    Gfx.scale(1, 1, 0, 0);
-    Gfx.drawimage(ui_x, 0, 'ui_canvas');
-
-    //
-    // Inventory
-    //
-    Gfx.scale(world_scale, world_scale, 0, 0);
-    Text.size = draw_char_size;
-    for (x in 0...inventory_width) {
-        for (y in 0...inventory_height) {
-            var e = inventory[x][y];
-            if (Entity.item.exists(e) && !Entity.position.exists(e)) {
-                draw_entity(e, ui_x + x * tilesize * world_scale, inventory_y + y * tilesize * world_scale);
-            }
-        }
-    }
-
-    //
-    // Active spells list
-    //
-    Gfx.scale(1, 1, 0, 0);
-    Text.size = ui_text_size;
-    var active_spells = 'SPELLS';
-    for (s in player_spells) {
-        active_spells += '\n' + Spells.get_description(s);
-    }
-    Text.wordwrap = ui_wordwrap;
-    Text.display(ui_x, spells_list_y, active_spells);
-
-    // Use targeting icon
-    if (targeting_for_use) {
-        Text.display(Mouse.x, Mouse.y, 'LEFT CLICK TARGET');
-    }
+    // TODO: move this to after the update(need to draw interact buttons correctly on top)
+    render_world();
 
     //
     // Hovered entity tooltip
     //
-    Text.wordwrap = hovered_tooltip_wordwrap;
+    Text.wordwrap = TOOLTIP_WORDWRAP;
     function get_tooltip(e: Int): String {
         var tooltip = "";
         if (Entity.name.exists(e)) {
@@ -1923,59 +1944,13 @@ function update_normal() {
     if (interact_target == Entity.NONE) {
         var entity_tooltip = get_tooltip(hovered_anywhere);
 
-        if (Entity.equipment.exists(hovered_anywhere) && Entity.position.exists(hovered_anywhere)) {
-            var equipped = player_equipment[Entity.equipment[hovered_anywhere].type];
-
-            // if (Entity.equipment.exists(equipped) && !Entity.position.exists(equipped)) {
-            //     entity_tooltip += '\n\nCURRENTLY EQUIPPED:\n' + get_tooltip(equipped);
-
-            //     entity_tooltip += '\n\nDIFF:\n';
-
-            //     var equipped_spells = Entity.equipment[equipped].spells;
-            //     var hovered_spells = Entity.equipment[hovered_anywhere].spells;
-
-            //     var equipped_defense = 0;
-            //     var equipped_attack = 0;
-            //     var hovered_defense = 0;
-            //     var hovered_attack = 0;
-            //     for (s in equipped_spells) {
-            //         if (s.type == SpellType_ModDefense) {
-            //             equipped_defense += s.value;
-            //         } else if (s.type == SpellType_ModAttack) {
-            //             equipped_attack += s.value;
-            //         }
-            //     }
-            //     for (s in hovered_spells) {
-            //         if (s.type == SpellType_ModDefense) {
-            //             hovered_defense += s.value;
-            //         } else if (s.type == SpellType_ModAttack) {
-            //             hovered_attack += s.value;
-            //         }
-            //     }
-
-            //     var defense_diff = hovered_defense - equipped_defense;
-            //     var attack_diff = hovered_attack - equipped_attack;
-
-            //     if (defense_diff != 0) {
-            //         var sign = if (defense_diff > 0) '+' else '';
-            //         entity_tooltip += '$sign${defense_diff} defense\n';
-            //     }
-            //     if (attack_diff != 0) {
-            //         var sign = if (attack_diff > 0) '+' else '';
-            //         entity_tooltip += '$sign${attack_diff} attack\n';
-            //     }
-            // }
-        }
-
-        if (!Entity.combat.exists(hovered_anywhere)) {
+        if (entity_tooltip != "" && !Entity.combat.exists(hovered_anywhere)) {
             if (!Entity.position.exists(hovered_anywhere)) {
-                Gfx.fillbox(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, Text.width(entity_tooltip), Text.height(entity_tooltip), Col.DARKBROWN);
+                Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, Text.width(entity_tooltip), Text.height(entity_tooltip), Col.DARKBROWN);
             }
-            Text.display(hovered_anywhere_x + tilesize * world_scale, hovered_anywhere_y, entity_tooltip, Col.WHITE);
+            Text.display(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, entity_tooltip, Col.WHITE);
         }
     }
-
-    // Add comparison text to tooltip for equipment on the ground
     
 
     //
@@ -1983,7 +1958,7 @@ function update_normal() {
     //
 
     // Set interact target on right click
-    if (!player_acted && Mouse.rightclick()) {
+    if (!turn_ended && Mouse.rightclick()) {
         interact_target = hovered_anywhere;
         interact_target_x = hovered_anywhere_x;
         interact_target_y = hovered_anywhere_y;
@@ -1999,9 +1974,9 @@ function update_normal() {
 
     // Interaction buttons
     // Can't use/pick up/equip if item has Buy, which means it's "in a shop"
-    if (!player_acted) {
+    if (!turn_ended) {
         var done_interaction = false;
-        GUI.x = interact_target_x + tilesize * world_scale;
+        GUI.x = interact_target_x + TILESIZE * WORLD_SCALE;
         GUI.y = interact_target_y;
         if (Entity.talk.exists(interact_target)) {
             if (GUI.auto_text_button('Talk')) {
@@ -2079,7 +2054,7 @@ function update_normal() {
 
         if (done_interaction) {
             interact_target = Entity.NONE;
-            player_acted = true;
+            turn_ended = true;
         } else if (Mouse.leftclick()) {
             // Clicked out of context menu
             interact_target = Entity.NONE;
@@ -2091,10 +2066,10 @@ function update_normal() {
     //
     // Target entity for use, can't target the use entity itself
     // If entity is on the map, it must be next to player
-    if (targeting_for_use && !player_acted && Mouse.leftclick() && hovered_anywhere != use_entity_that_needs_target) {
+    if (targeting_for_use && !turn_ended && Mouse.leftclick() && hovered_anywhere != use_entity_that_needs_target) {
         if (can_use_entity_on_target(hovered_anywhere)) {
             use_target = hovered_anywhere;
-            player_acted = true;
+            turn_ended = true;
         }
     }
 
@@ -2102,7 +2077,7 @@ function update_normal() {
     // DEFAULT LEFT-CLICK ACTION
     //
     // Attack, pick up or equip, if only one is possible, if multiple are possible, then must pick one through interact menu
-    if (!player_acted && Mouse.leftclick()) {
+    if (!turn_ended && Mouse.leftclick()) {
         if (Entity.position.exists(hovered_anywhere)) {
             var pos = Entity.position[hovered_anywhere];
             // Left-click interaction if entity is on map and is visible
@@ -2113,13 +2088,13 @@ function update_normal() {
 
                 if (can_attack && !can_pickup && !can_equip) {
                     attack_target = hovered_anywhere;
-                    player_acted = true;
+                    turn_ended = true;
                 } else if (!can_attack && can_pickup && !can_equip) {
                     move_entity_into_inventory(hovered_anywhere);
-                    player_acted = true;
+                    turn_ended = true;
                 } else if (!can_attack && !can_pickup && can_equip) {
                     equip_entity(hovered_anywhere);
-                    player_acted = true;
+                    turn_ended = true;
                 } 
             }
         } else {
@@ -2130,51 +2105,46 @@ function update_normal() {
                 if (Entity.use[hovered_anywhere].need_target) {
                     use_entity_that_needs_target = hovered_anywhere;
                     start_targeting = true;
-                    player_acted = true;
+                    turn_ended = true;
                 } else {
                     use_entity(hovered_anywhere);
-                    player_acted = true;
+                    turn_ended = true;
                 }
             }
         }
     }
 
     //
-    // Messages
-    //
-    Gfx.drawimage(ui_x, message_history_y + 50, 'message_canvas');
-
-    //
     // Developer options
     //
-    GUI.x = ui_x - 250;
+    GUI.x = UI_X - 250;
     GUI.y = 0;
-    if (show_show_dev_button) {
+    if (SHOW_SHOW_BUTTONS_BUTTON) {
         if (GUI.auto_text_button('Toggle dev')) {
-            show_dev_buttons = !show_dev_buttons;
+            DEV_show_buttons = !DEV_show_buttons;
         }
     }
-    if (show_dev_buttons) {
+    if (DEV_show_buttons) {
         if (GUI.auto_text_button('Restart')) {
             restart_game();
             generate_level();
         }
         if (GUI.auto_text_button('To first room')) {
-            player_x = rooms[0].x;
-            player_y = rooms[0].y;
-            player_acted = true;
+            Player.x = rooms[0].x;
+            Player.y = rooms[0].y;
+            turn_ended = true;
         }
         if (GUI.auto_text_button('Toggle full map')) {
-            full_minimap_DEV = !full_minimap_DEV;
+            DEV_full_minimap = !DEV_full_minimap;
         }
         if (GUI.auto_text_button('Toggle noclip')) {
-            noclip_DEV = !noclip_DEV;
+            DEV_noclip = !DEV_noclip;
         }
         if (GUI.auto_text_button('Toggle los')) {
-            nolos_DEV = !nolos_DEV;
+            DEV_nolos = !DEV_nolos;
         }
         if (GUI.auto_text_button('Toggle frametime graph')) {
-            frametime_graph_DEV = !frametime_graph_DEV;
+            DEV_frametime_graph = !DEV_frametime_graph;
         }
         if (GUI.auto_text_button('Next floor')) {
             if (increment_level) {
@@ -2184,69 +2154,13 @@ function update_normal() {
             current_floor++;
 
             generate_level();
-            // Update view, since moving to next level changes player position
-            view_x = get_view_x();
-            view_y = get_view_y();
         }
     }
-
-    //
-    // Update seen status for entities drawn on minimap
-    //
-    for (e in entities_with(Entity.draw_on_minimap)) {
-        var draw_on_minimap = Entity.draw_on_minimap[e];
-
-        if (!draw_on_minimap.seen && Entity.position.exists(e)) {
-            var pos = Entity.position[e];
-            if (!out_of_view_bounds(pos.x, pos.y) && position_visible(pos.x - view_x, pos.y - view_y)) {
-                draw_on_minimap.seen = true;
-            }
-        }
-    }
-
-    // TODO: cache the minimap image
-    // try to remove overlapping while keeping minimap transparent?
-    // not sure if possible
-
-    //
-    // Minimap
-    //
-    // Draw rooms
-
-    // Draw connections first, then rooms
-    // Draw rooms filled in to cover up intersecting connections
-    for (i in 0...rooms.length) {
-        var r = rooms[i];
-        if ((visited_room[i] || full_minimap_DEV) && r.is_connection) {
-            Gfx.fillbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.BLACK);
-            Gfx.drawbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
-        }
-    }
-    for (i in 0...rooms.length) {
-        var r = rooms[i];
-        if ((visited_room[i] || full_minimap_DEV) && !r.is_connection) {
-            Gfx.fillbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.BLACK);
-            Gfx.drawbox(minimap_x + r.x * minimap_scale, minimap_y + r.y * minimap_scale, (r.width) * minimap_scale, (r.height) * minimap_scale, Col.WHITE);
-        }
-    }
-
-    // Draw seen things
-    for (e in entities_with(Entity.draw_on_minimap)) {
-        var draw_on_minimap = Entity.draw_on_minimap[e];
-
-        if ((draw_on_minimap.seen || show_things || full_minimap_DEV) && Entity.position.exists(e)) {
-            var pos = Entity.position[e];
-            Gfx.fillbox(minimap_x + pos.x * minimap_scale, minimap_y + pos.y * minimap_scale, minimap_scale * 1.5, minimap_scale * 1.5, draw_on_minimap.color);
-        }
-    }
-
-    // Draw player
-    Gfx.fillbox(minimap_x + player_x * minimap_scale, minimap_y + player_y * minimap_scale, minimap_scale, minimap_scale, Col.RED);
 
     //
     // End of turn
     //
-    if (player_acted) {
+    if (turn_ended) {
         // Clear interact target if done something
         interact_target = Entity.NONE;
 
@@ -2264,38 +2178,38 @@ function update_normal() {
         }
 
         // Recalculate player room if room changed
-        if (player_room != -1) {
-            var old_room = rooms[player_room];
-            if (!Math.point_box_intersect(player_x, player_y, old_room.x, old_room.y, old_room.width, old_room.height)) {
-                player_room = get_room_index(player_x, player_y);
+        if (Player.room != -1) {
+            var old_room = rooms[Player.room];
+            if (!Math.point_box_intersect(Player.x, Player.y, old_room.x, old_room.y, old_room.width, old_room.height)) {
+                Player.room = get_room_index(Player.x, Player.y);
             }
 
             // Mark current room and adjacent rooms as visited
-            if (player_room != -1) {
-                visited_room[player_room] = true;
-                for (i in rooms[player_room].adjacent_rooms) {
+            if (Player.room != -1) {
+                visited_room[Player.room] = true;
+                for (i in rooms[Player.room].adjacent_rooms) {
                     visited_room[i] = true;
                 }
             }
         } else {
-            player_room = get_room_index(player_x, player_y);
+            Player.room = get_room_index(Player.x, Player.y);
         }
 
         // Clear temporary spell effects
-        player_health_max_mod = 0;
-        player_attack_mod = 0;
-        player_defense_mod = 0;
-        player_damage_shield_mod = 0;
-        nolos = false;
-        noclip = false;
-        show_things = false;
-        health_leech = false;
-        movespeed_mod = 0;
-        dropchance_mod = 0;
-        copper_drop_mod = 0;
-        spell_damage_mod = 0;
-        increase_drop_level = false;
-        player_is_invisible = false;
+        Player.health_max_mod = 0;
+        Player.attack_mod = 0;
+        Player.defense_mod = 0;
+        Player.damage_shield_mod = 0;
+        Player.nolos = false;
+        Player.noclip = false;
+        Player.show_things = false;
+        Player.health_leech = false;
+        Player.movespeed_mod = 0;
+        Player.dropchance_mod = 0;
+        Player.copper_drop_mod = 0;
+        Player.spell_damage_mod = 0;
+        Player.increase_drop_level = false;
+        Player.invisible = false;
 
         //
         // Process spells
@@ -2376,9 +2290,9 @@ function update_normal() {
         }
 
         // Inventory spells
-        for (x in 0...inventory_width) {
-            for (y in 0...inventory_height) {
-                var e = inventory[x][y];
+        for (x in 0...INVENTORY_WIDTH) {
+            for (y in 0...INVENTORY_HEIGHT) {
+                var e = Player.inventory[x][y];
 
                 if (Entity.item.exists(e) && !Entity.position.exists(e) && Entity.item[e].spells.length > 0) {
                     process_spell_list(Entity.item[e].spells);
@@ -2388,7 +2302,7 @@ function update_normal() {
 
         // Equipment spells
         for (equipment_type in Type.allEnums(EquipmentType)) {
-            var e = player_equipment[equipment_type];
+            var e = Player.equipment[equipment_type];
 
             if (Entity.equipment.exists(e) && !Entity.position.exists(e) && Entity.equipment[e].spells.length > 0) {
                 process_spell_list(Entity.equipment[e].spells);
@@ -2396,10 +2310,10 @@ function update_normal() {
         }
 
         // Player spells
-        process_spell_list(player_spells, true);
+        process_spell_list(Player.spells, true);
 
         // Location spells
-        process_spell_list(location_spells[player_x][player_y]);
+        process_spell_list(location_spells[Player.x][Player.y]);
 
         // Do spells in order of their priority, first 0th prio spells, then 1st, etc...
         for (i in 0...(Spells.last_prio + 1)) {
@@ -2412,13 +2326,13 @@ function update_normal() {
         use_target = Entity.NONE;
 
         // Limit health to health_max
-        if (player_health > player_health_max + player_health_max_mod) {
-            player_health = player_health_max + player_health_max_mod;
+        if (Player.health > Player.health_max + Player.health_max_mod) {
+            Player.health = Player.health_max + Player.health_max_mod;
         }
 
         // Player attacks entity
         if (attack_target != Entity.NONE) {
-            player_attack_entity(attack_target, player_attack + player_attack_mod, false);
+            player_attack_entity(attack_target, Player.attack + Player.attack_mod, false);
             attack_target = Entity.NONE;
         }
 
@@ -2434,7 +2348,7 @@ function update_normal() {
         }
 
         // Deal player shield damage to entities that attacked player
-        var player_damage_shield_total = player_damage_shield + player_damage_shield_mod;
+        var player_damage_shield_total = Player.damage_shield + Player.damage_shield_mod;
         if (player_damage_shield_total > 0) {
             for (e in entities_that_attacked_player) {
                 player_attack_entity(e, player_damage_shield_total);
@@ -2442,11 +2356,11 @@ function update_normal() {
         }
 
         // Move player to nearest room if noclip ends while player is still inside a wall
-        if (walls[player_x][player_y] && !(noclip || noclip_DEV)) {
+        if (walls[Player.x][Player.y] && !(Player.noclip || DEV_noclip)) {
             var closest_room: Room = null;
             var closest_dst2 = 100000000.0;
             for (r in rooms) {
-                var dst2 = Math.dst2(player_x, player_y, r.x, r.y);
+                var dst2 = Math.dst2(Player.x, Player.y, r.x, r.y);
 
                 if (dst2 < closest_dst2) {
                     closest_dst2 = dst2;
@@ -2457,13 +2371,13 @@ function update_normal() {
             var pos = GenerateWorld.room_free_positions_shuffled(closest_room)[0];
 
             // NOTE: position could have no path to stairs, if player blocks the path with items, won't handle this because player has to try really hard to screw this up
-            player_x = pos.x;
-            player_y = pos.y;
-            player_room = get_room_index(player_x, player_y);
+            Player.x = pos.x;
+            Player.y = pos.y;
+            Player.room = get_room_index(Player.x, Player.y);
         }
 
         // NOTE: can die from entity attacks or spells
-        if (player_health <= 0) {
+        if (Player.health <= 0) {
             add_message('You died.');
         }
 
@@ -2475,12 +2389,12 @@ function update_normal() {
 
         // Mark the end of turn
         if (added_message_this_turn) {
-            add_message(turn_delimiter);
+            add_message(TURN_DELIMITER);
             added_message_this_turn = false;
         }
 
         // DEAD indicator
-        if (player_health <= 0) {
+        if (Player.health <= 0) {
             add_message('You died.');
             game_state = GameState_Dead;
         }
@@ -2488,23 +2402,23 @@ function update_normal() {
 
     // Update message canvas after all possible add_message() calls
     // Remove old messages above max size
-    while (message_history.length > message_history_length_max) {
-        message_history.pop();
+    while (messages.length > MESSAGES_LENGTH_MAX) {
+        messages.pop();
     }
-    Text.wordwrap = ui_wordwrap;
-    if (need_to_update_message_canvas) {
-        need_to_update_message_canvas = false;
-        Gfx.drawtoimage('message_canvas');
+    Text.wordwrap = UI_WORDWRAP;
+    if (need_to_update_messages_canvas) {
+        need_to_update_messages_canvas = false;
+        Gfx.drawtoimage('messages_canvas');
         Gfx.clearscreen();
-        var messages = "";
-        for (message in message_history) {
-            messages = message + '\n' + messages;
+        var messages_text = "";
+        for (message in messages) {
+            messages_text = message + '\n' + messages_text;
         }
-        Text.display(0, 0, messages);
+        Text.display(0, 0, messages_text);
         Gfx.drawtoscreen();
     }
 
-    if (frametime_graph_DEV) {
+    if (DEV_frametime_graph) {
         var frame_time = Math.max(1 / 60.0, Timer.stamp() - update_start);
 
         Gfx.drawtoimage('frametime_canvas2');
@@ -2517,14 +2431,19 @@ function update_normal() {
         Gfx.drawimage(400, 100, 'frametime_canvas');
     }
 
-    player_x_old = player_x;
-    player_y_old = player_y;
+    Player.x_old = Player.x;
+    Player.y_old = Player.y;
 }
 
 var can_restart_timer = 0;
 static inline var can_restart_timer_max = 60;
 
 function update_dead() {
+    render_world();
+
+    var fade_alpha = 0.5 * Math.min(1.0, (can_restart_timer / can_restart_timer_max));
+    Gfx.fillbox(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Col.BLACK, fade_alpha);
+
     Text.size = 100;
     Text.display(100, 100, 'DEAD', Col.RED);
 

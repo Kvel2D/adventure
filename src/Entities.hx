@@ -286,7 +286,7 @@ static function stairs(x: Int, y: Int): Int {
 
     var color = Random.pick(locked_colors);
     Entity.description[e] = 'Stairs to the next level.';
-    Entity.draw_tile[e] = Main.current_stairs_tile;
+    Entity.draw_tile[e] = Tile.Stairs[Main.get_level_tile_index()];
     Entity.draw_on_minimap[e] = {
         color: Col.LIGHTBLUE,
         seen: false,
