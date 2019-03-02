@@ -1,7 +1,6 @@
 
 import haxegon.*;
 import Entity;
-import Pick;
 import Stats;
 import GenerateWorld;
 
@@ -148,12 +147,12 @@ static function get_description(spell: Spell): String {
         case SpellType_ModDefense: '$sign${spell.value} defense';
         case SpellType_ModMoveSpeed: '$sign${spell.value} move speed';
         case SpellType_ModDropChance: '$sign${spell.value}% item drop chance';
-        case SpellType_ModCopperDrop: '$sign${spell.value}% copper drop chance';
+        case SpellType_ModCopperDrop: '$sign${spell.value}% copper drop';
 
         case SpellType_ModLevelHealth: '$sign${spell.value} health to all enemies on the level';
         case SpellType_ModLevelAttack: '$sign${spell.value} attack to all enemies on the level';
 
-        case SpellType_EnergyShield: 'energy shield that absorbs ${spell.value} damage';
+        case SpellType_EnergyShield: 'replenish energy shield to ${spell.value}';
         case SpellType_Invisibility: 'turn invisible';
         case SpellType_ModDropLevel: 'make item drops more powerful';
         case SpellType_UncoverMap: 'uncover map';
@@ -161,7 +160,7 @@ static function get_description(spell: Spell): String {
         case SpellType_SafeTeleport: 'safe teleport';
         case SpellType_Nolos: 'see everything';
         case SpellType_Noclip: 'go through walls';
-        case SpellType_ShowThings: 'see tresure on the map';
+        case SpellType_ShowThings: 'see treasure on the map';
         case SpellType_NextFloor: 'go to next floor';
         case SpellType_AoeDamage: 'deal ${spell.value} damage to all visible enemies';
         case SpellType_ModUseCharges: 'add ${spell.value} use charges to item in your inventory';
@@ -171,11 +170,11 @@ static function get_description(spell: Spell): String {
         case SpellType_ImproveEquipment: 'improve weapon or armor, increasing it\'s attack or defense bonus permanently';
         case SpellType_EnchantEquipment: 'enchant weapon or armor, giving it a random equip spell';
         case SpellType_DamageShield: 'deal ${spell.value} damage to attackers';
-        case SpellType_SummonGolem: 'summon a golem that protects you';
-        case SpellType_SummonSkeletons: 'summon three skeletons that protect you';
+        case SpellType_SummonGolem: 'summon a golem that follows and protects you';
+        case SpellType_SummonSkeletons: 'summon three skeletons that attack nearest enemies';
         case SpellType_SummonImp: 'summon an imp that protects you, it can\'t move but it can shoot fireballs!';
         case SpellType_ChainDamage: 'deals ${spell.value} damage to an enemy near to you, then jumps to nearby enemies, doubling the damage with each jump';
-        case SpellType_ModCopper: 'consumes up to ${spell.value} copper';
+        case SpellType_ModCopper: '$sign ${spell.value} copper';
         case SpellType_HealthLeech: 'all damage dealt to enemies also heals you';
         case SpellType_SwapHealth: 'swaps yours and target enemy\'s current health, doesn\'t affect max health';
         case SpellType_ModSpellDamage: 'increases all spell damage by ${spell.value}';
@@ -601,22 +600,23 @@ static function random_potion_spell_and_tile(level: Int, force_spell: SpellType)
     var type = if (force_spell != null) {
         force_spell;
     } else {
-        Pick.value([
-            {v: SpellType_ModHealth, c: 5.0},
-            {v: SpellType_ModAttack, c: 1.0},
-            {v: SpellType_ModDefense, c: 1.0},
-            {v: SpellType_Invisibility, c: 0.25},
+        Random.pick_chance([
+            {v: SpellType_ModHealth, c: 4.0},
+            {v: SpellType_ModHealthMax, c: 1.0},
+            {v: SpellType_ModAttack, c: 0.5},
+            {v: SpellType_ModDefense, c: 0.5},
+            {v: SpellType_Invisibility, c: 0.1},
             {v: SpellType_ModMoveSpeed, c: 0.1},
             ]);
     }
 
     var duration_type = switch (type) {
         case SpellType_ModHealth: SpellDuration_Permanent;
-        case SpellType_ModAttack: Pick.value([
+        case SpellType_ModAttack: Random.pick_chance([
             {v: SpellDuration_EveryTurn, c: 5.0},
             {v: SpellDuration_EveryAttack, c: 1.0},
             ]);
-        case SpellType_ModDefense: Pick.value([
+        case SpellType_ModDefense: Random.pick_chance([
             {v: SpellDuration_EveryTurn, c: 5.0},
             {v: SpellDuration_EveryAttack, c: 1.0},
             ]);
@@ -645,6 +645,7 @@ static function random_potion_spell_and_tile(level: Int, force_spell: SpellType)
         case SpellType_ModHealth: Stats.get({min: 5, max: 5, scaling: 1.0}, level);
         case SpellType_ModAttack: Stats.get({min: 1, max: 1, scaling: 0.5}, level);
         case SpellType_ModDefense: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+        case SpellType_ModHealthMax: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
         case SpellType_ModMoveSpeed: Random.int(3, 4);
         default: 0;
     }
@@ -655,6 +656,7 @@ static function random_potion_spell_and_tile(level: Int, force_spell: SpellType)
         case SpellType_ModDefense: Tile.PotionPhysical;
         case SpellType_Invisibility: Tile.PotionShadow;
         case SpellType_ModMoveSpeed: Tile.PotionIce;
+        case SpellType_ModHealthMax: Tile.PotionFire;
         default: Tile.None;
     };
 
@@ -673,8 +675,8 @@ static function random_potion_spell_and_tile(level: Int, force_spell: SpellType)
 }
 
 static function random_scroll_spell_and_tile(level: Int) {
-    var type = Pick.value([
-        {v: SpellType_UncoverMap, c: 1.0},
+    var type = Random.pick_chance([
+        // {v: SpellType_UncoverMap, c: 1.0},
         {v: SpellType_Nolos, c: 0.25},
         {v: SpellType_ShowThings, c: 0.5},
         
@@ -687,16 +689,15 @@ static function random_scroll_spell_and_tile(level: Int) {
         {v: SpellType_ChainDamage, c: 1.0},
         {v: SpellType_DamageShield, c: 1.0},
         {v: SpellType_EnergyShield, c: 1.0},
-        // TESTING: {v: SpellType_Combust, c: 1.0},
-        {v: SpellType_Combust, c: 100000.0},
+        {v: SpellType_Combust, c: 1.0},
 
         {v: SpellType_ModUseCharges, c: 0.5},
         {v: SpellType_CopyItem, c: 1.0},
         {v: SpellType_ImproveEquipment, c: 1.0},
         {v: SpellType_EnchantEquipment, c: 1.0},
 
-        {v: SpellType_Passify, c: 1.0},
-        {v: SpellType_Sleep, c: 1.0},
+        {v: SpellType_Passify, c: 0.5},
+        {v: SpellType_Sleep, c: 0.5},
         {v: SpellType_SummonGolem, c: 1.0},
         {v: SpellType_SummonSkeletons, c: 1.0},
         {v: SpellType_SummonImp, c: 1.0},
@@ -709,7 +710,7 @@ static function random_scroll_spell_and_tile(level: Int) {
     var duration_type = switch (type) {
         case SpellType_Nolos: SpellDuration_EveryTurn;
         case SpellType_Noclip: SpellDuration_EveryTurn;
-        case SpellType_UncoverMap: SpellDuration_EveryTurn;
+        // case SpellType_UncoverMap: SpellDuration_EveryTurn;
         case SpellType_ShowThings: SpellDuration_EveryTurn;
         case SpellType_DamageShield: SpellDuration_EveryTurn;
         case SpellType_HealthLeech: SpellDuration_EveryTurn;
@@ -721,7 +722,7 @@ static function random_scroll_spell_and_tile(level: Int) {
         0;
     } else {
         switch (type) {
-            case SpellType_UncoverMap: Entity.DURATION_LEVEL;
+            // case SpellType_UncoverMap: Entity.DURATION_LEVEL;
             case SpellType_ShowThings: Entity.DURATION_LEVEL;
             case SpellType_Nolos: Random.int(100, 150);
             case SpellType_Noclip: Random.int(50, 100);
@@ -747,7 +748,7 @@ static function random_scroll_spell_and_tile(level: Int) {
     }
 
     var tile = switch (type) {
-        case SpellType_UncoverMap: Tile.ScrollLight;
+        // case SpellType_UncoverMap: Tile.ScrollLight;
         case SpellType_Nolos: Tile.ScrollLight;
         case SpellType_ShowThings: Tile.ScrollLight;
 
@@ -795,9 +796,8 @@ static function random_scroll_spell_and_tile(level: Int) {
 }
 
 static function random_ring_spell(level: Int): Spell {
-    var type = Pick.value([
+    var type = Random.pick_chance([
         {v: SpellType_ModAttack, c: 1.0},
-        {v: SpellType_ModHealthMax, c: 5.0},
         {v: SpellType_ModDefense, c: 10.0},
         {v: SpellType_AoeDamage, c: 1.0},
         ]);
@@ -808,7 +808,6 @@ static function random_ring_spell(level: Int): Spell {
     }
 
     var value = switch (type) {
-        case SpellType_ModHealthMax: Stats.get({min: 4, max: 7, scaling: 1.0}, level);
         case SpellType_ModAttack: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_ModDefense: Stats.get({min: 2, max: 3, scaling: 1.0}, level);
         case SpellType_AoeDamage: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
@@ -816,7 +815,7 @@ static function random_ring_spell(level: Int): Spell {
     }
 
     var interval = switch (type) {
-        case SpellType_AoeDamage: Random.int(10, 15);
+        case SpellType_AoeDamage: Random.int(4, 8);
         default: 1;
     }
 
@@ -837,7 +836,7 @@ static function enemy_buff_spell(avoid_type: SpellType = null): Spell {
     // Select buff type that's not the same as curse
     var type = avoid_type;
     while (type == avoid_type) {
-        type = Pick.value([
+        type = Random.pick_chance([
             {v: SpellType_ModLevelHealth, c: 1.0},
             {v: SpellType_ModLevelAttack, c: 1.0},
             ]);
@@ -863,7 +862,7 @@ static function enemy_buff_spell(avoid_type: SpellType = null): Spell {
 static function player_stat_buff_spell(): Spell {
     var level = Main.current_level;
 
-    var type = Pick.value([
+    var type = Random.pick_chance([
         {v: SpellType_ModAttack, c: 3.0},
         {v: SpellType_ModDefense, c: 3.0},
         {v: SpellType_AoeDamage, c: 1.0},
@@ -908,7 +907,7 @@ static function statue_subere(level: Int): Array<Spell> {
     var enemy_curse = {
         var level = Main.current_level;
 
-        var type = Pick.value([
+        var type = Random.pick_chance([
             {v: SpellType_ModLevelHealth, c: 1.0},
             {v: SpellType_ModLevelAttack, c: 1.0},
             ]);
@@ -951,7 +950,7 @@ static function statue_sera(level: Int): Array<Spell> {
 
 static function statue_ollopa(level: Int): Array<Spell> {
     var player_special_level_buff = {
-        var type = Pick.value([
+        var type = Random.pick_chance([
             {v: SpellType_ModDropChance, c: 1.0},
             {v: SpellType_ModCopperDrop, c: 1.0},
             {v: SpellType_ModDropLevel, c: 1.0},
@@ -984,7 +983,7 @@ static function statue_ollopa(level: Int): Array<Spell> {
 
 static function statue_suthaephes(level: Int): Array<Spell> {
     function health_cost_spell(): Spell {
-        var duration_type = Pick.value([
+        var duration_type = Random.pick_chance([
             {v: SpellDuration_Permanent, c: 2.0},
             {v: SpellDuration_EveryTurn, c: 1.0},
             ]);
@@ -1000,7 +999,7 @@ static function statue_suthaephes(level: Int): Array<Spell> {
             Entity.DURATION_LEVEL;
         }
 
-        var value = 0;switch (duration_type) {
+        var value = switch (duration_type) {
             case SpellDuration_Permanent: Stats.get({min: 5, max: 7, scaling: 1.0}, level);
             case SpellDuration_EveryTurn: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
             default: 0;
@@ -1070,26 +1069,26 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
     var level = Main.get_drop_entity_level();
 
     var type = switch (equipment_type) {
-        case EquipmentType_Weapon: Pick.value([
+        case EquipmentType_Weapon: Random.pick_chance([
             {v: SpellType_ModHealth, c: 1.0},
             {v: SpellType_ModDefense, c: 1.0},
             {v: SpellType_ModHealthMax, c: 1.0},
             {v: SpellType_SummonSkeletons, c: 1.0},
             {v: SpellType_SummonSkeletons, c: 1.0},
             ]);
-        case EquipmentType_Head: Pick.value([
+        case EquipmentType_Head: Random.pick_chance([
             {v: SpellType_ModHealthMax, c: 1.0},
             ]);
-        case EquipmentType_Chest: Pick.value([
+        case EquipmentType_Chest: Random.pick_chance([
             {v: SpellType_ModHealthMax, c: 1.0},
             ]);
-        case EquipmentType_Legs: Pick.value([
+        case EquipmentType_Legs: Random.pick_chance([
             {v: SpellType_ModHealthMax, c: 1.0},
             ]);
     }
 
     var duration_type = switch (type) {
-        case SpellType_ModHealth: Pick.value([
+        case SpellType_ModHealth: Random.pick_chance([
             {v: SpellDuration_EveryAttack, c: 1.0},
             {v: SpellDuration_EveryTurn, c: 0.5},
             ]);
@@ -1097,11 +1096,6 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
         case SpellType_ModHealthMax: SpellDuration_EveryTurn;
         case SpellType_ModDefense: SpellDuration_EveryTurn;
         default: SpellDuration_Permanent;
-    }
-
-    var duration = switch (type) {
-        case SpellType_ModHealth: Entity.DURATION_INFINITE;
-        default: 0;
     }
 
     var interval = switch (type) {
@@ -1124,7 +1118,7 @@ static function random_equipment_spell_equip_negative(equipment_type: EquipmentT
     return {
         type: type,
         duration_type: duration_type,
-        duration: duration,
+        duration: Entity.DURATION_INFINITE,
         interval: interval,
         interval_current: 0,
         value: value,
@@ -1136,20 +1130,20 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
     var level = Main.get_drop_entity_level();
 
     var type = switch (equipment_type) {
-        case EquipmentType_Weapon: Pick.value([
+        case EquipmentType_Weapon: Random.pick_chance([
             {v: SpellType_AoeDamage, c: 1.0},
             {v: SpellType_ChainDamage, c: 1.0},
             {v: SpellType_ModHealth, c: 1.0},
             {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_ModAttackByCopper, c: 1.0},
             ]);
-        case EquipmentType_Head: Pick.value([
+        case EquipmentType_Head: Random.pick_chance([
             {v: SpellType_ModHealthMax, c: 1.0},
-            {v: SpellType_UncoverMap, c: 1.0},
+            // {v: SpellType_UncoverMap, c: 1.0},
             {v: SpellType_ShowThings, c: 1.0},
             {v: SpellType_ModDefenseByCopper, c: 1.0},
             ]);
-        case EquipmentType_Chest: Pick.value([
+        case EquipmentType_Chest: Random.pick_chance([
             {v: SpellType_ModDropChance, c: 1.0},
             {v: SpellType_ModCopperDrop, c: 1.0},
             {v: SpellType_ModHealthMax, c: 1.0},
@@ -1157,7 +1151,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
             {v: SpellType_ModAttackByCopper, c: 1.0},
             {v: SpellType_ModDefenseByCopper, c: 1.0},
             ]);
-        case EquipmentType_Legs: Pick.value([
+        case EquipmentType_Legs: Random.pick_chance([
             {v: SpellType_ModHealthMax, c: 1.0},
             {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_ModAttackByCopper, c: 1.0},
@@ -1222,6 +1216,8 @@ static function get_equipment_spell_use_charges(s: Spell): Int {
         case SpellType_ModMoveSpeed: Random.int(2, 4);
         case SpellType_SummonGolem: Random.int(2, 4);
         case SpellType_SummonImp: Random.int(2, 4);
+        case SpellType_ModAttack: Random.int(2, 4);
+        case SpellType_ChainDamage: Random.int(2, 4);
         case SpellType_RandomTeleport: 1;
         case SpellType_SafeTeleport: 1;
         default: 100;
@@ -1232,26 +1228,26 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
     var level = Main.get_drop_entity_level();
 
     var type = switch (equipment_type) {
-        case EquipmentType_Weapon: Pick.value([
+        case EquipmentType_Weapon: Random.pick_chance([
             {v: SpellType_AoeDamage, c: 1.0},
             {v: SpellType_Invisibility, c: 0.5},
             {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_SummonGolem, c: 1.0},
             {v: SpellType_ModAttack, c: 1.0},
             ]);
-        case EquipmentType_Head: Pick.value([
+        case EquipmentType_Head: Random.pick_chance([
             {v: SpellType_Nolos, c: 1.0},
             {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_SummonImp, c: 1.0},
             {v: SpellType_ChainDamage, c: 1.0},
             ]);
-        case EquipmentType_Chest: Pick.value([
+        case EquipmentType_Chest: Random.pick_chance([
             {v: SpellType_ModHealth, c: 1.0},
             {v: SpellType_AoeDamage, c: 1.0},
             {v: SpellType_Invisibility, c: 1.0},
             {v: SpellType_ModAttack, c: 1.0},
             ]);
-        case EquipmentType_Legs: Pick.value([
+        case EquipmentType_Legs: Random.pick_chance([
             {v: SpellType_ModMoveSpeed, c: 1.0},
             {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_RandomTeleport, c: 0.5},
@@ -1300,7 +1296,7 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
 static function random_equipment_spells(equipment_type: EquipmentType): Array<Array<Spell>> {
     var level = Main.get_drop_entity_level();
     
-    var total_spell_count: Int = Pick.value([
+    var total_spell_count: Int = Random.pick_chance([
         {v: 0, c: 1},
         {v: 1, c: 0.33},
         {v: 2, c: 0.10},
@@ -1312,7 +1308,7 @@ static function random_equipment_spells(equipment_type: EquipmentType): Array<Ar
 
     if (equipment_type == EquipmentType_Weapon) { 
         if (total_spell_count == 1) {
-            Pick.value([
+            Random.pick_chance([
                 {v: function() {
                     spell_equip_count = 1;
                 }, c: 1.0},
@@ -1322,7 +1318,7 @@ static function random_equipment_spells(equipment_type: EquipmentType): Array<Ar
                 ])
             ();
         } else if (total_spell_count == 2) {
-            Pick.value([
+            Random.pick_chance([
                 {v: function() {
                     spell_equip_negative_count = 1;
                     spell_equip_count = 1;
@@ -1341,7 +1337,7 @@ static function random_equipment_spells(equipment_type: EquipmentType): Array<Ar
                 ])
             ();
         } else if (total_spell_count == 3) {
-            Pick.value([
+            Random.pick_chance([
                 {v: function() {
                     spell_equip_negative_count = 1;
                     spell_equip_count = 1;
@@ -1363,7 +1359,7 @@ static function random_equipment_spells(equipment_type: EquipmentType): Array<Ar
         }
     } else { 
         if (total_spell_count == 1) {
-            Pick.value([
+            Random.pick_chance([
                 {v: function() {
                     spell_equip_count = 1;
                 }, c: 1.0},
@@ -1373,7 +1369,7 @@ static function random_equipment_spells(equipment_type: EquipmentType): Array<Ar
                 ])
             ();
         } else if (total_spell_count == 2) {
-            Pick.value([
+            Random.pick_chance([
                 {v: function() {
                     spell_equip_count = 1;
                     spell_use_count = 1;
@@ -1384,7 +1380,7 @@ static function random_equipment_spells(equipment_type: EquipmentType): Array<Ar
                 ])
             ();
         } else if (total_spell_count == 3) {
-            Pick.value([
+            Random.pick_chance([
                 {v: function() {
                     spell_use_count = 1;
                     spell_equip_count = 2;

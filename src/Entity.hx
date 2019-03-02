@@ -64,6 +64,7 @@ typedef Use = {
     var consumable: Bool;
     var flavor_text: String;
     var need_target: Bool;
+    var draw_charges: Bool;
 }
 
 typedef Equipment = {
@@ -225,6 +226,7 @@ static function copy(e: Int, x: Int, y: Int): Int {
             consumable: e_use.consumable,
             flavor_text: e_use.flavor_text,
             need_target: e_use.need_target,
+            draw_charges: e_use.draw_charges,
         };
     }
     if (combat.exists(e)) {
@@ -337,6 +339,7 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
             consumable: type.use.consumable,
             flavor_text: type.use.flavor_text,
             need_target: type.use.need_target,
+            draw_charges: type.use.draw_charges,
         };
     }
     if (type.combat != null) {

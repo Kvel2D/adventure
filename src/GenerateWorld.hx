@@ -144,7 +144,7 @@ static function fill_rooms_with_entities() {
                     break;
                 }
                 var pos = positions.pop();
-                Pick.value([
+                Random.pick_chance([
                     {v: random_enemy, c: 90.0},
                     {v: Entities.unlocked_chest, c: 12.0},
                     {v: Entities.random_potion, c: 6.0},
@@ -183,7 +183,7 @@ static function fill_rooms_with_entities() {
                 var sell_items = new Array<Int>();
                 sell_items.push(Entities.random_potion(item_positions[0].x, item_positions[0].y, SpellType_ModHealth));
                 for (i in 1...Std.int(Math.min(MERCHANT_ITEM_AMOUNT, item_positions.length))) {
-                    sell_items.push(Pick.value([
+                    sell_items.push(Random.pick_chance([
                         {v: Entities.random_potion, c: 3.0},
                         {v: Entities.random_armor, c: 1.0},
                         {v: Entities.random_scroll, c: 1.0},
@@ -216,7 +216,7 @@ static function fill_rooms_with_entities() {
                     break;
                 }
                 var pos = positions.pop();
-                Pick.value([
+                Random.pick_chance([
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_weapon, c: 0.5},
                     {v: Entities.random_potion, c: 6.0},
@@ -281,7 +281,7 @@ static function fill_rooms_with_entities() {
                     break;
                 }
                 var pos = positions.pop();
-                Pick.value([
+                Random.pick_chance([
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_ring, c: 3.0},
                     {v: Entities.random_weapon, c: 1.0},
@@ -296,7 +296,7 @@ static function fill_rooms_with_entities() {
         if (!spawned_merchant_this_level && spawn_merchant_this_level) {
             merchant_room();
         } else {
-            Pick.value([
+            Random.pick_chance([
                 {v: empty_room, c: 25.0},
                 {v: enemy_room, c: 50.0},
                 {v: item_room, c: if (dead_end) 60.0 else 30.0},
@@ -316,7 +316,7 @@ static function fill_rooms_with_entities() {
     // Add location spells
     for (i in 0...Main.rooms.length) {
         if (Random.chance(ROOM_SPELL_CHANCE)) {
-            var location_spell = Pick.value([
+            var location_spell = Random.pick_chance([
                 {v: Spells.poison_room, c: 1.0},
                 {v: Spells.teleport_room, c: 1.0},
                 ]);
@@ -899,7 +899,7 @@ static function decorate_rooms_with_walls() {
 
     for (r in Main.rooms) {
         if (!r.is_connection) {
-            Pick.value([
+            Random.pick_chance([
                 {v: no_walls, c: 10.0},
                 {v: thin_ring, c: 0.5},
                 {v: fat_ring, c: 1.0},

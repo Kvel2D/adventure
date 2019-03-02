@@ -1,11 +1,8 @@
 ----------------------------------------------------------------------------------
 TODO
 
-beat the game(or at least close) 3 times, test
-
 ----------------------------------------------------------------------------------
 DONE
-
 
 
 ----------------------------------------------------------------------------------
@@ -13,6 +10,8 @@ PROBLEMS
 
 haxegon's old starling version has Uint,Int error in VertexData.set_numVertices()
 openfl release has an error in compress/uncompress for flash (github.com/openfl/starling/issues/117)
+
+fix version not showing
 
 ----------------------------------------------------------------------------------
 IDEAS
@@ -25,7 +24,7 @@ boss mobs
 boss summon rituals
     doing some sequence of actions summons a special boss
     copying a copy scroll spawns copy scroll boss
-    spawning 3 skeletons in same room spawns a necromancer at stairs
+    spawning 3 times on same floor spawns a necromancer at stairs
     killing 2 merchants spawns a merchant boss
 
 improve locked things
@@ -35,8 +34,33 @@ improve locked things
     for doors, just locking a single room with item is the same as a locked chest
     need to figure out how to lock a section of the map and place a key on the side reachable by player
 
-redistribute spells between scrolls and potions
+    put some distance between keys and chests
+        when spawning keys, do a random walk from a chest, following the chain of adjacent rooms
+
+redistribute spells between items and equipment
 
 diversify spells more
-    lots of spell variations are not utilized
+    lots of spell variations aren't in
+
+improve messages for spell effects
+
+add unreachable rooms
+    randomly but with some certainity
+    use for noclip spell, some good stuff should be inside
+
+too many health pots
+
+maybe remove ranged enemies
+    combat with them is too awkward
+
+max health thing NEEDS to be dealt with
+    currently accidentaly swapping between armor with +max health decreases your hp
+
+change copper to always drop as items
+    its more fun to click on item rather than have the counter increment automatically
+
+    modcopper still mod amount or mod chance?
+        i think chance is better because want to see the change
+
+    drop needs to not obstruct the drops of other types
 

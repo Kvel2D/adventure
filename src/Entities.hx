@@ -2,7 +2,6 @@
 import haxegon.*;
 import Entity;
 import Spells;
-import Pick;
 import Stats;
 
 typedef MarkovStruct = {
@@ -297,6 +296,7 @@ static function stairs(x: Int, y: Int): Int {
         consumable: false,
         flavor_text: 'You ascend the stairs.',
         need_target: false,
+        draw_charges: false,
     };
 
     return e;
@@ -317,6 +317,7 @@ static function test_potion(x: Int, y: Int): Int {
         consumable: true,
         flavor_text: '',
         need_target: true,
+        draw_charges: true,
     };
     Entity.draw_tile[e] = Tile.PotionPhysical;
 
@@ -329,17 +330,17 @@ static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
     switch (droptable) {
         // For common mobs chests
         case DropTable_Default: {
-            return (Pick.value([
+            return (Random.pick_chance([
                 {v: Entities.random_weapon, c: 1.0},
                 {v: Entities.random_armor, c: 6.0},
                 {v: Entities.random_potion, c: 3.0},
                 {v: Entities.random_ring, c: 2.0},
-                {v: Entities.coins, c: 2000000.0},
+                {v: Entities.coins, c: 1.0},
                 ])(x, y));
         }
         // For locked chests
         case DropTable_LockedChest: {
-            return (Pick.value([
+            return (Random.pick_chance([
                 {v: Entities.random_weapon, c: 1.0},
                 {v: Entities.random_armor, c: 6.0},
                 {v: Entities.random_ring, c: 1.0},
@@ -354,8 +355,8 @@ static function random_weapon(x: Int, y: Int): Int {
     var e = Entity.make();
     Entity.set_position(e, x, y);
 
-    var tile_index = Math.floor(Math.min(5, level / 2));
-    Entity.draw_tile[e] = Tile.Swords[tile_index];
+    var tile_index = Math.floor(Math.min(Tile.Head.length - 1, level / 2));
+    Entity.draw_tile[e] = Tile.Sword[tile_index];
 
     Entity.name[e] = 'Sword';
 
@@ -378,6 +379,7 @@ static function random_weapon(x: Int, y: Int): Int {
             consumable: false,
             flavor_text: 'You use weapon\'s spell.',
             need_target: false,
+        draw_charges: true,
         };
     }
 
@@ -404,11 +406,11 @@ static function random_armor(x: Int, y: Int): Int {
         case EquipmentType_Legs: 'Pants';
         case EquipmentType_Weapon: 'invalid';
     }
-    var tile_index = Math.floor(Math.min(5, level / 2));
+    var tile_index = Math.floor(Math.min(Tile.Head.length - 1, level / 2));
     Entity.draw_tile[e] = switch (armor_type) {
-        case EquipmentType_Head: Tile.Heads[tile_index];
-        case EquipmentType_Chest: Tile.Chests[tile_index];
-        case EquipmentType_Legs: Tile.Legss[tile_index];
+        case EquipmentType_Head: Tile.Head[tile_index];
+        case EquipmentType_Chest: Tile.Chest[tile_index];
+        case EquipmentType_Legs: Tile.Legs[tile_index];
         case EquipmentType_Weapon: Tile.None;
     }
 
@@ -431,6 +433,7 @@ static function random_armor(x: Int, y: Int): Int {
             consumable: false,
             flavor_text: 'You use armor\'s spell.',
             need_target: false,
+        draw_charges: true,
         };
     }
 
@@ -485,6 +488,7 @@ static function random_potion(x: Int, y: Int, force_spell: SpellType = null): In
         consumable: true,
         flavor_text: 'You chug the potion.',
         need_target: false,
+        draw_charges: true,
     };
 
     // TODO: diversify potion icons based on potion spell
@@ -516,6 +520,7 @@ static function random_scroll(x: Int, y: Int): Int {
         flavor_text: 'You read the scroll aloud.',
         // NOTE: incorrect if there are multiple spells and one of them needs a target, though I can't think of an item like that yet
         need_target: Spells.need_target(spell.type),
+        draw_charges: true,
     };
 
     // TODO: diversify scroll icons based on scroll spell
@@ -535,7 +540,7 @@ static function random_enemy_type(): EntityType {
         2;
     } else {
         // NOTE: Ranges are sums of squares, this means that each range covers a square area, 1^2 + 1^2 = 2, 2^2 + 2^2 = 8, 3^2 + 3^2 = 18
-        Pick.value([
+        Random.pick_chance([
             {v: 2, c: 8.0},
             {v: 8, c: 2.0},
             {v: 18, c: 1.0},
@@ -554,7 +559,7 @@ static function random_enemy_type(): EntityType {
     if (attack == 0) {
         attack = 1;
     }
-    var health = Stats.get({min: 4, max: 5, scaling: 1.0}, level); 
+    var health = Stats.get({min: 4 * range_factor, max: 5 * range_factor, scaling: 1.0}, level); 
 
     // Make first floor easy
     if (Main.current_floor == 0) {
@@ -562,7 +567,7 @@ static function random_enemy_type(): EntityType {
         health  = Math.round(health / 2);
     }
 
-    var aggression_type = Pick.value([
+    var aggression_type = Random.pick_chance([
         {v: AggressionType_Aggressive, c: 1.0},
         {v: AggressionType_NeutralToAggressive, c: 0.1},
         {v: AggressionType_Neutral, c: (0.1 / (1 + level))},
@@ -573,7 +578,7 @@ static function random_enemy_type(): EntityType {
         null;
     } else if (aggression_type == AggressionType_Aggressive) {
         {
-            type: Pick.value([
+            type: Random.pick_chance([
                 {v: MoveType_Astar, c: 1.0},
                 {v: MoveType_Straight, c: 1.0},
                 {v: MoveType_StayAway, c: 0.25},
@@ -586,7 +591,7 @@ static function random_enemy_type(): EntityType {
         }
     } else {
         {
-            type: Pick.value([
+            type: Random.pick_chance([
                 {v: MoveType_StayAway, c: 0.25},
                 {v: MoveType_Random, c: (1.0 / (1 + level))},
                 ]),
@@ -681,6 +686,7 @@ static function random_statue(x: Int, y: Int): Int {
             case StatueGod_Enohik: 'You feel Enohik\'s chill run through your bones.';
         },
         need_target: false,
+        draw_charges: true,
     };
 
     Entity.draw_tile[e] = switch (statue_god) {
@@ -849,6 +855,7 @@ static function coins(x: Int, y: Int): Int {
         consumable: true,
         flavor_text: 'You pick up the coins.',
         need_target: false,
+        draw_charges: false,
     };
 
     Entity.validate(e);
