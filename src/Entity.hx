@@ -72,11 +72,6 @@ typedef Equipment = {
     var spells: Array<Spell>;
 }
 
-typedef GiveCopper = {
-    var min: Int;
-    var max: Int;
-}
-
 typedef Item = {
     var type: ItemType;
     var spells: Array<Spell>;
@@ -88,8 +83,7 @@ typedef Position = {
 }
 
 typedef DropEntity = {
-    var table: DropTable;
-    var chance: Int;
+    var drop_func: Int->Int->Int; 
 }
 
 typedef DrawChar = {
@@ -134,7 +128,6 @@ typedef EntityType = {
     var combat: Combat;
     var drop_entity: DropEntity;
     var talk: String;
-    var give_copper_on_death: GiveCopper;
     var move: Move;
     var locked: Locked;
     var unlocker: Unlocker;
@@ -168,7 +161,6 @@ static var use = new Map<Int, Use>();
 static var combat = new Map<Int, Combat>();
 static var drop_entity = new Map<Int, DropEntity>();
 static var talk = new Map<Int, String>();
-static var give_copper_on_death = new Map<Int, GiveCopper>();
 static var move = new Map<Int, Move>();
 static var locked = new Map<Int, Locked>();
 static var unlocker = new Map<Int, Unlocker>();
@@ -245,19 +237,11 @@ static function copy(e: Int, x: Int, y: Int): Int {
     if (drop_entity.exists(e)) {
         var e_drop_entity = drop_entity[e];
         drop_entity[copy] = {
-            table: e_drop_entity.table,
-            chance: e_drop_entity.chance,
+            drop_func: e_drop_entity.drop_func,
         };
     }
     if (talk.exists(e)) {
         talk[copy] = talk[e];
-    }
-    if (give_copper_on_death.exists(e)) {
-        var e_give_copper_on_death = give_copper_on_death[e];
-        give_copper_on_death[copy] = {
-            min: e_give_copper_on_death.min,
-            max: e_give_copper_on_death.max,
-        };
     }
     if (move.exists(e)) {
         var e_move = move[e];
@@ -356,18 +340,11 @@ static function make_type(x: Int, y: Int, type: EntityType): Int {
     }
     if (type.drop_entity != null) {
         drop_entity[e] = {
-            table: type.drop_entity.table,
-            chance: type.drop_entity.chance,
+            drop_func: type.drop_entity.drop_func,
         };
     }
     if (type.talk != NULL_STRING) {
         talk[e] = type.talk;
-    }
-    if (type.give_copper_on_death != null) {
-        give_copper_on_death[e] = {
-            min: type.give_copper_on_death.min,
-            max: type.give_copper_on_death.max,
-        };
     }
     if (type.move != null) {
         move[e] = {
@@ -420,7 +397,6 @@ static function remove(e: Int) {
     combat.remove(e);
     drop_entity.remove(e);
     talk.remove(e);
-    give_copper_on_death.remove(e);
     move.remove(e);
     locked.remove(e);
     unlocker.remove(e);
@@ -442,7 +418,6 @@ static function print(e: Int) {
     trace('combat=${combat[e]}');
     trace('drop_entity=${drop_entity[e]}');
     trace('talk=${talk[e]}');
-    trace('give_copper_on_death=${give_copper_on_death[e]}');
     trace('move=${move[e]}');
     trace('locked=${locked[e]}');
     trace('unlocker=${unlocker[e]}');

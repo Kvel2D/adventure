@@ -1,11 +1,19 @@
-----------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 TODO
 
-----------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 DONE
 
+remove drop_copper
+change all copper drops to items that get picked up
+change DropEntity component to use a member function instead of a drop table enum
+change mod copper drop spell back to modifying the chance of drop, not the amount
+change use charges to pick the lowest charges when there are multiple use spells on same item
+spawn keys and chests far apart
+remove walls at stairs location
+make half of the keys be dropped by enemies
 
-----------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 PROBLEMS
 
 haxegon's old starling version has Uint,Int error in VertexData.set_numVertices()
@@ -13,7 +21,7 @@ openfl release has an error in compress/uncompress for flash (github.com/openfl/
 
 fix version not showing
 
-----------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 IDEAS
 
 boss mobs
@@ -28,14 +36,8 @@ boss summon rituals
     killing 2 merchants spawns a merchant boss
 
 improve locked things
-    for chests, keys could drop be inserted into a mob's droptable
-        DropKey component that guarantees a drop of key
-
     for doors, just locking a single room with item is the same as a locked chest
-    need to figure out how to lock a section of the map and place a key on the side reachable by player
-
-    put some distance between keys and chests
-        when spawning keys, do a random walk from a chest, following the chain of adjacent rooms
+        need to figure out how to lock a section of the map and place a key on the side reachable by player
 
 redistribute spells between items and equipment
 
@@ -44,23 +46,28 @@ diversify spells more
 
 improve messages for spell effects
 
-add unreachable rooms
-    randomly but with some certainity
-    use for noclip spell, some good stuff should be inside
-
-too many health pots
-
 maybe remove ranged enemies
     combat with them is too awkward
 
 max health thing NEEDS to be dealt with
     currently accidentaly swapping between armor with +max health decreases your hp
 
-change copper to always drop as items
-    its more fun to click on item rather than have the counter increment automatically
+some spell weight system is definitely needed, especially for constant buffs
+    something like a function which returns the equivalent weapon damage for a spell type + spell value
+        so a Chain Spell EveryAttack value=1 could be equivalent to 1.5 weapon damage
+    then subtract combined spell weights from actual weapon damage and round or ceil
 
-    modcopper still mod amount or mod chance?
-        i think chance is better because want to see the change
+    so that if a weapon at some level X usually has 5 damage and it gets a chain spell, now it's damage is 4
 
-    drop needs to not obstruct the drops of other types
+    not sure how to adjust for stuff like summon spells, but they could be just a small number like 0.1-0.3 so that in combination with many other spells they decrease damage
+
+    same thing is possible for negative spells so that now this stuff can be less hard-coded
+        start with no damage and some damage "budget", do a random amount of positives which consumes some of the budget, then do a random amount of negatives which increases the budget back up, finally translate what's left into damage
+
+        negatives shouldn't happen all the time of course   
+            make some chance value for them occuring at all
+
+    ok that some spells are not factored into this
+        stuff like teleports or other more utility spell types can just be 0 weight
+
 

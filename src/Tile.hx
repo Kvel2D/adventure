@@ -23,7 +23,7 @@ class Tile {
     static var Legs = [for (i in 0...5) at(i, 4)];
     static var Sword = [for (i in 0...5) at(i, 5)];
 
-    static inline var Coins = at(4, 8);
+    static inline var Copper = at(4, 8);
 
     static inline var PotionPhysical = at(0, 1);
     static inline var PotionShadow = at(1, 1);

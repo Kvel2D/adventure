@@ -214,8 +214,15 @@ static function unlocked_chest(x: Int, y: Int): Int {
         need_key: false,
     };
     Entity.drop_entity[e] = {
-        table: DropTable_Default,
-        chance: 100,
+        drop_func: function(x, y) {
+            return (Random.pick_chance([
+                {v: Entities.random_weapon, c: 1.0},
+                {v: Entities.random_armor, c: 6.0},
+                {v: Entities.random_potion, c: 3.0},
+                {v: Entities.random_ring, c: 2.0},
+                ])
+            (x, y));
+        }
     };
     Entity.draw_on_minimap[e] = {
         color: color,
@@ -242,8 +249,14 @@ static function locked_chest(x: Int, y: Int): Int {
         need_key: true,
     };
     Entity.drop_entity[e] = {
-        table: DropTable_LockedChest,
-        chance: 100,
+        drop_func: function(x, y) {
+            return (Random.pick_chance([
+                {v: Entities.random_weapon, c: 1.0},
+                {v: Entities.random_armor, c: 6.0},
+                {v: Entities.random_ring, c: 1.0},
+                ])
+            (x, y));
+        }
     };
     Entity.draw_on_minimap[e] = {
         color: color,
@@ -326,29 +339,6 @@ static function test_potion(x: Int, y: Int): Int {
     return e;
 }
 
-static function entity_from_table(x: Int, y: Int, droptable: DropTable): Int {
-    switch (droptable) {
-        // For common mobs chests
-        case DropTable_Default: {
-            return (Random.pick_chance([
-                {v: Entities.random_weapon, c: 1.0},
-                {v: Entities.random_armor, c: 6.0},
-                {v: Entities.random_potion, c: 3.0},
-                {v: Entities.random_ring, c: 2.0},
-                {v: Entities.coins, c: 1.0},
-                ])(x, y));
-        }
-        // For locked chests
-        case DropTable_LockedChest: {
-            return (Random.pick_chance([
-                {v: Entities.random_weapon, c: 1.0},
-                {v: Entities.random_armor, c: 6.0},
-                {v: Entities.random_ring, c: 1.0},
-                ])(x, y));
-        }
-    };
-}
-
 static function random_weapon(x: Int, y: Int): Int {
     var level = Main.get_drop_entity_level();
     
@@ -370,16 +360,13 @@ static function random_weapon(x: Int, y: Int): Int {
     equip_spells.push(Spells.attack_buff(attack_buff_value));
 
     if (use_spells.length > 0) {
-        // NOTE: charge amount currently only depends on first use spell type, because only one use spell is allowed
-        var use_charges = Spells.get_equipment_spell_use_charges(use_spells[0]);
-
         Entity.use[e] = {
             spells: use_spells,
-            charges: use_charges,
+            charges: Spells.get_spells_min_use_charges(use_spells),
             consumable: false,
             flavor_text: 'You use weapon\'s spell.',
             need_target: false,
-        draw_charges: true,
+            draw_charges: true,
         };
     }
 
@@ -406,7 +393,7 @@ static function random_armor(x: Int, y: Int): Int {
         case EquipmentType_Legs: 'Pants';
         case EquipmentType_Weapon: 'invalid';
     }
-    var tile_index = Math.floor(Math.min(Tile.Head.length - 1, level / 2));
+    var tile_index = Math.floor(Math.min(Tile.Head.length - 1, level));
     Entity.draw_tile[e] = switch (armor_type) {
         case EquipmentType_Head: Tile.Head[tile_index];
         case EquipmentType_Chest: Tile.Chest[tile_index];
@@ -424,16 +411,13 @@ static function random_armor(x: Int, y: Int): Int {
     equip_spells.push(Spells.defense_buff(defense_total));
 
     if (use_spells.length > 0) {
-        // NOTE: charge amount currently only depends on first use spell type, because only one use spell is allowed
-        var use_charges = Spells.get_equipment_spell_use_charges(use_spells[0]);
-
         Entity.use[e] = {
             spells: use_spells,
-            charges: use_charges,
+            charges: Spells.get_spells_min_use_charges(use_spells),
             consumable: false,
             flavor_text: 'You use armor\'s spell.',
             need_target: false,
-        draw_charges: true,
+            draw_charges: true,
         };
     }
 
@@ -635,14 +619,23 @@ static function random_enemy_type(): EntityType {
         },
         // TODO: think about what droprate is good and whether to vary percentages by mob
         drop_entity: {
-            table: DropTable_Default, 
-            chance: 25,
+            drop_func: function(x, y) {
+                if (Random.chance(25 + Player.dropchance_mod)) {
+                    return Random.pick_chance([
+                        {v: Entities.random_weapon, c: 1.0},
+                        {v: Entities.random_armor, c: 6.0},
+                        {v: Entities.random_potion, c: 3.0},
+                        {v: Entities.random_ring, c: 2.0},
+                        ])
+                    (x, y);
+                } else if (Random.chance(40 + Player.copper_drop_mod)) {
+                    return Entities.copper(x, y);
+                } else {
+                    return Entity.NONE;
+                }
+            },
         },
         talk: Entity.NULL_STRING,
-        give_copper_on_death: {
-            min: Stats.get({min: 1, max: 1, scaling: 0.25}, level), 
-            max: Stats.get({min: 2, max: 2, scaling: 0.25}, level),
-        },
         move: move,
         locked: null,
         unlocker: null,
@@ -840,20 +833,20 @@ static function imp(x: Int, y: Int): Int {
     return e;
 }
 
-static function coins(x: Int, y: Int): Int {
+static function copper(x: Int, y: Int): Int {
     var e = Entity.make();
 
     var level = Main.current_level;
 
     Entity.set_position(e, x, y);
-    Entity.name[e] = 'Coins';
-    Entity.description[e] = 'A bunch of copper coins';
-    Entity.draw_tile[e] = Tile.Coins;
+    Entity.name[e] = 'Copper';
+    Entity.description[e] = 'A bunch of copper pieces';
+    Entity.draw_tile[e] = Tile.Copper;
     Entity.use[e] = {
         spells: [Spells.mod_copper(Stats.get({min: 1, max: 2, scaling: 1.0}, level))],
         charges: 1,
         consumable: true,
-        flavor_text: 'You pick up the coins.',
+        flavor_text: 'You pick up the copper.',
         need_target: false,
         draw_charges: false,
     };

@@ -312,6 +312,10 @@ function generate_level() {
         stairs_x = r.x + Math.floor(r.width / 2);
         stairs_y = r.y + Math.floor(r.height / 2);
         Entities.stairs(stairs_x, stairs_y);
+
+        // NOTE: we check for path from stairs to player but stairs can still spawn in walls(decoration in center of room) if it's at the edge, so just remove wall at stair location
+        walls[stairs_x][stairs_y] = false;
+        tiles[stairs_x][stairs_y] = current_ground_tile;
     } while (Path.astar_map(Player.x, Player.y, stairs_x, stairs_y).length == 0);
 
     GenerateWorld.fill_rooms_with_entities();
@@ -476,16 +480,10 @@ function drop_entity_from_entity(e: Int) {
     var drop_entity = Entity.drop_entity[e];
     var pos = Entity.position[e];
 
-    var chance = drop_entity.chance + Player.dropchance_mod;
-    if (chance < 0) {
-        chance = 0;
-    } else if (chance > 100) {
-        chance = 100;
-    }
+    Entity.remove_position(e);
 
-    if (Random.chance(chance)) {
-        Entity.remove_position(e);
-        var drop = Entities.entity_from_table(pos.x, pos.y, drop_entity.table);
+    var drop = drop_entity.drop_func(pos.x, pos.y);
+    if (drop != Entity.NONE) {
         var drop_name = if (Entity.name.exists(drop)) {
             Entity.name[drop];
         } else {
@@ -1121,17 +1119,6 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
 
     if (combat.health <= 0) {
         add_message('You slay $target_name.');
-
-        // Some entities drop copper
-        if (Entity.give_copper_on_death.exists(e)) {
-            var give_copper = Entity.give_copper_on_death[e];
-
-            var drop_amount = Math.round(Random.int(give_copper.min, give_copper.max) * (1.0 + (Player.copper_drop_mod / 100.0)));
-            if (drop_amount > 0) {
-                Player.copper_count += drop_amount;
-                add_message('$target_name drops $drop_amount copper.');
-            }
-        }
     }
 
     if (combat.health <= 0) {

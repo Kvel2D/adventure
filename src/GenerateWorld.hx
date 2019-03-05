@@ -57,18 +57,7 @@ static inline var ROOM_SPELL_SPREADS_TO_NEIGHBORS_CHANCE = 50;
 static inline var ENEMY_TYPES_PER_LEVEL_MIN = 2;
 static inline var ENEMY_TYPES_PER_LEVEL_MAX = 5;
 
-public static function shuffle<T>(array: Array<T>): Array<T> {
-    if (array != null) {
-        for (i in 0...array.length) {
-            var j = Random.int(0, array.length - 1);
-            var a = array[i];
-            var b = array[j];
-            array[i] = b;
-            array[j] = a;
-        }
-    }
-    return array;
-}
+static inline var KEY_ON_ENEMY_CHANCE = 50;
 
 static function room_free_positions_shuffled(r: Room): Array<Vec2i> {
     // Exclude positions next to walls to avoid creating impassable cells
@@ -84,7 +73,7 @@ static function room_free_positions_shuffled(r: Room): Array<Vec2i> {
             }
         }
     }
-    shuffle(positions);
+    Random.shuffle(positions);
     return positions;
 }
 
@@ -345,20 +334,66 @@ static function fill_rooms_with_entities() {
     var stairs_room = Main.get_room_index(Main.stairs_x, Main.stairs_y);
     room_is_empty[stairs_room] = false;
 
-    // Spawn matching keys for each locked entity, duplicates possible, keys in same room as locked entity also possible, avoid spawning in connection rooms
-    // NOTE: don't spawn keys in locked rooms, could spawn a key for the door itself behind it
+    // Create matching keys for each locked entity
+    // Either insert into a random enemy's droptable or spawn on map 
+    var enemies_that_can_hold_keys = Main.entities_with(Entity.combat);
+    Random.shuffle(enemies_that_can_hold_keys);
     for (e in Entity.locked.keys()) {
         var locked = Entity.locked[e];
+        var locked_pos = Entity.position[e];
+
         if (locked.need_key) {
-            var r_i = Main.random_good_room();
-            var r = Main.rooms[r_i];
+            var key_done = false;
 
-            room_is_empty[r_i] = false;
-            
-            var positions = room_free_ODD_positions_shuffled(r);
+            // Give key to a random enemy(replaces current drop)
+            if (Random.chance(KEY_ON_ENEMY_CHANCE)) {
+                while (enemies_that_can_hold_keys.length > 0) {
+                    var random_enemy = enemies_that_can_hold_keys.pop();
 
-            var pos = positions.pop();
-            Entities.key(pos.x, pos.y, locked.color);
+                    // Don't give the key to the merchant
+                    if (Entity.name.exists(e) && Entity.name[e] == 'Merchant') {
+                        continue;
+                    }
+
+                    Entity.drop_entity[random_enemy] = {
+                        drop_func: function(x, y) {
+                            return Entities.key(x, y, locked.color);
+                        }
+                    };
+
+                    key_done = true;
+
+                    break;
+                }
+            }
+
+            // Put the key on the map otherwise
+            // Pick a random position in a random non-connection room that's far from locked entity
+            if (!key_done) {
+                var furthest_r_i = -1;
+                var furthest_pos = {x: -1, y: -1};
+                var furthest_dst: Float = -1;
+
+                for (i in 0...10) {
+                    var r_i = Main.random_good_room();
+                    var r = Main.rooms[r_i];
+                    var positions = room_free_ODD_positions_shuffled(r);
+                    var pos = positions.pop();
+
+                    var dst = Math.dst(locked_pos.x, locked_pos.y, pos.x, pos.y);
+
+                    if (dst > furthest_dst) {
+                        furthest_r_i = r_i;
+                        furthest_pos = pos;
+                        furthest_dst = dst;
+                    }
+                }
+
+                if (furthest_r_i != -1) {
+                    room_is_empty[furthest_r_i] = false;
+                    Entities.key(furthest_pos.x, furthest_pos.y, locked.color);
+                }
+            }
         }
     }
 

@@ -147,7 +147,7 @@ static function get_description(spell: Spell): String {
         case SpellType_ModDefense: '$sign${spell.value} defense';
         case SpellType_ModMoveSpeed: '$sign${spell.value} move speed';
         case SpellType_ModDropChance: '$sign${spell.value}% item drop chance';
-        case SpellType_ModCopperDrop: '$sign${spell.value}% copper drop';
+        case SpellType_ModCopperDrop: '$sign${spell.value}% copper drop chance';
 
         case SpellType_ModLevelHealth: '$sign${spell.value} health to all enemies on the level';
         case SpellType_ModLevelAttack: '$sign${spell.value} attack to all enemies on the level';
@@ -1222,6 +1222,17 @@ static function get_equipment_spell_use_charges(s: Spell): Int {
         case SpellType_SafeTeleport: 1;
         default: 100;
     }
+}
+
+static function get_spells_min_use_charges(spells: Array<Spell>) {
+    var charges_min = 1000;
+    for (spell in spells) {
+        var charges = get_equipment_spell_use_charges(spell);
+        if (charges < charges_min) {
+            charges_min = charges;
+        }
+    }
+    return charges_min;
 }
 
 static function random_equipment_spell_use(equipment_type: EquipmentType): Spell {
