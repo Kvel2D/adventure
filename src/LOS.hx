@@ -1,7 +1,7 @@
 
 import haxegon.*;
 
-using MathExtensions;
+using haxegon.MathExtensions;
 
 @:publicFields
 class LOS {

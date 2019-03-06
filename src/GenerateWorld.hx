@@ -3,7 +3,7 @@ import haxegon.*;
 import Entity;
 import Entities;
 
-using MathExtensions;
+using haxegon.MathExtensions;
 
 typedef PreRoom = {
     x: Float,
@@ -101,7 +101,7 @@ static function fill_rooms_with_entities() {
     var enemy_types = [for (i in 0...enemy_types_per_level) Entities.random_enemy_type()];
 
     function random_enemy(x: Int, y: Int): Int {
-        return Entity.make_type(x, y, Random.pick(enemy_types));
+        return Random.pick(enemy_types)(x, y);
     }
 
     var spawned_merchant_this_level = false;
@@ -185,9 +185,7 @@ static function fill_rooms_with_entities() {
 
                 // Add cost to items
                 for (e in sell_items) {
-                    Entity.buy[e] = {
-                        cost: Stats.get({min: 5, max: 10, scaling: 2.0}, Main.current_level),
-                    };
+                    Entity.cost[e] = Stats.get({min: 5, max: 10, scaling: 2.0}, Main.current_level);
                 }
                 // For Use entities, increase charges to make them more valuable
                 for (e in sell_items) {
@@ -351,7 +349,7 @@ static function fill_rooms_with_entities() {
                     var random_enemy = enemies_that_can_hold_keys.pop();
 
                     // Don't give the key to the merchant
-                    if (Entity.name.exists(e) && Entity.name[e] == 'Merchant') {
+                    if (Entity.name.exists(e) && Entity.merchant.exists(e)) {
                         continue;
                     }
 

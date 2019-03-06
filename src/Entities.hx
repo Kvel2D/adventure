@@ -170,7 +170,6 @@ static function key(x: Int, y: Int, color: Int): Int {
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Key';
     Entity.item[e] = {
-        type: ItemType_Normal,
         spells: [],
     };
     Entity.draw_tile[e] = if (color == Col.RED) {
@@ -321,7 +320,6 @@ static function test_potion(x: Int, y: Int): Int {
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Potion';
     Entity.item[e] = {
-        type: ItemType_Normal,
         spells: [],
     };
     Entity.use[e] = {
@@ -439,9 +437,9 @@ static function random_ring(x: Int, y: Int): Int {
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Ring';
     Entity.item[e] = {
-        type: ItemType_Ring,
         spells: [Spells.random_ring_spell(level)],
     };
+    Entity.ring[e] = true;
     Entity.draw_char[e] = {
         char: 'R',
         color: Col.YELLOW
@@ -460,7 +458,6 @@ static function random_potion(x: Int, y: Int, force_spell: SpellType = null): In
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Potion';
     Entity.item[e] = {
-        type: ItemType_Normal,
         spells: [],
     };
     var spell_and_tile = Spells.random_potion_spell_and_tile(level, force_spell);
@@ -491,7 +488,6 @@ static function random_scroll(x: Int, y: Int): Int {
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Scroll';
     Entity.item[e] = {
-        type: ItemType_Normal,
         spells: [],
     };
     var spell_and_tile = Spells.random_scroll_spell_and_tile(level);
@@ -515,7 +511,7 @@ static function random_scroll(x: Int, y: Int): Int {
     return e;
 }
 
-static function random_enemy_type(): EntityType {
+static function random_enemy_type(): Int->Int->Int {
     var name = generate_name();
 
     var level = Main.current_level;
@@ -596,18 +592,18 @@ static function random_enemy_type(): EntityType {
     // TODO: diversify enemy colors
     var color = Col.GRAY;
 
-    return {
-        name: name,
-        description: 'It\'s a $name.',
-        draw_tile: Entity.NULL_INT,
-        draw_char: {
+    return function (x, y) {
+        var e = Entity.make();
+
+        Entity.set_position(e, x, y);
+
+        Entity.name[e] = name;
+        Entity.description[e] = 'It\'s a $name.';
+        Entity.draw_char[e] = {
             char: name.charAt(0),
             color: color,
-        },
-        equipment: null,
-        item: null,
-        use: null,
-        combat: {
+        };
+        Entity.combat[e] = {
             health: health, 
             health_max: health, 
             attack: attack, 
@@ -616,9 +612,8 @@ static function random_enemy_type(): EntityType {
             attacked_by_player: false,
             range_squared: range,
             target: CombatTarget_FriendlyThenPlayer
-        },
-        // TODO: think about what droprate is good and whether to vary percentages by mob
-        drop_entity: {
+        };
+        Entity.drop_entity[e] = {
             drop_func: function(x, y) {
                 if (Random.chance(25 + Player.dropchance_mod)) {
                     return Random.pick_chance([
@@ -634,13 +629,19 @@ static function random_enemy_type(): EntityType {
                     return Entity.NONE;
                 }
             },
-        },
-        talk: Entity.NULL_STRING,
-        move: move,
-        locked: null,
-        unlocker: null,
-        draw_on_minimap: null,
-        buy: null,
+        };
+
+        if (move != null) {
+            Entity.move[e] = {
+                type: move.type,
+                cant_move: move.cant_move,
+                successive_moves: move.successive_moves,
+                chase_dst: move.chase_dst,
+                target: move.target,
+            };
+        }
+
+        return e;
     };
 } 
 
@@ -723,6 +724,7 @@ static function merchant(x: Int, y: Int): Int {
         color: Col.PINK,
         seen: false,
     };
+    Entity.merchant[e] = true;
 
     Entity.validate(e);
 

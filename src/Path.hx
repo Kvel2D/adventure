@@ -2,7 +2,7 @@
 import haxegon.*;
 import GenerateWorld;
 
-using MathExtensions;
+using haxegon.MathExtensions;
 
 @:publicFields
 class Path {

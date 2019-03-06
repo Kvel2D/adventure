@@ -2,18 +2,13 @@
 import haxegon.*;
 import Spells;
 
-using MathExtensions;
+using haxegon.MathExtensions;
 
 enum EquipmentType {
     EquipmentType_Weapon;
     EquipmentType_Head;
     EquipmentType_Chest;
     EquipmentType_Legs;
-}
-
-enum ItemType {
-    ItemType_Normal;
-    ItemType_Ring;
 }
 
 enum AggressionType {
@@ -73,7 +68,6 @@ typedef Equipment = {
 }
 
 typedef Item = {
-    var type: ItemType;
     var spells: Array<Spell>;
 }
 
@@ -113,28 +107,6 @@ typedef DrawOnMinimap = {
     var seen: Bool;
 }
 
-typedef Buy = {
-    var cost: Int;
-}
-
-typedef EntityType = {
-    var name: String;
-    var description: String;
-    var draw_tile: Int;
-    var draw_char: DrawChar;
-    var equipment: Equipment;
-    var item: Item;
-    var use: Use;
-    var combat: Combat;
-    var drop_entity: DropEntity;
-    var talk: String;
-    var move: Move;
-    var locked: Locked;
-    var unlocker: Unlocker;
-    var draw_on_minimap: DrawOnMinimap;
-    var buy: Buy;
-}
-
 @:publicFields
 class Entity {
 // force unindent
@@ -146,13 +118,11 @@ static var id_max: Int = 0;
 static inline var NONE = -1;
 static inline var DURATION_INFINITE = -1;
 static inline var DURATION_LEVEL = -2;
-static inline var NULL_INT = -1;
-static inline var NULL_STRING = 'null';
-
 
 static var position = new Map<Int, Position>();
 static var name = new Map<Int, String>();
 static var description = new Map<Int, String>();
+static var talk = new Map<Int, String>();
 static var draw_tile = new Map<Int, Int>();
 static var draw_char = new Map<Int, DrawChar>();
 static var equipment = new Map<Int, Equipment>();
@@ -160,12 +130,13 @@ static var item = new Map<Int, Item>();
 static var use = new Map<Int, Use>();
 static var combat = new Map<Int, Combat>();
 static var drop_entity = new Map<Int, DropEntity>();
-static var talk = new Map<Int, String>();
 static var move = new Map<Int, Move>();
 static var locked = new Map<Int, Locked>();
 static var unlocker = new Map<Int, Unlocker>();
 static var draw_on_minimap = new Map<Int, DrawOnMinimap>();
-static var buy = new Map<Int, Buy>();
+static var cost = new Map<Int, Int>();
+static var ring = new Map<Int, Bool>();
+static var merchant = new Map<Int, Bool>();
 
 static function make(): Int {
     var e = id_max;
@@ -206,7 +177,6 @@ static function copy(e: Int, x: Int, y: Int): Int {
     if (item.exists(e)) {
         var e_item = item[e];
         item[copy] = {
-            type: e_item.type,
             spells: [for (spell in e_item.spells) Spells.copy(spell)],
         };
     }
@@ -273,114 +243,19 @@ static function copy(e: Int, x: Int, y: Int): Int {
             seen: e_draw_on_minimap.seen,
         };
     }
-    if (buy.exists(e)) {
-        var e_buy = buy[e];
-        buy[copy] = {
-            cost: e_buy.cost,
-        };
+    if (cost.exists(e)) {
+        cost[copy] = cost[e];
+    }
+    if (ring.exists(e)) {
+        ring[copy] = ring[e];
+    }
+    if (merchant.exists(e)) {
+        merchant[copy] = merchant[e];
     }
 
     validate(copy);
 
     return copy;
-}
-
-static function make_type(x: Int, y: Int, type: EntityType): Int {
-    var e = make();
-
-    set_position(e, x, y);
-    if (type.name != NULL_STRING) {
-        name[e] = type.name;
-    }
-    if (type.description != NULL_STRING) {
-        description[e] = type.description;
-    }
-    if (type.draw_tile != NULL_INT) {
-        draw_tile[e] = type.draw_tile;
-    }
-    if (type.draw_char != null) {
-        draw_char[e] = {
-            char: type.draw_char.char,
-            color: type.draw_char.color,
-        };
-    }
-    if (type.equipment != null) {
-        equipment[e] = {
-            type: type.equipment.type,
-            spells: [for (spell in type.equipment.spells) Spells.copy(spell)],
-        };
-    }
-    if (type.item != null) {
-        item[e] = {
-            type: type.item.type,
-            spells: [for (spell in type.item.spells) Spells.copy(spell)],
-        };
-    }
-    if (type.use != null) {
-        use[e] = {
-            spells: [for (spell in type.use.spells) Spells.copy(spell)],
-            charges: type.use.charges,
-            consumable: type.use.consumable,
-            flavor_text: type.use.flavor_text,
-            need_target: type.use.need_target,
-            draw_charges: type.use.draw_charges,
-        };
-    }
-    if (type.combat != null) {
-        combat[e] = {
-            health: type.combat.health,
-            health_max: type.combat.health_max,
-            attack: type.combat.attack,
-            message: type.combat.message,
-            aggression: type.combat.aggression,
-            attacked_by_player: type.combat.attacked_by_player,
-            range_squared: type.combat.range_squared,
-            target: type.combat.target,
-        };
-    }
-    if (type.drop_entity != null) {
-        drop_entity[e] = {
-            drop_func: type.drop_entity.drop_func,
-        };
-    }
-    if (type.talk != NULL_STRING) {
-        talk[e] = type.talk;
-    }
-    if (type.move != null) {
-        move[e] = {
-            type: type.move.type,
-            cant_move: type.move.cant_move,
-            successive_moves: type.move.successive_moves,
-            chase_dst: type.move.chase_dst,
-            target: type.move.target,
-        };
-    }
-    if (type.locked != null) {
-        locked[e] = {
-            color: type.locked.color,
-            need_key: type.locked.need_key,
-        };
-    }
-    if (type.unlocker != null) {
-        unlocker[e] = {
-            color: type.unlocker.color,
-        };
-    }
-    if (type.draw_on_minimap != null) {
-        draw_on_minimap[e] = {
-            color: type.draw_on_minimap.color,
-            seen: type.draw_on_minimap.seen,
-        };
-    }
-    if (type.buy != null) {
-        buy[e] = {
-            cost: type.buy.cost,
-        };
-    }
-
-    validate(e);
-
-    return e;
 }
 
 static function remove(e: Int) {
@@ -401,7 +276,9 @@ static function remove(e: Int) {
     locked.remove(e);
     unlocker.remove(e);
     draw_on_minimap.remove(e);
-    buy.remove(e);
+    cost.remove(e);
+    ring.remove(e);
+    merchant.remove(e);
 }
 
 static function print(e: Int) {
@@ -422,7 +299,9 @@ static function print(e: Int) {
     trace('locked=${locked[e]}');
     trace('unlocker=${unlocker[e]}');
     trace('draw_on_minimap=${draw_on_minimap[e]}');
-    trace('buy=${buy[e]}');
+    trace('cost=${cost[e]}');
+    trace('ring=${ring[e]}');
+    trace('merchant=${merchant[e]}');
 }
 
 static function validate(e: Int) {
@@ -448,7 +327,7 @@ static function validate(e: Int) {
         trace('Missing dependency: DrawOnMinimap needs Position.');
         error = true;
     }
-    if (buy.exists(e) && !(item.exists(e) || equipment.exists(e))) {
+    if (cost.exists(e) && !(item.exists(e) || equipment.exists(e))) {
         trace('Missing dependency: Buy needs Item or Equipment.');
         error = true;
     }

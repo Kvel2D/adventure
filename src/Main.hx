@@ -5,10 +5,9 @@ import Entity;
 import Spells;
 import Entities;
 import GenerateWorld;
-import GUI;
 import Path;
 
-using MathExtensions;
+using haxegon.MathExtensions;
 using Lambda;
 
 typedef DamageNumber = {
@@ -463,12 +462,12 @@ static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, free_map
 }
 
 function try_buy_entity(e: Int) {
-    var buy = Entity.buy[e];
+    var cost = Entity.cost[e];
 
-    if (Player.copper_count >= buy.cost) {
-        Player.copper_count -= buy.cost;
+    if (Player.copper_count >= cost) {
+        Player.copper_count -= cost;
 
-        Entity.buy.remove(e);
+        Entity.cost.remove(e);
 
         add_message('Purchase complete.');
     } else {
@@ -623,14 +622,15 @@ function move_entity_into_inventory(e: Int) {
         }
     }
 
-    if (item.type == ItemType_Ring) {
+    if (Entity.ring.exists(e)) {
         // Entity is a ring, need to check that there are ring slots available
         var ring_count = 0;
         for (y in 0...INVENTORY_HEIGHT) {
             for (x in 0...INVENTORY_WIDTH) {
-                if (Entity.item.exists(Player.inventory[x][y]) && !Entity.position.exists(Player.inventory[x][y])) {
-                    var other_item = Entity.item[Player.inventory[x][y]];
-                    if (other_item.type == ItemType_Ring) {
+                var other_e = Player.inventory[x][y];
+                if (Entity.item.exists(other_e) && !Entity.position.exists(other_e)) {
+                    var other_item = Entity.item[other_e];
+                    if (Entity.ring.exists(other_e)) {
                         ring_count++;
 
                         if (ring_count >= RINGS_MAX) {
@@ -918,11 +918,12 @@ function kill_entity(e: Int) {
         drop_entity_from_entity(e);
     }
 
-    // Merchant death makes all buy items free
-    if (Entity.name.exists(e) && Entity.name[e] == 'Merchant') {
-        for (e in entities_with(Entity.buy)) {
-            Entity.buy.remove(e);
+    // Merchant death makes all cost items free
+    if (Entity.name.exists(e) && Entity.merchant.exists(e)) {
+        for (e in entities_with(Entity.cost)) {
+            Entity.cost.remove(e);
         }
+        add_message('Shop items are now free.');
     }
 
     Entity.remove(e);
@@ -2016,14 +2017,17 @@ function update_normal() {
         }
         if (Entity.use.exists(e)) {
             var use = Entity.use[e];
-            tooltip += '\nUse:';
+            tooltip += '\nUse';
+            if (use.consumable) {
+                tooltip += ' (consumable)';
+            }
             for (s in use.spells) {
                 tooltip += '\n' + Spells.get_description(s);
             }
         }
         
-        if (Entity.buy.exists(e)) {
-            tooltip += '\nCost: ${Entity.buy[e].cost} copper.';
+        if (Entity.cost.exists(e)) {
+            tooltip += '\nCost: ${Entity.cost[e]} copper.';
         }
         return tooltip;
     }
@@ -2072,7 +2076,7 @@ function update_normal() {
                 done_interaction = true;
             }
         }
-        if (Entity.use.exists(interact_target) && !Entity.buy.exists(interact_target)) {
+        if (Entity.use.exists(interact_target) && !Entity.cost.exists(interact_target)) {
             if (GUI.auto_text_button('Use')) {
                 if (Entity.use[interact_target].need_target) {
                     use_entity_that_needs_target = interact_target;
@@ -2084,7 +2088,7 @@ function update_normal() {
                 }
             }
         }
-        if (Entity.equipment.exists(interact_target) && !Entity.buy.exists(interact_target)) {
+        if (Entity.equipment.exists(interact_target) && !Entity.cost.exists(interact_target)) {
             if (Entity.position.exists(interact_target)) {
                 // Can equip if is equipment and is on map
                 if (GUI.auto_text_button('Equip')) {
@@ -2101,7 +2105,7 @@ function update_normal() {
                 }
             }
         }
-        if (Entity.item.exists(interact_target) && !Entity.buy.exists(interact_target)) {
+        if (Entity.item.exists(interact_target) && !Entity.cost.exists(interact_target)) {
             if (Entity.position.exists(interact_target)) {
                 // Can be picked up if on map
                 if (GUI.auto_text_button('Pick up')) {
@@ -2118,9 +2122,9 @@ function update_normal() {
                 }
             }
         }
-        if (Entity.buy.exists(interact_target)) {
-            var buy = Entity.buy[interact_target];
-            if (GUI.auto_text_button('Buy for ${buy.cost}')) {
+        if (Entity.cost.exists(interact_target)) {
+            var cost = Entity.cost[interact_target];
+            if (GUI.auto_text_button('Buy for ${cost}')) {
                 try_buy_entity(interact_target);
 
                 done_interaction = true;
@@ -2171,8 +2175,8 @@ function update_normal() {
             // Left-click interaction if entity is on map and is visible
             if (player_next_to(Entity.position[hovered_anywhere]) && !los[pos.x - view_x][pos.y - view_y]) {
                 var can_attack = Entity.combat.exists(hovered_anywhere);
-                var can_pickup = Entity.item.exists(hovered_anywhere) && !Entity.buy.exists(hovered_anywhere);
-                var can_equip = Entity.equipment.exists(hovered_anywhere) && !Entity.buy.exists(hovered_anywhere);
+                var can_pickup = Entity.item.exists(hovered_anywhere) && !Entity.cost.exists(hovered_anywhere);
+                var can_equip = Entity.equipment.exists(hovered_anywhere) && !Entity.cost.exists(hovered_anywhere);
                 var can_use = Entity.use.exists(hovered_anywhere);
                 var can_open = Entity.locked.exists(hovered_anywhere);
 

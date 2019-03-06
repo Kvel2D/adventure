@@ -4,22 +4,11 @@ TODO
 ---------------------------------------------------------------------------------
 DONE
 
-remove drop_copper
-change all copper drops to items that get picked up
-change DropEntity component to use a member function instead of a drop table enum
-change mod copper drop spell back to modifying the chance of drop, not the amount
-change use charges to pick the lowest charges when there are multiple use spells on same item
-spawn keys and chests far apart
-remove walls at stairs location
-make half of the keys be dropped by enemies
-
 ---------------------------------------------------------------------------------
 PROBLEMS
 
 haxegon's old starling version has Uint,Int error in VertexData.set_numVertices()
 openfl release has an error in compress/uncompress for flash (github.com/openfl/starling/issues/117)
-
-fix version not showing
 
 ---------------------------------------------------------------------------------
 IDEAS
@@ -52,6 +41,8 @@ maybe remove ranged enemies
 max health thing NEEDS to be dealt with
     currently accidentaly swapping between armor with +max health decreases your hp
 
+fix version not showing
+
 some spell weight system is definitely needed, especially for constant buffs
     something like a function which returns the equivalent weapon damage for a spell type + spell value
         so a Chain Spell EveryAttack value=1 could be equivalent to 1.5 weapon damage
@@ -71,3 +62,4 @@ some spell weight system is definitely needed, especially for constant buffs
         stuff like teleports or other more utility spell types can just be 0 weight
 
 
+ring that you can consume for health
