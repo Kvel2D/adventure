@@ -466,7 +466,7 @@ static function random_potion(x: Int, y: Int, force_spell: SpellType = null): In
     var tile = spell_and_tile.tile;
     Entity.use[e] = {
         spells: [spell],
-        charges: 1,
+        charges: 10,
         consumable: true,
         flavor_text: 'You chug the potion.',
         need_target: false,

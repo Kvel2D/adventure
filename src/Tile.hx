@@ -21,7 +21,7 @@ class Tile {
     static var Head = [for (i in 0...7) at(i, 2)];
     static var Chest = [for (i in 0...7) at(i, 3)];
     static var Legs = [for (i in 0...7) at(i, 4)];
-    static var Sword = [for (i in 0...7) at(i, 5)];
+    static var Sword = [for (i in 1...7) at(i, 5)];
 
     static inline var Copper = at(4, 8);
 

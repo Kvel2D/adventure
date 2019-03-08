@@ -36,7 +36,6 @@ class Data {
         trace(line);
     }
 
-    @:generic
     public static function create2darray<T>(width:Int, height:Int, value:T):Array<Array<T>> {
         return [for (x in 0 ... width) [for (y in 0 ... height) value]];
     }

@@ -26,6 +26,7 @@ some spell weight system is definitely needed, especially for constant buffs
 ---------------------------------------------------------------------------------
 DONE
 
+cache rendering of items in inventory and equipment
 
 
 ---------------------------------------------------------------------------------
@@ -67,4 +68,28 @@ max health thing NEEDS to be dealt with
 ring that you can consume for health
 
 location teleport to another area
+
+optimize entity rendering
+    full inventory with charged items is very taxing right now
+    also on the ground
+
+    inventory rendering can be optimized easily
+        track state of each slot, redraw on update
+            can redraw fully or try erasing
+            erasing to redraw only updated part would be optimal
+            for erasing to work need to make sure that whatever the charge number, it should fit inside the square frame
+            maybe enlarge it
+
+    world rendering might be more challenging
+        maybe create a separate entity layer
+
+optimize a-star
+    don't do a-star if don't need to
+        check if straight-line path works
+
+optimize world draw
+    draw the whole world without shadows on one image when generating
+        draw entities as well?
+
+    draw shadows on top
 
