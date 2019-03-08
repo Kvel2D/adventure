@@ -18,10 +18,10 @@ class Tile {
     static inline var Poison = at(8, 6);
     static inline var PoisonDark= at(9, 6);
 
-    static var Head = [for (i in 0...5) at(i, 2)];
-    static var Chest = [for (i in 0...5) at(i, 3)];
-    static var Legs = [for (i in 0...5) at(i, 4)];
-    static var Sword = [for (i in 0...5) at(i, 5)];
+    static var Head = [for (i in 0...7) at(i, 2)];
+    static var Chest = [for (i in 0...7) at(i, 3)];
+    static var Legs = [for (i in 0...7) at(i, 4)];
+    static var Sword = [for (i in 0...7) at(i, 5)];
 
     static inline var Copper = at(4, 8);
 

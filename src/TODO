@@ -1,13 +1,36 @@
 ---------------------------------------------------------------------------------
 TODO
 
+calculate weight of spells
+    substract from attack buff value
+
+some spell weight system is definitely needed, especially for constant buffs
+    something like a function which returns the equivalent weapon damage for a spell type + spell value
+        so a Chain Spell EveryAttack value=1 could be equivalent to 1.5 weapon damage
+    then subtract combined spell weights from actual weapon damage and round or ceil
+
+    so that if a weapon at some level X usually has 5 damage and it gets a chain spell, now it's damage is 4
+
+    not sure how to adjust for stuff like summon spells, but they could be just a small number like 0.1-0.3 so that in combination with many other spells they decrease damage
+
+    same thing is possible for negative spells so that now this stuff can be less hard-coded
+        start with no damage and some damage "budget", do a random amount of positives which consumes some of the budget, then do a random amount of negatives which increases the budget back up, finally translate what's left into damage
+
+        negatives shouldn't happen all the time of course   
+            make some chance value for them occuring at all
+
+    ok that some spells are not factored into this
+        stuff like teleports or other more utility spell types can just be 0 weight
+
+
 ---------------------------------------------------------------------------------
 DONE
+
+
 
 ---------------------------------------------------------------------------------
 PROBLEMS
 
-haxegon's old starling version has Uint,Int error in VertexData.set_numVertices()
 openfl release has an error in compress/uncompress for flash (github.com/openfl/starling/issues/117)
 
 ---------------------------------------------------------------------------------
@@ -41,25 +64,7 @@ maybe remove ranged enemies
 max health thing NEEDS to be dealt with
     currently accidentaly swapping between armor with +max health decreases your hp
 
-fix version not showing
-
-some spell weight system is definitely needed, especially for constant buffs
-    something like a function which returns the equivalent weapon damage for a spell type + spell value
-        so a Chain Spell EveryAttack value=1 could be equivalent to 1.5 weapon damage
-    then subtract combined spell weights from actual weapon damage and round or ceil
-
-    so that if a weapon at some level X usually has 5 damage and it gets a chain spell, now it's damage is 4
-
-    not sure how to adjust for stuff like summon spells, but they could be just a small number like 0.1-0.3 so that in combination with many other spells they decrease damage
-
-    same thing is possible for negative spells so that now this stuff can be less hard-coded
-        start with no damage and some damage "budget", do a random amount of positives which consumes some of the budget, then do a random amount of negatives which increases the budget back up, finally translate what's left into damage
-
-        negatives shouldn't happen all the time of course   
-            make some chance value for them occuring at all
-
-    ok that some spells are not factored into this
-        stuff like teleports or other more utility spell types can just be 0 weight
-
-
 ring that you can consume for health
+
+location teleport to another area
+

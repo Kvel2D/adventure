@@ -109,6 +109,10 @@ var targeting_for_use = false;
 var use_entity_that_needs_target = Entity.NONE;
 var use_target = Entity.NONE;
 
+var game_stats = new Array<String>();
+var copper_gains = new Array<Int>();
+var copper_gained_this_floor = 0;
+
 function new() {
     Gfx.resizescreen(SCREEN_WIDTH, SCREEN_HEIGHT);
     // Core.showstats = true;
@@ -299,11 +303,11 @@ function generate_level() {
         Player.y = rooms[0].y;
         
         for (dx in 1...6) {
-            // Entities.random_weapon(Player.x + dx, Player.y);
+            Entities.random_weapon(Player.x + dx, Player.y);
             Entities.random_armor(Player.x + dx, Player.y + 1);
-            // Entities.random_scroll(Player.x + dx, Player.y + 1);
-            // Entities.random_potion(Player.x + dx, Player.y + 2);
-            // Entities.random_statue(Player.x + dx, Player.y + 3);
+            Entities.random_scroll(Player.x + dx, Player.y + 2);
+            Entities.random_potion(Player.x + dx, Player.y + 3);
+            // Entities.random_statue(Player.x + dx, Player.y + 4);
         }
 
         // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
@@ -322,6 +326,53 @@ function generate_level() {
     // Reset old pos to force los update, very small chance of player spawning in same position and los not updating
     Player.x_old = -1;
     Player.y_old = -1;
+
+    //
+    // Save game stats for this floor
+    //
+    var floor_stats = 'hp=${Player.health}/${Player.health} attack=${Player.attack} defense=${Player.defense}\nenemies=';
+
+    // Count enemies by name
+    var enemy_counts = new Map<String, Int>();
+    for (e in entities_with(Entity.combat)) {
+        var name = Entity.name[e];
+        if (enemy_counts.exists(name)) {
+            enemy_counts[name]++;
+        } else {
+            enemy_counts[name] = 1;
+        }
+    }
+
+    var recorded_enemies = new Array<String>();
+    for (e in entities_with(Entity.combat)) {
+        // Record each enemy only once
+        var name = Entity.name[e];
+        if (recorded_enemies.indexOf(name) != -1) {
+            continue;
+        }
+        recorded_enemies.push(name);
+
+        var combat = Entity.combat[e];
+        var aggression = switch (combat.aggression) {
+            case AggressionType_Aggressive: 'a';
+            case AggressionType_NeutralToAggressive: 'nta';
+            case AggressionType_Neutral: 'n';
+            case AggressionType_Passive: 'p';
+        }
+
+        // Pad name
+        var padded_name = name;
+        while (padded_name.length < 15) {
+            padded_name += ' ';
+        }
+
+        floor_stats += '\n${padded_name}c=${enemy_counts[name]}\ta=${combat.attack}\th=${combat.health}\tr^2=${combat.range_squared}\ta=${aggression}';
+    }
+
+    game_stats.push(floor_stats);
+
+    copper_gains.push(copper_gained_this_floor);
+    copper_gained_this_floor = 0;
 }
 
 static var time_stamp = 0.0;
@@ -1548,6 +1599,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModCopper: {
             Player.copper_count += spell.value;
+            copper_gained_this_floor += spell.value;
             if (Player.copper_count < 0) {
                 Player.copper_count = 0;
             }
@@ -1570,6 +1622,20 @@ function can_use_entity_on_target(e: Int): Bool {
     } else {
         return false;
     }
+}
+
+function print_game_stats() {
+    var total_string = '\n\nGAME STATS:';
+    for (i in 0...game_stats.length) {
+        total_string += '\n\nfloor=${i} ';
+
+        if (i + 1 <= copper_gains.length - 1) {
+            total_string += 'copper_gained=${copper_gains[i + 1]}';
+        }
+
+        total_string += game_stats[i];
+    }
+    trace(total_string);
 }
 
 function render_world() {
@@ -1822,11 +1888,8 @@ function render_world() {
 
     Text.change_size(UI_TEXT_SIZE);
     var meta = openfl.Lib.current.stage.application.meta;
-    var y = 0;
-    for (key in meta.keys()) {
-        Text.display(0, y, '$key = ${meta[key]}');
-        y += Math.ceil(Text.height()) + 5;
-    }
+    var version = meta['version'];
+    Text.display(0, SCREEN_HEIGHT - Text.height() * 2, '${version}');
 }
 
 var move_timer = 0;
@@ -1972,13 +2035,6 @@ function update_normal() {
         }
     }
 
-    // Print entity for debugging
-    // TODO: remove this for release
-    if (Input.justpressed(Key.P)) {
-        Entity.print(hovered_anywhere);
-    }
-
-    // TODO: move this to after the update(need to draw interact buttons correctly on top)
     render_world();
 
     //
@@ -2220,7 +2276,7 @@ function update_normal() {
     GUI.x = UI_X - 250;
     GUI.y = 0;
     if (SHOW_SHOW_BUTTONS_BUTTON) {
-        if (GUI.auto_text_button('Toggle dev')) {
+        if (GUI.auto_text_button('Toggle dev (POI)')) {
             DEV_show_buttons = !DEV_show_buttons;
         }
     }
@@ -2246,7 +2302,7 @@ function update_normal() {
         if (GUI.auto_text_button('Toggle los')) {
             DEV_nolos = !DEV_nolos;
         }
-        if (GUI.auto_text_button('Toggle frametime graph')) {
+        if (GUI.auto_text_button('Toggle frametime graph (F)')) {
             DEV_frametime_graph = !DEV_frametime_graph;
         }
         if (GUI.auto_text_button('Toggle nodeath')) {
@@ -2260,6 +2316,9 @@ function update_normal() {
             current_floor++;
 
             generate_level();
+        }
+        if (GUI.auto_text_button('Print game stats (G)')) {
+            print_game_stats();
         }
     }
 
@@ -2506,6 +2565,19 @@ function update_normal() {
         }
     }
 
+    // Print entity for debugging
+    if (Input.justpressed(Key.U)) {
+        Entity.print(hovered_anywhere);
+    }
+
+    //
+    // Frametime graph
+    //
+
+    if (Input.justpressed(Key.F)) {
+        DEV_frametime_graph = !DEV_frametime_graph;
+    }
+
     if (DEV_frametime_graph) {
         var frame_time = Math.max(1 / 60.0, Timer.stamp() - update_start);
 
@@ -2516,7 +2588,19 @@ function update_normal() {
         Gfx.fillbox(99, 0, 1, 50, Col.BLUE);
         Gfx.fillbox(99, 50 * (1 - frame_time / (1 / 30.0)), 1, 1, Col.WHITE);
         Gfx.drawtoscreen();
+
         Gfx.drawimage(400, 100, 'frametime_canvas');
+
+        Text.change_size(CHARGES_TEXT_SIZE);
+        Text.display(400 + 100, 100 - Text.height(), '33.3ms');
+        Text.display(400 + 100, 100 + 25 - Text.height(), '16.6ms');
+        Text.display(400 + 100, 100 + 50 - Text.height(), '0ms');
+        Text.display(400 + 100, 100 + 75 - Text.height(), 'Press F to hide');
+
+    }
+
+    if (Input.justpressed(Key.G)) {
+        print_game_stats();
     }
 
     Player.x_old = Player.x;

@@ -391,7 +391,8 @@ static function random_armor(x: Int, y: Int): Int {
         case EquipmentType_Legs: 'Pants';
         case EquipmentType_Weapon: 'invalid';
     }
-    var tile_index = Math.floor(Math.min(Tile.Head.length - 1, level));
+    // NOTE: +1 because the 0th armors are the default body parts
+    var tile_index = Math.floor(Math.min(Tile.Head.length - 1, 1 + level));
     Entity.draw_tile[e] = switch (armor_type) {
         case EquipmentType_Head: Tile.Head[tile_index];
         case EquipmentType_Chest: Tile.Chest[tile_index];
@@ -717,7 +718,7 @@ static function merchant(x: Int, y: Int): Int {
         message: 'Merchant says: "You will regret this".',
         aggression: AggressionType_NeutralToAggressive,
         attacked_by_player: false,
-        range_squared: 1,
+        range_squared: 2,
         target: CombatTarget_FriendlyThenPlayer,
     };
     Entity.draw_on_minimap[e] = {

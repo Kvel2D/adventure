@@ -1309,9 +1309,9 @@ static function random_equipment_spells(equipment_type: EquipmentType): Array<Ar
     
     var total_spell_count: Int = Random.pick_chance([
         {v: 0, c: 1},
-        {v: 1, c: 0.33},
-        {v: 2, c: 0.10},
-        {v: 3, c: 0.05},
+        {v: 1, c: 0.5},
+        {v: 2, c: 0.25},
+        {v: 3, c: 0.125},
         ]);
     var spell_equip_count = 0;
     var spell_use_count = 0;

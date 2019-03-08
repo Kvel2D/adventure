@@ -152,7 +152,11 @@ static function fill_rooms_with_entities() {
             // Spawn merchant and items in a line starting from 3,3 away from top-left corner
             spawned_merchant_this_level = true;
 
-            var merchant_pos = room_free_ODD_positions_shuffled(r)[0];
+            var positions = room_free_ODD_positions_shuffled(r);
+            if (positions.length == 0) {
+                return;
+            }
+            var merchant_pos = positions[0];
             Entities.merchant(merchant_pos.x, merchant_pos.y);
 
             // Position items around merchant
@@ -376,6 +380,9 @@ static function fill_rooms_with_entities() {
                     var r_i = Main.random_good_room();
                     var r = Main.rooms[r_i];
                     var positions = room_free_ODD_positions_shuffled(r);
+                    if (positions.length == 0) {
+                        continue;
+                    }
                     var pos = positions.pop();
 
                     var dst = Math.dst(locked_pos.x, locked_pos.y, pos.x, pos.y);

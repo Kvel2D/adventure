@@ -113,8 +113,7 @@ class Entity {
 
 static var all = new Array<Int>();
 static var id_max: Int = 0;
-// NOTE: only use NONE for initializing and clearing entity references
-// don't "==/!= NONE", check for component existence instead
+// NOTE: avoid using Entity.NONE unless you really need to, most of the time checking for component existence is what you actually want to do
 static inline var NONE = -1;
 static inline var DURATION_INFINITE = -1;
 static inline var DURATION_LEVEL = -2;

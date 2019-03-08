@@ -15,7 +15,7 @@
       main="haxegon.Load"
       path="bin" 
       file="newproject" 
-   />
+  />
 
   <window width="${windowwidth}" height="${windowheight}" if="flash || cpp || neko"></window>
   <window width="0" height="0" if="html5 || mobile"></window>
@@ -27,11 +27,11 @@
       hardware="true"
       vsync="true"
       allow-high-dpi="true"
-   ></window>
+  ></window>
    
 	<source path="src" />
-	<source path="plugins" />
-	<haxelib name="openfl" />
+  <haxelib name="lime" version="7.2.1" />
+  <haxelib name="openfl" version="8.8.0" />
 	<haxedef name="windowwidth" value="${windowwidth}" />
   <haxedef name="windowheight" value="${windowheight}" />
   
