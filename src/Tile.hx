@@ -7,7 +7,7 @@ class Tile {
     }
 
     static inline var None = at(0, 0); // for bugged/invisible things
-    static inline var Black = at(1, 0);
+    static inline var Black = at(9, 7);
 
     static var Stairs = [for (i in 0...5) at(7, i)];
     static var Ground = [for (i in 0...5) at(8, i)];
@@ -24,6 +24,12 @@ class Tile {
     static var Sword = [for (i in 1...7) at(i, 5)];
 
     static inline var Copper = at(4, 8);
+
+    static inline var RingShadow = at(1, 0);
+    static inline var RingLight = at(2, 0);
+    static inline var RingFire = at(3, 0);
+    static inline var RingIce = at(4, 0);
+    static inline var RingMixed = at(5, 0);
 
     static inline var PotionPhysical = at(0, 1);
     static inline var PotionShadow = at(1, 1);
