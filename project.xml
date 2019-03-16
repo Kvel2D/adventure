@@ -4,9 +4,9 @@
   <set name="windowheight" value="1000" />
   
 	<meta 
-    title="Adventure" 
-    package="com.kvel2d.adventure" 
-    version="0.1.4" 
+    title="Katabot" 
+    package="com.kvel2d.katabot" 
+    version="0.1.6" 
     company="Dmitry Degtyarev" 
   />
   

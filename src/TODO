@@ -1,32 +1,10 @@
 ---------------------------------------------------------------------------------
 TODO
 
-calculate weight of spells
-    substract from attack buff value
-
-some spell weight system is definitely needed, especially for constant buffs
-    something like a function which returns the equivalent weapon damage for a spell type + spell value
-        so a Chain Spell EveryAttack value=1 could be equivalent to 1.5 weapon damage
-    then subtract combined spell weights from actual weapon damage and round or ceil
-
-    so that if a weapon at some level X usually has 5 damage and it gets a chain spell, now it's damage is 4
-
-    not sure how to adjust for stuff like summon spells, but they could be just a small number like 0.1-0.3 so that in combination with many other spells they decrease damage
-
-    same thing is possible for negative spells so that now this stuff can be less hard-coded
-        start with no damage and some damage "budget", do a random amount of positives which consumes some of the budget, then do a random amount of negatives which increases the budget back up, finally translate what's left into damage
-
-        negatives shouldn't happen all the time of course   
-            make some chance value for them occuring at all
-
-    ok that some spells are not factored into this
-        stuff like teleports or other more utility spell types can just be 0 weight
-
 
 ---------------------------------------------------------------------------------
 DONE
 
-cache rendering of items in inventory and equipment
 
 
 ---------------------------------------------------------------------------------
@@ -42,54 +20,41 @@ boss mobs
     big health pool
     low chase distance so that player can choose when to engage
 
-boss summon rituals
-    doing some sequence of actions summons a special boss
-    copying a copy scroll spawns copy scroll boss
-    spawning 3 times on same floor spawns a necromancer at stairs
-    killing 2 merchants spawns a merchant boss
+    boss summon rituals
+        doing some sequence of actions summons a special boss
+        copying a copy scroll spawns copy scroll boss
+        spawning 3 times on same floor spawns a necromancer at stairs
+        killing 2 merchants spawns a merchant boss
 
-improve locked things
-    for doors, just locking a single room with item is the same as a locked chest
-        need to figure out how to lock a section of the map and place a key on the side reachable by player
-
-redistribute spells between items and equipment
-
-diversify spells more
-    lots of spell variations aren't in
+locked doors
+    just locking a single room with item is the same as a locked chest
+    need to figure out how to lock a section of the map and place a key on the side reachable by player
 
 improve messages for spell effects
 
-maybe remove ranged enemies
-    combat with them is too awkward
-
-max health thing NEEDS to be dealt with
-    currently accidentaly swapping between armor with +max health decreases your hp
-
-ring that you can consume for health
-
 location teleport to another area
 
-optimize entity rendering
-    full inventory with charged items is very taxing right now
-    also on the ground
+statue spell - duplicate enemies on level
+    can get more drops
+    can increase benefit further by first damaging all enemies on level
+        duplicated enemies will have same hp/max hp as originals
 
-    inventory rendering can be optimized easily
-        track state of each slot, redraw on update
-            can redraw fully or try erasing
-            erasing to redraw only updated part would be optimal
-            for erasing to work need to make sure that whatever the charge number, it should fit inside the square frame
-            maybe enlarge it
+amnesia potion
+    redo a level(it's different though, to avoid infinite amnesia cycles)
 
-    world rendering might be more challenging
-        maybe create a separate entity layer
+crit spell
+    chance to deal double damage
 
-optimize a-star
-    don't do a-star if don't need to
-        check if straight-line path works
+    same for damage dealt to player as negative
 
-optimize world draw
-    draw the whole world without shadows on one image when generating
-        draw entities as well?
+    have doubts if good, need to test extensively
 
-    draw shadows on top
+figure out if always using straight pathfinding for enemies works
 
+charm spell
+
+distribute spells for armors
+
+might be better to coordinate scales for various stats
+    attack bonuses should scale the same for potions/armor/statues/rings etc for it to be fair
+    other stats as well

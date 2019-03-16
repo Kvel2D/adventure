@@ -67,7 +67,7 @@ class Text {
 	// Non zero when an input string is being checked. So that I can use 
 	// the M and F keys without muting or changing to fullscreen.
 	public static var input_show = 0;
-	
+	public static var wordwrap = 0;
 
 	public static function init(stage:Stage) {
 		drawto = Gfx.backbuffer;
@@ -160,6 +160,8 @@ class Text {
 	}
 	
 	public static function width(t:String):Float {
+		typeface[currentindex].updatebounds();
+
 		if (typeface[currentindex].type == "ttf") {
 			typeface[currentindex].tf_ttf.text = t;
 			return typeface[currentindex].tf_ttf.textWidth;
@@ -190,13 +192,16 @@ class Text {
 		return 0;
 	}
 	
-	public static function height():Float {
+	public static function height(?text: String):Float {
+		if (text == null) text = "?";
+		typeface[currentindex].updatebounds();
+
 		if (typeface[currentindex].type == "ttf") {
-			var oldtext:String = typeface[currentindex].tf_ttf.text;
-			typeface[currentindex].tf_ttf.text = "???";
-			var h:Float = typeface[currentindex].tf_ttf.textHeight;
-			typeface[currentindex].tf_ttf.text = oldtext;
-			return h;
+			// var oldtext:String = typeface[currentindex].tf_ttf.text;
+			// typeface[currentindex].tf_ttf.text = "???";
+			// var h:Float = typeface[currentindex].tf_ttf.textHeight;
+			typeface[currentindex].tf_ttf.text = text;
+			return typeface[currentindex].tf_ttf.textHeight;
 		}else if (typeface[currentindex].type == "bitmap") {
 			typeface[currentindex].tf_bitmap.text = "???";
 			return typeface[currentindex].height * currentsize;
@@ -478,6 +483,8 @@ class Text {
 		if (text == null) {
 			text = "";
 		}
+
+		typeface[currentindex].updatebounds();
 
 		typeface[currentindex].tf_ttf.textColor = col;
 		typeface[currentindex].tf_ttf.text = text;

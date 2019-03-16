@@ -16,6 +16,10 @@ typedef MarkovStruct = {
 class Entities {
 // force unindent
 
+static inline var ENEMY_BASE_ITEM_DROP_CHANCE = 25;
+static inline var ENEMY_BASE_COPPER_DROP_CHANCE = 25;
+static inline var ENEMY_NOTHING_DROP_CHANCE = 50;
+
 static var locked_colors = [Col.RED, Col.ORANGE, Col.GREEN, Col.BLUE];
 static var unlocked_color = Col.YELLOW;
 
@@ -208,9 +212,9 @@ static function unlocked_chest(x: Int, y: Int): Int {
         char: 'C',
         color: color,
     };
-    Entity.locked[e] = {
+    Entity.container[e] = {
         color: color,
-        need_key: false,
+        locked: false,
     };
     Entity.drop_entity[e] = {
         drop_func: function(x, y) {
@@ -243,9 +247,9 @@ static function locked_chest(x: Int, y: Int): Int {
         char: 'C',
         color: color,
     };
-    Entity.locked[e] = {
+    Entity.container[e] = {
         color: color,
-        need_key: true,
+        locked: true,
     };
     Entity.drop_entity[e] = {
         drop_func: function(x, y) {
@@ -277,9 +281,9 @@ static function locked_door(x: Int, y: Int): Int {
         char: 'D',
         color: color,
     };
-    Entity.locked[e] = {
+    Entity.container[e] = {
         color: color,
-        need_key: true,
+        locked: true,
     };
     Entity.draw_on_minimap[e] = {
         color: color,
@@ -330,7 +334,7 @@ static function test_potion(x: Int, y: Int): Int {
         need_target: true,
         draw_charges: true,
     };
-    Entity.draw_tile[e] = Tile.PotionPhysical;
+    Entity.draw_tile[e] = Tile.Potion[0];
 
     Entity.validate(e);
 
@@ -348,14 +352,28 @@ static function random_weapon(x: Int, y: Int): Int {
 
     Entity.name[e] = 'Sword';
 
-    var attack_buff_value = Stats.get({min: 1, max: 1, scaling: 1.0}, level);  
+    var attack_buff_value = Stats.get_unrounded({min: 1, max: 1, scaling: 1.0}, level);  
 
     var equip_plus_use_spells = Spells.random_equipment_spells(EquipmentType_Weapon);
 
     var equip_spells = equip_plus_use_spells[0];
     var use_spells = equip_plus_use_spells[1];
 
-    equip_spells.push(Spells.attack_buff(attack_buff_value));
+    var spells_weight: Float = 0;
+    for (s in equip_spells) {
+        spells_weight += Spells.get_weapon_equip_spell_weight(s);
+    }
+    for (s in use_spells) {
+        spells_weight += Spells.get_weapon_use_spell_weight(s);
+    }
+
+    attack_buff_value -= spells_weight;
+    attack_buff_value = Math.round(attack_buff_value);
+    if (attack_buff_value < 0) {
+        attack_buff_value = 0;
+    }
+
+    equip_spells.insert(0, Spells.attack_buff(Std.int(attack_buff_value)));
 
     if (use_spells.length > 0) {
         Entity.use[e] = {
@@ -407,7 +425,7 @@ static function random_armor(x: Int, y: Int): Int {
     var equip_spells = equip_plus_use_spells[0];
     var use_spells = equip_plus_use_spells[1];
     
-    equip_spells.push(Spells.defense_buff(defense_total));
+    equip_spells.insert(0, Spells.defense_buff(defense_total));
 
     if (use_spells.length > 0) {
         Entity.use[e] = {
@@ -437,14 +455,13 @@ static function random_ring(x: Int, y: Int): Int {
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Ring';
+    var spell = Spells.random_ring_spell(level);
     Entity.item[e] = {
-        spells: [Spells.random_ring_spell(level)],
+        spells: [spell],
     };
     Entity.ring[e] = true;
-    Entity.draw_char[e] = {
-        char: 'R',
-        color: Col.YELLOW
-    };
+    var spell_color = Spells.get_color(spell);
+    Entity.draw_tile[e] = Tile.Ring[Tile.col_to_index(spell_color)];
 
     Entity.validate(e);
 
@@ -461,20 +478,18 @@ static function random_potion(x: Int, y: Int, force_spell: SpellType = null): In
     Entity.item[e] = {
         spells: [],
     };
-    var spell_and_tile = Spells.random_potion_spell_and_tile(level, force_spell);
-    var spell = spell_and_tile.spell;
-    var tile = spell_and_tile.tile;
+    var spell = Spells.random_potion_spell(level, force_spell);
     Entity.use[e] = {
         spells: [spell],
-        charges: 10,
+        charges: 1,
         consumable: true,
         flavor_text: 'You chug the potion.',
         need_target: false,
         draw_charges: true,
     };
 
-    // TODO: diversify potion icons based on potion spell
-    Entity.draw_tile[e] = tile;
+    var spell_color = Spells.get_color(spell);
+    Entity.draw_tile[e] = Tile.Potion[Tile.col_to_index(spell_color)];
 
     Entity.validate(e);
 
@@ -491,21 +506,46 @@ static function random_scroll(x: Int, y: Int): Int {
     Entity.item[e] = {
         spells: [],
     };
-    var spell_and_tile = Spells.random_scroll_spell_and_tile(level);
-    var spell = spell_and_tile.spell;
-    var tile = spell_and_tile.tile;
+    var spell = Spells.random_scroll_spell(level);
     Entity.use[e] = {
         spells: [spell],
         charges: 1,
         consumable: true,
         flavor_text: 'You read the scroll aloud.',
-        // NOTE: incorrect if there are multiple spells and one of them needs a target, though I can't think of an item like that yet
         need_target: Spells.need_target(spell.type),
         draw_charges: true,
     };
 
-    // TODO: diversify scroll icons based on scroll spell
-    Entity.draw_tile[e] = tile;
+    var spell_color = Spells.get_color(spell);
+    Entity.draw_tile[e] = Tile.Scroll[Tile.col_to_index(spell_color)];
+
+    Entity.validate(e);
+
+    return e;
+}
+
+static function random_orb(x: Int, y: Int): Int {
+    var e = Entity.make();
+
+    var level = Main.get_drop_entity_level();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Orb';
+    Entity.item[e] = {
+        spells: [],
+    };
+    var spell = Spells.random_orb_spell(level);
+    Entity.use[e] = {
+        spells: [spell],
+        charges: 1,
+        consumable: true,
+        flavor_text: 'You crush the orb in your hands.',
+        need_target: Spells.need_target(spell.type),
+        draw_charges: true,
+    };
+
+    var spell_color = Spells.get_color(spell);
+    Entity.draw_tile[e] = Tile.Orb[Tile.col_to_index(spell_color)];
 
     Entity.validate(e);
 
@@ -560,15 +600,15 @@ static function random_enemy_type(): Int->Int->Int {
     } else if (aggression_type == AggressionType_Aggressive) {
         {
             type: Random.pick_chance([
-                {v: MoveType_Astar, c: 1.0},
-                {v: MoveType_Straight, c: 1.0},
+                // {v: MoveType_Astar, c: 1.0},
+                {v: MoveType_Straight, c: 2.0},
                 {v: MoveType_StayAway, c: 0.25},
                 {v: MoveType_Random, c: (1.0 / (1 + level))},
                 ]),
             cant_move: false,
             successive_moves: 0,
             chase_dst: Random.int(7, 14),
-            target: MoveTarget_FriendlyOverPlayer,
+            target: MoveTarget_FriendlyThenPlayer,
         }
     } else {
         {
@@ -579,7 +619,7 @@ static function random_enemy_type(): Int->Int->Int {
             cant_move: false,
             successive_moves: 0,
             chase_dst: 0,
-            target: MoveTarget_FriendlyOverPlayer,
+            target: MoveTarget_FriendlyThenPlayer,
         }
     }
 
@@ -592,6 +632,10 @@ static function random_enemy_type(): Int->Int->Int {
 
     // TODO: diversify enemy colors
     var color = Col.GRAY;
+
+    var item_drop_chance = ENEMY_BASE_ITEM_DROP_CHANCE + Player.dropchance_mod;
+    var copper_drop_chance = ENEMY_BASE_COPPER_DROP_CHANCE + Player.copper_drop_mod;
+
 
     return function (x, y) {
         var e = Entity.make();
@@ -616,19 +660,23 @@ static function random_enemy_type(): Int->Int->Int {
         };
         Entity.drop_entity[e] = {
             drop_func: function(x, y) {
-                if (Random.chance(25 + Player.dropchance_mod)) {
-                    return Random.pick_chance([
+                return Random.pick_chance([
+                    {v: Random.pick_chance([
                         {v: Entities.random_weapon, c: 1.0},
                         {v: Entities.random_armor, c: 6.0},
                         {v: Entities.random_potion, c: 3.0},
                         {v: Entities.random_ring, c: 2.0},
-                        ])
-                    (x, y);
-                } else if (Random.chance(40 + Player.copper_drop_mod)) {
-                    return Entities.copper(x, y);
-                } else {
-                    return Entity.NONE;
-                }
+                        ]), 
+                    c: ENEMY_BASE_ITEM_DROP_CHANCE + Player.dropchance_mod},
+                    {
+                        v: Entities.copper, 
+                        c: ENEMY_BASE_COPPER_DROP_CHANCE + Player.copper_drop_mod
+                    },
+                    {
+                        v: function(x, y) { return Entity.NONE; }, 
+                        c: ENEMY_NOTHING_DROP_CHANCE
+                    },
+                    ])(x, y);
             },
         };
 
@@ -684,13 +732,16 @@ static function random_statue(x: Int, y: Int): Int {
         draw_charges: true,
     };
 
-    Entity.draw_tile[e] = switch (statue_god) {
-        case StatueGod_Sera: Tile.StatueSera;
-        case StatueGod_Subere: Tile.StatueSubere;
-        case StatueGod_Ollopa: Tile.StatueOllopa;
-        case StatueGod_Suthaephes: Tile.StatueSuthaephes;
-        case StatueGod_Enohik: Tile.StatueEnohik;
+    var color = switch (statue_god) {
+        case StatueGod_Sera: SpellColor_Gray;
+        case StatueGod_Subere: SpellColor_Purple;
+        case StatueGod_Ollopa: SpellColor_Yellow;
+        case StatueGod_Suthaephes: SpellColor_Red;
+        case StatueGod_Enohik: SpellColor_Blue;
+        default: SpellColor_Green;
     }
+
+    Entity.draw_tile[e] = Tile.Statue[Tile.col_to_index(color)];
 
     Entity.validate(e);
 
@@ -732,10 +783,8 @@ static function merchant(x: Int, y: Int): Int {
     return e;
 }
 
-static function golem(x: Int, y: Int): Int {
+static function golem(level: Int, x: Int, y: Int): Int {
     var e = Entity.make();
-
-    var level = Main.current_level;
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Golem';
@@ -761,7 +810,7 @@ static function golem(x: Int, y: Int): Int {
         cant_move: false,
         successive_moves: 0,
         chase_dst: Random.int(7, 14),
-        target: MoveTarget_EnemyOverPlayer,
+        target: MoveTarget_EnemyThenPlayer,
     };
 
     Entity.validate(e);
@@ -769,10 +818,8 @@ static function golem(x: Int, y: Int): Int {
     return e;
 }
 
-static function skeleton(x: Int, y: Int): Int {
+static function skeleton(level: Int, x: Int, y: Int): Int {
     var e = Entity.make();
-
-    var level = Main.current_level;
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Skeleton';
@@ -806,10 +853,8 @@ static function skeleton(x: Int, y: Int): Int {
     return e;
 }
 
-static function imp(x: Int, y: Int): Int {
+static function imp(level: Int, x: Int, y: Int): Int {
     var e = Entity.make();
-
-    var level = Main.current_level;
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Imp';

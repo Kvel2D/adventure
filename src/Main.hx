@@ -76,7 +76,7 @@ static var tiles = Data.create2darray(MAP_WIDTH, MAP_HEIGHT, Tile.None);
 static var rooms: Array<Room>;
 static var visited_room = new Array<Bool>();
 static var room_on_minimap = new Array<Bool>();
-var tile_canvas_state = Data.create2darray(VIEW_WIDTH, VIEW_HEIGHT, Tile.None);
+var tiles_render_cache = Data.create2darray(VIEW_WIDTH, VIEW_HEIGHT, Tile.None);
 var los = Data.create2darray(VIEW_WIDTH, VIEW_HEIGHT, false);
 var need_to_update_messages_canvas = true;
 
@@ -140,10 +140,10 @@ function new() {
     Gfx.createimage('messages_canvas', UI_WORDWRAP, 320);
     Gfx.createimage('minimap_canvas_connections', MAP_WIDTH * MINIMAP_SCALE, MAP_HEIGHT * MINIMAP_SCALE);
     Gfx.createimage('minimap_canvas_rooms', MAP_WIDTH * MINIMAP_SCALE, MAP_HEIGHT * MINIMAP_SCALE);
+    Gfx.createimage('minimap_canvas_full', MAP_WIDTH * MINIMAP_SCALE, MAP_HEIGHT * MINIMAP_SCALE);
     Gfx.createimage('ui_items_canvas', INVENTORY_WIDTH * TILESIZE * WORLD_SCALE, SCREEN_HEIGHT);
 
     Gfx.changetileset('tiles');
-
 
     // Draw equipment and inventory boxes
     Gfx.createimage('ui_canvas', UI_WORDWRAP, SCREEN_HEIGHT);
@@ -210,10 +210,16 @@ function restart_game() {
     'You can interact with things on the map if they are next to you.',
     'You can interact with your equipment and items.',
     TURN_DELIMITER,
-    'Left-clicking performs some default actions.',
     'Left-click on enemies to attack them.',
     'Left-click on items and equipment on the ground to pick them up.',
     'Left-click on items in inventory to use them.',
+    TURN_DELIMITER,
+    'PLAYTEST NOTES',
+    'Press F to toggle frametime graph. Let me know if the',
+    'perfomance is bad!(above 16ms is bad)',
+    'Press G to print game log. It\'s printed to the browser console,',
+    'which is opened by ctrl+shift+J. I would appreciate if you copied', 
+    'and sent me that log after you are done playing.',
     ];
     messages = [for (i in 0...MESSAGES_LENGTH_MAX) TURN_DELIMITER];
     var tutorial_i = tutorial_text.length; 
@@ -314,6 +320,24 @@ function generate_level() {
         Gfx.clearscreentransparent();
         Gfx.drawtoscreen();
 
+        Gfx.drawtoimage('minimap_canvas_full');
+        Gfx.clearscreentransparent();
+        for (i in 0...rooms.length) {
+            var r = rooms[i];
+            if (r.is_connection) {
+                Gfx.fillbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.BLACK);
+                Gfx.drawbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.WHITE);
+            }
+        }
+        for (i in 0...rooms.length) {
+            var r = rooms[i];
+            if (!r.is_connection) {
+                Gfx.fillbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.BLACK);
+                Gfx.drawbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.WHITE);
+            }
+        }
+        Gfx.drawtoscreen();
+
         // Set start position to first room, before generating entities so that generation uses the new player position in collision checks
         Player.room = 0;
         Player.x = rooms[0].x;
@@ -324,9 +348,8 @@ function generate_level() {
             Entities.random_armor(Player.x + dx, Player.y + 1);
             Entities.random_scroll(Player.x + dx, Player.y + 2);
             Entities.random_potion(Player.x + dx, Player.y + 3);
-            Entities.random_potion(Player.x + dx, Player.y + 4);
-            Entities.random_potion(Player.x + dx, Player.y + 5);
-            Entities.random_potion(Player.x + dx, Player.y + 6);
+            Entities.random_orb(Player.x + dx, Player.y + 4);
+            Entities.random_ring(Player.x + dx, Player.y + 5);
         }
 
         // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
@@ -349,11 +372,15 @@ function generate_level() {
     //
     // Save game stats for this floor
     //
-    var floor_stats = 'hp=${Player.health}/${Player.health} attack=${Player.attack} defense=${Player.defense}\nenemies=';
+    var floor_stats = 'floor=$current_floor hp=${Player.health}/${Player.health} attack=${Player.attack} defense=${Player.defense}';
 
     // Count enemies by name
     var enemy_counts = new Map<String, Int>();
     for (e in entities_with(Entity.combat)) {
+        if (Entity.merchant.exists(e)) {
+            continue;
+        }
+
         var name = Entity.name[e];
         if (enemy_counts.exists(name)) {
             enemy_counts[name]++;
@@ -362,8 +389,19 @@ function generate_level() {
         }
     }
 
+    var total_enemy_count = 0;
+    for (enemy in enemy_counts.keys()) {
+        total_enemy_count += enemy_counts[enemy];
+    }
+
+    floor_stats += '\n$total_enemy_count enemies=';
+
     var recorded_enemies = new Array<String>();
     for (e in entities_with(Entity.combat)) {
+        if (Entity.merchant.exists(e)) {
+            continue;
+        }
+
         // Record each enemy only once
         var name = Entity.name[e];
         if (recorded_enemies.indexOf(name) != -1) {
@@ -507,7 +545,7 @@ static function get_free_map(x1: Int, y1: Int, width: Int, height: Int, free_map
     }
 
     if (include_doors) {
-        for (locked in entities_with(Entity.locked)) {
+        for (locked in entities_with(Entity.container)) {
             var pos = Entity.position[locked];
             if (Math.point_box_intersect(pos.x, pos.y, x1, y1, width, height) && Entity.name.exists(locked) && Entity.name[locked] == 'Door') {
                 free_map[pos.x - x1][pos.y - y1] = false;
@@ -571,7 +609,7 @@ function drop_entity_from_entity(e: Int) {
 
 function try_open_entity(e: Int) {
     // Look for same color unlocker in inventory
-    var locked = Entity.locked[e];
+    var locked = Entity.container[e];
 
     var locked_name = if (Entity.name.exists(e)) {
         Entity.name[e];
@@ -585,7 +623,7 @@ function try_open_entity(e: Int) {
         }
     }
 
-    if (locked.need_key) {
+    if (locked.locked) {
         // Normal locked need a matching key, search for it in inventory
         for (y in 0...INVENTORY_HEIGHT) {
             for (x in 0...INVENTORY_WIDTH) {
@@ -880,7 +918,7 @@ function move_entity(e: Int) {
                     target_y = enemy_y;
                 }
             }
-            case MoveTarget_FriendlyOverPlayer: {
+            case MoveTarget_FriendlyThenPlayer: {
                 if (friendly_x != -1 && friendly_y != -1 && Math.dst(friendly_x, friendly_y, pos.x, pos.y) <= move.chase_dst) {
                     // Chase friendly if there's one and it's within chase dst
                     target_x = friendly_x;
@@ -891,7 +929,7 @@ function move_entity(e: Int) {
                     target_y = Player.y;
                 }
             }
-            case MoveTarget_EnemyOverPlayer: {
+            case MoveTarget_EnemyThenPlayer: {
                 if (enemy_x != -1 && enemy_y != -1 && Math.dst(enemy_x, enemy_y, pos.x, pos.y) <= move.chase_dst) {
                     // Chase enemy if there's one and it's within chase dst
                     target_x = enemy_x;
@@ -904,6 +942,8 @@ function move_entity(e: Int) {
             }
         }
     }
+
+    var actual_move_type = move.type;
 
     switch (move.type) {
         case MoveType_Astar: {
@@ -1067,7 +1107,7 @@ function entity_attack_player(e: Int): Bool {
             cant_move: false,
             successive_moves: 0,
             chase_dst: Main.VIEW_WIDTH, // chase forever
-            target: MoveTarget_FriendlyOverPlayer,
+            target: MoveTarget_FriendlyThenPlayer,
         }
     }
 
@@ -1338,6 +1378,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_ModHealthMax: {
             if (spell.duration_type == SpellDuration_Permanent) {
                 Player.health_max += spell.value;
+                Player.health += spell.value;
             } else {
                 Player.health_max_mod += spell.value;
             }
@@ -1374,10 +1415,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
         }
         case SpellType_UncoverMap: {
-            // Mark all rooms visited
-            for (i in 0...visited_room.length) {
-                visited_room[i] = true;
-            }
+            Player.full_minimap = true;
         }
         case SpellType_RandomTeleport: {
             // Teleport to random room
@@ -1427,7 +1465,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_ModDropChance: {
             Player.dropchance_mod += spell.value;
         }
-        case SpellType_ModCopperDrop: {
+        case SpellType_ModCopperChance: {
             Player.copper_drop_mod += spell.value;
         }
         case SpellType_AoeDamage: {
@@ -1503,7 +1541,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 var can_add_charges = true;
                 // Check that use doesn't contain copy or usecharges spells
                 for (s in Entity.use[use_target].spells) {
-                    if (s.type == SpellType_ModUseCharges || s.type == SpellType_CopyItem) {
+                    if (s.type == SpellType_ModUseCharges || s.type == SpellType_CopyEntity) {
                         can_add_charges = false;
                         break;
                     }
@@ -1515,15 +1553,13 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 }
             }
         }
-        case SpellType_CopyItem: {
+        case SpellType_CopyEntity: {
             // Copy target must be an item and in inventory
-            if (Entity.item.exists(use_target) && !Entity.position.exists(use_target)) {
-                var pos = free_position_around_player();
-                if (pos.x != -1 && pos.y != -1) {
-                    var copy = Entity.copy(use_target, pos.x, pos.y);
-                } else {
-                    add_message('No space to drop copied item, it disappears into the Void.');
-                }
+            var pos = free_position_around_player();
+            if (pos.x != -1 && pos.y != -1) {
+                var copy = Entity.copy(use_target, pos.x, pos.y);
+            } else {
+                add_message('No space to drop copied item, it disappears into the Void.');
             }
         }
         case SpellType_Passify: {
@@ -1546,7 +1582,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                         s.value += spell.value;
                     } else if (s.type == SpellType_ModDefense) {
                         // NOTE: need to scale enchantment of defense to make it comparable to attack enchantment
-                        s.value += spell.value * 10;
+                        s.value += spell.value * 4;
                     }
                 }
                 add_message('You improve equipment.');
@@ -1589,7 +1625,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             var free_pos = free_position_around_player();
 
             if (free_pos.x != -1 && free_pos.y != -1) {
-                Entities.golem(free_pos.x, free_pos.y);
+                Entities.golem(spell.value, free_pos.x, free_pos.y);
                 add_message('You summon a golem, it smiles at you.');
             } else {
                 add_message('No space to summon golem, spell fails!');
@@ -1600,7 +1636,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             for (i in 0...3) {
                 var free_pos = free_position_around_player();
                 if (free_pos.x != -1 && free_pos.y != -1) {
-                    Entities.skeleton(free_pos.x, free_pos.y);
+                    Entities.skeleton(spell.value, free_pos.x, free_pos.y);
                     summon_count++;
                 } else {
                     break;
@@ -1619,7 +1655,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             var free_pos = free_position_around_player();
 
             if (free_pos.x != -1 && free_pos.y != -1) {
-                Entities.imp(free_pos.x, free_pos.y);
+                Entities.imp(spell.value, free_pos.x, free_pos.y);
                 add_message('You summon a imp, it grins at you.');
             } else {
                 add_message('No space to summon imp, spell fails!');
@@ -1688,13 +1724,11 @@ function can_use_entity_on_target(e: Int): Bool {
 function print_game_stats() {
     var total_string = '\n\nGAME STATS:';
     for (i in 0...game_stats.length) {
-        total_string += '\n\nfloor=${i} ';
+        total_string += game_stats[i];
 
         if (i + 1 <= copper_gains.length - 1) {
-            total_string += 'copper_gained=${copper_gains[i + 1]}';
+            total_string += '\ncopper_gained=${copper_gains[i + 1]}\n\n';
         }
-
-        total_string += game_stats[i];
     }
     trace(total_string);
 }
@@ -1723,9 +1757,9 @@ function render_world() {
                 }
             }
 
-            if (new_tile != tile_canvas_state[x][y]) {
+            if (new_tile != tiles_render_cache[x][y]) {
                 Gfx.drawtile(unscaled_screen_x(map_x), unscaled_screen_y(map_y), new_tile);
-                tile_canvas_state[x][y] = new_tile;
+                tiles_render_cache[x][y] = new_tile;
             }
         }
     }
@@ -1821,9 +1855,9 @@ function render_world() {
     function draw_entity_selective(e: Int, x: Float, y: Float, current_data: EntityRenderData, new_data: EntityRenderData) {
         var entity_changed = ((current_data == null && new_data != null) 
             || (current_data != null && new_data != null && !render_data_equals(new_data, current_data)));
-            var entity_removed = current_data != null && new_data == null;
+        var entity_removed = current_data != null && new_data == null;
 
-            if (entity_changed || entity_removed) {
+        if (entity_changed || entity_removed) {
             // Erase area
             var box_pad = 1;
             Gfx.fillbox(x + box_pad, y + box_pad, TILESIZE * WORLD_SCALE- box_pad * 2, TILESIZE * WORLD_SCALE - box_pad * 2, Col.BLACK);
@@ -1897,7 +1931,7 @@ function render_world() {
     for (s in Player.spells) {
         active_spells += '\n' + Spells.get_description(s);
     }
-    // Text.wordwrap = UI_WORDWRAP;
+    Text.wordwrap = UI_WORDWRAP;
     Text.display(UI_X, SPELL_LIST_Y, active_spells);
 
     // Use targeting icon
@@ -1914,7 +1948,7 @@ function render_world() {
         messages.pop();
     }
     
-    // Text.wordwrap = UI_WORDWRAP;
+    Text.wordwrap = UI_WORDWRAP;
     if (need_to_update_messages_canvas) {
         need_to_update_messages_canvas = false;
         Gfx.drawtoimage('messages_canvas');
@@ -1944,9 +1978,6 @@ function render_world() {
         }
     }
 
-    // TODO: cache the minimap image
-    // TODO: try to remove overlapping while keeping minimap transparent? not sure if possible
-    
     // Draw rooms
 
     // Draw connections first, then rooms
@@ -1954,7 +1985,7 @@ function render_world() {
     Gfx.drawtoimage('minimap_canvas_connections');
     for (i in 0...rooms.length) {
         var r = rooms[i];
-        if ((visited_room[i] || DEV_full_minimap) && r.is_connection && !room_on_minimap[i]) {
+        if (visited_room[i] && r.is_connection && !room_on_minimap[i]) {
             room_on_minimap[i] = true;
             Gfx.fillbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.BLACK);
             Gfx.drawbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.WHITE);
@@ -1963,7 +1994,7 @@ function render_world() {
     Gfx.drawtoimage('minimap_canvas_rooms');
     for (i in 0...rooms.length) {
         var r = rooms[i];
-        if ((visited_room[i] || DEV_full_minimap) && !r.is_connection && !room_on_minimap[i]) {
+        if (visited_room[i] && !r.is_connection && !room_on_minimap[i]) {
             room_on_minimap[i] = true;
             Gfx.fillbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.BLACK);
             Gfx.drawbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.WHITE);
@@ -1971,8 +2002,13 @@ function render_world() {
     }
     Gfx.drawtoscreen();
 
-    Gfx.drawimage(0, 0, 'minimap_canvas_connections');
-    Gfx.drawimage(0, 0, 'minimap_canvas_rooms');
+    if (Player.full_minimap || DEV_full_minimap) {
+        Gfx.drawimage(0, 0, 'minimap_canvas_full');
+    } else {
+        Gfx.drawimage(0, 0, 'minimap_canvas_connections');
+        Gfx.drawimage(0, 0, 'minimap_canvas_rooms');
+    }
+    
 
     // Draw seen things
     for (e in entities_with(Entity.draw_on_minimap)) {
@@ -2141,7 +2177,7 @@ function update_normal() {
     //
     // Hovered entity tooltip
     //
-    // Text.wordwrap = TOOLTIP_WORDWRAP;
+    Text.wordwrap = TOOLTIP_WORDWRAP;
     function get_tooltip(e: Int): String {
         var tooltip = "";
         if (Entity.name.exists(e)) {
@@ -2194,9 +2230,9 @@ function update_normal() {
         var entity_tooltip = get_tooltip(hovered_anywhere);
 
         if (entity_tooltip != "" && !Entity.combat.exists(hovered_anywhere)) {
-            if (!Entity.position.exists(hovered_anywhere)) {
-                // Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, Text.width(entity_tooltip), Text.height(entity_tooltip), Col.DARKBROWN);
-            }
+            // if (!Entity.position.exists(hovered_anywhere)) {
+                Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, Text.width(entity_tooltip) + 10, Text.height(entity_tooltip), Col.DARKBROWN);
+            // }
             Text.display(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, entity_tooltip, Col.WHITE);
         }
     }
@@ -2287,7 +2323,7 @@ function update_normal() {
                 done_interaction = true;
             }
         }
-        if (Entity.locked.exists(interact_target)) {
+        if (Entity.container.exists(interact_target)) {
             if (GUI.auto_text_button('Open')) {
                 try_open_entity(interact_target);
 
@@ -2323,7 +2359,7 @@ function update_normal() {
     }
 
     //
-    // DEFAULT LEFT-CLICK ACTION
+    // Default left-click actions
     //
     // Attack, pick up or equip, if only one is possible, if multiple are possible, then must pick one through interact menu
     if (!turn_ended && Mouse.leftclick()) {
@@ -2335,7 +2371,7 @@ function update_normal() {
                 var can_pickup = Entity.item.exists(hovered_anywhere) && !Entity.cost.exists(hovered_anywhere);
                 var can_equip = Entity.equipment.exists(hovered_anywhere) && !Entity.cost.exists(hovered_anywhere);
                 var can_use = Entity.use.exists(hovered_anywhere);
-                var can_open = Entity.locked.exists(hovered_anywhere);
+                var can_open = Entity.container.exists(hovered_anywhere);
 
                 if (can_attack && !can_pickup && !can_equip) {
                     attack_target = hovered_anywhere;
@@ -2476,6 +2512,7 @@ function update_normal() {
         Player.spell_damage_mod = 0;
         Player.increase_drop_level = false;
         Player.invisible = false;
+        Player.full_minimap = false;
 
         //
         // Process spells
@@ -2686,12 +2723,12 @@ function update_normal() {
         Gfx.drawimage(-1, 0, 'frametime_canvas');
         Gfx.drawtoimage('frametime_canvas');
         Gfx.drawimage(0, 0, 'frametime_canvas2');
-        Gfx.fillbox(99, 0, 1, 50, Col.BLUE);
+        Gfx.fillbox(99, 0, 1, 50, Col.DARKBLUE);
 
         var blip_color = if (turn_ended) {
             Col.RED;
         } else {
-            Col.WHITE;
+            Col.ORANGE;
         }
         Gfx.fillbox(99, 50 * (1 - frame_time / (1 / 30.0)), 1, 1, blip_color);
         Gfx.drawtoscreen();

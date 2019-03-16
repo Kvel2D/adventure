@@ -26,20 +26,15 @@ enum MoveType {
 }
 
 enum MoveTarget {
-    MoveTarget_FriendlyOverPlayer;
+    MoveTarget_FriendlyThenPlayer;
     MoveTarget_EnemyOnly;
     MoveTarget_PlayerOnly;
-    MoveTarget_EnemyOverPlayer;
+    MoveTarget_EnemyThenPlayer;
 }
 
 enum CombatTarget {
     CombatTarget_FriendlyThenPlayer;
     CombatTarget_Enemy;
-}
-
-enum DropTable {
-    DropTable_Default;
-    DropTable_LockedChest;
 }
 
 typedef Combat = {
@@ -93,9 +88,9 @@ typedef Move = {
     var target: MoveTarget;
 }
 
-typedef Locked = {
+typedef Container = {
     var color: Int;
-    var need_key: Bool;
+    var locked: Bool;
 }
 
 typedef Unlocker = {
@@ -130,7 +125,7 @@ static var use = new Map<Int, Use>();
 static var combat = new Map<Int, Combat>();
 static var drop_entity = new Map<Int, DropEntity>();
 static var move = new Map<Int, Move>();
-static var locked = new Map<Int, Locked>();
+static var container = new Map<Int, Container>();
 static var unlocker = new Map<Int, Unlocker>();
 static var draw_on_minimap = new Map<Int, DrawOnMinimap>();
 static var cost = new Map<Int, Int>();
@@ -222,11 +217,11 @@ static function copy(e: Int, x: Int, y: Int): Int {
             target: e_move.target,
         };
     }
-    if (locked.exists(e)) {
-        var e_locked = locked[e];
-        locked[copy] = {
-            color: e_locked.color,
-            need_key: e_locked.need_key,
+    if (container.exists(e)) {
+        var e_container = container[e];
+        container[copy] = {
+            color: e_container.color,
+            locked: e_container.locked,
         };
     }
     if (unlocker.exists(e)) {
@@ -272,7 +267,7 @@ static function remove(e: Int) {
     drop_entity.remove(e);
     talk.remove(e);
     move.remove(e);
-    locked.remove(e);
+    container.remove(e);
     unlocker.remove(e);
     draw_on_minimap.remove(e);
     cost.remove(e);
@@ -295,7 +290,7 @@ static function print(e: Int) {
     trace('drop_entity=${drop_entity[e]}');
     trace('talk=${talk[e]}');
     trace('move=${move[e]}');
-    trace('locked=${locked[e]}');
+    trace('container=${container[e]}');
     trace('unlocker=${unlocker[e]}');
     trace('draw_on_minimap=${draw_on_minimap[e]}');
     trace('cost=${cost[e]}');
@@ -336,16 +331,16 @@ static function validate(e: Int) {
         trace('Conflict: Item and Equipment.');
         error = true;
     }
-    if (locked.exists(e) && unlocker.exists(e)) {
-        trace('Conflict: Locked and Unlocker.');
+    if (container.exists(e) && unlocker.exists(e)) {
+        trace('Conflict: Container and Unlocker.');
         error = true;
     }
-    if (locked.exists(e) && item.exists(e)) {
-        trace('Conflict: Locked and Item.');
+    if (container.exists(e) && item.exists(e)) {
+        trace('Conflict: Container and Item.');
         error = true;
     }
-    if (locked.exists(e) && equipment.exists(e)) {
-        trace('Conflict: Locked and Equipment.');
+    if (container.exists(e) && equipment.exists(e)) {
+        trace('Conflict: Container and Equipment.');
         error = true;
     }
 

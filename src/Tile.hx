@@ -1,4 +1,6 @@
 
+import Spells;
+
 @:publicFields
 class Tile {
     static inline var tileset_width = 10;
@@ -18,43 +20,39 @@ class Tile {
     static inline var Poison = at(8, 6);
     static inline var PoisonDark= at(9, 6);
 
-    static var Head = [for (i in 0...7) at(i, 2)];
-    static var Chest = [for (i in 0...7) at(i, 3)];
-    static var Legs = [for (i in 0...7) at(i, 4)];
-    static var Sword = [for (i in 1...7) at(i, 5)];
+    static var Sword = [for (i in 1...7) at(i, 0)];
+    static var Head = [for (i in 0...7) at(i, 1)];
+    static var Chest = [for (i in 0...7) at(i, 2)];
+    static var Legs = [for (i in 0...7) at(i, 3)];
 
-    static inline var Copper = at(4, 8);
+    static inline var Copper = at(4, 9);
 
-    static inline var RingShadow = at(1, 0);
-    static inline var RingLight = at(2, 0);
-    static inline var RingFire = at(3, 0);
-    static inline var RingIce = at(4, 0);
-    static inline var RingMixed = at(5, 0);
+    static var Potion = [for (i in 0...6) at(i, 4)];
+    static var Scroll = [for (i in 0...6) at(i, 5)];
+    static var Ring = [for (i in 0...6) at(i, 6)];
+    static var Orb = [for (i in 0...6) at(i, 7)];
+    static var Statue = [for (i in 0...6) at(i, 8)];
 
-    static inline var PotionPhysical = at(0, 1);
-    static inline var PotionShadow = at(1, 1);
-    static inline var PotionLight = at(2, 1);
-    static inline var PotionFire = at(3, 1);
-    static inline var PotionIce = at(4, 1);
-    static inline var PotionHealing = at(5, 1);
-    static inline var PotionMixed = at(6, 1);
-
-    static inline var ScrollPhysical = at(0, 7);
-    static inline var ScrollShadow = at(1, 7);
-    static inline var ScrollLight = at(2, 7);
-    static inline var ScrollFire = at(3, 7);
-    static inline var ScrollIce = at(4, 7);
-    static inline var ScrollMixed = at(5, 7);
-
-    static inline var StatueSera = at(0, 9);
-    static inline var StatueSubere = at(1, 9);
-    static inline var StatueOllopa = at(2, 9);
-    static inline var StatueSuthaephes = at(3, 9);
-    static inline var StatueEnohik = at(4, 9);
-
+    static inline function col_to_index(col: SpellColor) {
+        return if (col == SpellColor_Gray) {
+            0;
+        } else if (col == SpellColor_Purple) {
+            1;
+        } else if (col == SpellColor_Yellow) {
+            2;
+        } else if (col == SpellColor_Red) {
+            3;
+        } else if (col == SpellColor_Blue) {
+            4;
+        } else if (col == SpellColor_Green) {
+            5;
+        } else {
+            0;
+        } 
+    }
+    
     static inline var KeyRed = at(0, 8);
     static inline var KeyOrange = at(1, 8);
     static inline var KeyGreen = at(2, 8);
     static inline var KeyBlue = at(3, 8);
-
 }

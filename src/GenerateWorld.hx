@@ -58,6 +58,7 @@ static inline var ENEMY_TYPES_PER_LEVEL_MIN = 2;
 static inline var ENEMY_TYPES_PER_LEVEL_MAX = 5;
 
 static inline var KEY_ON_ENEMY_CHANCE = 50;
+static inline var MERCHANT_ITEM_LEVEL_BONUS = 2;
 
 static function room_free_positions_shuffled(r: Room): Array<Vec2i> {
     // Exclude positions next to walls to avoid creating impassable cells
@@ -110,6 +111,14 @@ static function fill_rooms_with_entities() {
 
     var spawn_merchant_this_level = Random.chance(MERCHANT_PER_LEVEL_CHANCE);
 
+    function health_potion(x: Int, y: Int): Int {
+        return Entities.random_potion(x, y, SpellType_ModHealth);
+    }
+
+    function health_max_potion(x: Int, y: Int): Int {
+        return Entities.random_potion(x, y, SpellType_ModHealthMax);
+    }
+
     // NOTE: leave start room(0th) empty
     for (i in 1...Main.rooms.length) {
         var r = Main.rooms[i];
@@ -136,9 +145,11 @@ static function fill_rooms_with_entities() {
                 Random.pick_chance([
                     {v: random_enemy, c: 90.0},
                     {v: Entities.unlocked_chest, c: 12.0},
-                    {v: Entities.random_potion, c: 6.0},
+                    {v: health_potion, c: 3.0},
+                    {v: Entities.random_potion, c: 3.0},
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_scroll, c: 4.0},
+                    {v: Entities.random_orb, c: 1.0},
                     {v: Entities.random_weapon, c: 0.5},
                     {v: Entities.random_ring, c: 0.5},
                     {v: Entities.locked_chest, c: 2.0},
@@ -172,24 +183,26 @@ static function fill_rooms_with_entities() {
 
             if (item_positions.length > 0) {
                 // Spawn items with increased level
-                Main.current_level++;
+                Main.current_level += MERCHANT_ITEM_LEVEL_BONUS;
                 var sell_items = new Array<Int>();
-                sell_items.push(Entities.random_potion(item_positions[0].x, item_positions[0].y, SpellType_ModHealth));
+                sell_items.push(health_potion(item_positions[0].x, item_positions[0].y));
                 for (i in 1...Std.int(Math.min(MERCHANT_ITEM_AMOUNT, item_positions.length))) {
                     sell_items.push(Random.pick_chance([
+                        {v: health_max_potion, c: 2.0},
                         {v: Entities.random_potion, c: 3.0},
                         {v: Entities.random_armor, c: 1.0},
                         {v: Entities.random_scroll, c: 1.0},
+                        {v: Entities.random_orb, c: 0.5},
                         {v: Entities.random_weapon, c: 0.5},
                         {v: Entities.random_ring, c: 0.5},
                         ])
                     (item_positions[i].x, item_positions[i].y));
                 }
-                Main.current_level--;
+                Main.current_level -= MERCHANT_ITEM_LEVEL_BONUS;
 
                 // Add cost to items
                 for (e in sell_items) {
-                    Entity.cost[e] = Stats.get({min: 5, max: 10, scaling: 2.0}, Main.current_level);
+                    Entity.cost[e] = Stats.get({min: 6, max: 7, scaling: 2.0}, Main.current_level);
                 }
                 // For Use entities, increase charges to make them more valuable
                 for (e in sell_items) {
@@ -210,8 +223,10 @@ static function fill_rooms_with_entities() {
                 Random.pick_chance([
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_weapon, c: 0.5},
-                    {v: Entities.random_potion, c: 6.0},
+                    {v: health_potion, c: 3.0},
+                    {v: Entities.random_potion, c: 3.0},
                     {v: Entities.random_scroll, c: 3.0},
+                    {v: Entities.random_orb, c: 1.0},
                     {v: Entities.locked_chest, c: 2.0},
                     {v: Entities.random_ring, c: 1.0},
                     {v: Entities.random_statue, c: 1.0},
@@ -340,11 +355,11 @@ static function fill_rooms_with_entities() {
     // Either insert into a random enemy's droptable or spawn on map 
     var enemies_that_can_hold_keys = Main.entities_with(Entity.combat);
     Random.shuffle(enemies_that_can_hold_keys);
-    for (e in Entity.locked.keys()) {
-        var locked = Entity.locked[e];
+    for (e in Main.entities_with(Entity.container)) {
+        var locked = Entity.container[e];
         var locked_pos = Entity.position[e];
 
-        if (locked.need_key) {
+        if (locked.locked) {
             var key_done = false;
 
             // Give key to a random enemy(replaces current drop)

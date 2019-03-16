@@ -16,6 +16,14 @@ class Fontclass {
 			loadttffont(_name, _size);
 		}
 	}
+
+	public function updatebounds() {
+		tf_ttf.width = Gfx.screenwidth;
+		tf_ttf.height = Gfx.screenheight;
+		
+		tf_ttf.wordWrap = (Text.wordwrap > 0);
+		tf_ttf.width = (Text.wordwrap > 0)?Text.wordwrap:Gfx.screenwidth;
+	}
 	
 	public function loadbitmapfont(_name:String, _size:Float) {
 		name = _name;
