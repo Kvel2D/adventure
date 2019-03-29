@@ -49,8 +49,6 @@ crit spell
 
     have doubts if good, need to test extensively
 
-figure out if always using straight pathfinding for enemies works
-
 charm spell
 
 distribute spells for armors
@@ -58,3 +56,22 @@ distribute spells for armors
 might be better to coordinate scales for various stats
     attack bonuses should scale the same for potions/armor/statues/rings etc for it to be fair
     other stats as well
+
+censor bad names
+
+find more healing potions spell for equipment
+    increashes healing potion chance from world spawns and monster drops
+    eats into "none" drop(reduces it) instead of decreasing other drop chances
+
+alchemy orb spell
+    turn items into other items
+    turn armor into random orb
+    turn scroll into random potion
+    etc
+
+statue that consumes health and has a chance to spawn items
+
+maybe don't say how much percentages are for most things
+    distracting and shouldn't matter anyway
+    one problem is that when you have two items of same type with same spell you can't see if one of them is better than other
+        unless you assume that one is better if you know it came from higher floor

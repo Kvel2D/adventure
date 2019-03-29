@@ -51,8 +51,8 @@ class Tile {
         } 
     }
     
-    static inline var KeyRed = at(0, 8);
-    static inline var KeyOrange = at(1, 8);
-    static inline var KeyGreen = at(2, 8);
-    static inline var KeyBlue = at(3, 8);
+    static inline var KeyRed = at(0, 9);
+    static inline var KeyOrange = at(1, 9);
+    static inline var KeyGreen = at(2, 9);
+    static inline var KeyBlue = at(3, 9);
 }

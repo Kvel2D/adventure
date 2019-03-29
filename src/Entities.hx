@@ -17,8 +17,8 @@ class Entities {
 // force unindent
 
 static inline var ENEMY_BASE_ITEM_DROP_CHANCE = 25;
-static inline var ENEMY_BASE_COPPER_DROP_CHANCE = 25;
-static inline var ENEMY_NOTHING_DROP_CHANCE = 50;
+static inline var ENEMY_BASE_COPPER_DROP_CHANCE = 35;
+static inline var ENEMY_NOTHING_DROP_CHANCE = 40;
 
 static var locked_colors = [Col.RED, Col.ORANGE, Col.GREEN, Col.BLUE];
 static var unlocked_color = Col.YELLOW;
@@ -557,22 +557,24 @@ static function random_enemy_type(): Int->Int->Int {
 
     var level = Main.current_level;
 
-    var range: Int = if (level <= 1) {
-        2;
-    } else {
-        // NOTE: Ranges are sums of squares, this means that each range covers a square area, 1^2 + 1^2 = 2, 2^2 + 2^2 = 8, 3^2 + 3^2 = 18
-        Random.pick_chance([
-            {v: 2, c: 8.0},
-            {v: 8, c: 2.0},
-            {v: 18, c: 1.0},
-            ]);
-    }
+    // NOTE: removed ranged enemies for now because they suck
+    // var range: Int = if (level <= 1) {
+    //     2;
+    // } else {
+    //     // NOTE: Ranges are sums of squares, this means that each range covers a square area, 1^2 + 1^2 = 2, 2^2 + 2^2 = 8, 3^2 + 3^2 = 18
+    //     Random.pick_chance([
+    //         {v: 2, c: 8.0},
+    //         {v: 8, c: 2.0},
+    //         {v: 18, c: 1.0},
+    //         ]);
+    // }
+    var range = 2;
 
-    // Long-ranged mobs have weaker attack to compensate
+    // Long-ranged mobs have lower attack and health to compensate
     var range_factor = 
-    if (range == 1) 
+    if (range == 2) 
         1.0;
-    else if (range <= 2) 
+    else if (range <= 8) 
         0.5;
     else 
         0.25;

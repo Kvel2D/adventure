@@ -45,8 +45,6 @@ static inline var WORLD_SCALE = 4;
 static inline var MINIMAP_SCALE = 4;
 static inline var MINIMAP_X = 0;
 static inline var MINIMAP_Y = 0;
-static inline var ROOM_SIZE_MIN = 5;
-static inline var ROOM_SIZE_MAX = 15;
 static inline var RINGS_MAX = 2;
 static inline var PLAYER_SPELLS_MAX = 10;
 
@@ -109,7 +107,7 @@ static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1},
 
 // Used by all generation functions, don't need to pass it around everywhere
 static var current_level = 0;
-static var increment_level = true;
+static var increment_level = false;
 static var current_floor = 0;
 
 var start_targeting = false;
@@ -217,7 +215,7 @@ function restart_game() {
     'PLAYTEST NOTES',
     'Press F to toggle frametime graph. Let me know if the',
     'perfomance is bad!(above 16ms is bad)',
-    'Press G to print game log. It\'s printed to the browser console,',
+    'Press L to print game log. It\'s printed to the browser console,',
     'which is opened by ctrl+shift+J. I would appreciate if you copied', 
     'and sent me that log after you are done playing.',
     ];
@@ -344,12 +342,13 @@ function generate_level() {
         Player.y = rooms[0].y;
         
         for (dx in 1...10) {
-            Entities.random_weapon(Player.x + dx, Player.y);
-            Entities.random_armor(Player.x + dx, Player.y + 1);
-            Entities.random_scroll(Player.x + dx, Player.y + 2);
-            Entities.random_potion(Player.x + dx, Player.y + 3);
-            Entities.random_orb(Player.x + dx, Player.y + 4);
-            Entities.random_ring(Player.x + dx, Player.y + 5);
+            // Entities.random_weapon(Player.x + dx, Player.y);
+            // Entities.random_armor(Player.x + dx, Player.y + 1);
+            // Entities.random_scroll(Player.x + dx, Player.y + 2);
+            // Entities.random_potion(Player.x + dx, Player.y + 3);
+            // Entities.random_orb(Player.x + dx, Player.y + 4);
+            // Entities.random_ring(Player.x + dx, Player.y + 5);
+            // Entities.random_statue(Player.x + dx, Player.y + 6);
         }
 
         // Place stairs at the center of a random room(do this before generating entities to avoid overlaps)
@@ -425,6 +424,9 @@ function generate_level() {
 
         floor_stats += '\n${padded_name}c=${enemy_counts[name]}\ta=${combat.attack}\th=${combat.health}\tr^2=${combat.range_squared}\ta=${aggression}';
     }
+
+    floor_stats += '\nenemy rooms = ${GenerateWorld.enemy_rooms_this_floor}\nitem rooms = ${GenerateWorld.item_rooms_this_floor}';
+    floor_stats += '\nenemies = ${GenerateWorld.enemies_this_floor}\nitems = ${GenerateWorld.items_this_floor}';
 
     game_stats.push(floor_stats);
 
@@ -1220,12 +1222,12 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
     }
     add_message('You attack $target_name for $attack.');
 
-    if (Player.health_leech) {
+    if (Player.health_leech > 0 && Random.chance(Player.health_leech)) {
         Player.health += attack;
         if (Player.health > Player.health_max) {
             Player.health = Player.health_max;
         }
-        add_message('Health leech heals you for $attack.');
+        add_message('Health Leech heals you for $attack.');
     }
 
     if (combat.health <= 0) {
@@ -1415,7 +1417,23 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
         }
         case SpellType_UncoverMap: {
-            Player.full_minimap = true;
+            Gfx.drawtoimage('minimap_canvas_connections');
+            for (i in 0...rooms.length) {
+                var r = rooms[i];
+                if (r.is_connection && !room_on_minimap[i]) {
+                    Gfx.fillbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.BLACK);
+                    Gfx.drawbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.GRAY);
+                }
+            }
+            Gfx.drawtoimage('minimap_canvas_rooms');
+            for (i in 0...rooms.length) {
+                var r = rooms[i];
+                if (!r.is_connection && !room_on_minimap[i]) {
+                    Gfx.fillbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.BLACK);
+                    Gfx.drawbox(MINIMAP_X + r.x * MINIMAP_SCALE, MINIMAP_Y + r.y * MINIMAP_SCALE, (r.width) * MINIMAP_SCALE, (r.height) * MINIMAP_SCALE, Col.GRAY);
+                }
+            }
+            Gfx.drawtoscreen();
         }
         case SpellType_RandomTeleport: {
             // Teleport to random room
@@ -1447,7 +1465,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             Player.show_things = true;
         }
         case SpellType_HealthLeech: {
-            Player.health_leech = true;
+            Player.health_leech += spell.value;
         }
         case SpellType_NextFloor: {
             if (increment_level) {
@@ -2454,7 +2472,7 @@ function update_normal() {
 
             generate_level();
         }
-        if (GUI.auto_text_button('Print game stats (G)')) {
+        if (GUI.auto_text_button('Print game stats (L)')) {
             print_game_stats();
         }
     }
@@ -2505,7 +2523,7 @@ function update_normal() {
         Player.nolos = false;
         Player.noclip = false;
         Player.show_things = false;
-        Player.health_leech = false;
+        Player.health_leech = 0;
         Player.movespeed_mod = 0;
         Player.dropchance_mod = 0;
         Player.copper_drop_mod = 0;
@@ -2743,7 +2761,7 @@ function update_normal() {
 
     }
 
-    if (Input.justpressed(Key.G)) {
+    if (Input.justpressed(Key.L)) {
         print_game_stats();
     }
 

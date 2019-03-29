@@ -38,12 +38,12 @@ static var movespeed_mod = 0;
 static var dropchance_mod = 0;
 static var copper_drop_mod = 0;
 static var spell_damage_mod = 0;
+static var health_leech = 0;
 
 static var noclip = false;
 static var nolos = false;
 static var show_things = false;
 static var full_minimap = false;
-static var health_leech = false;
 static var invisible = false;
 static var increase_drop_level = false;
 

@@ -2,6 +2,7 @@
 import haxegon.*;
 import Entity;
 import Entities;
+import Spells;
 
 using haxegon.MathExtensions;
 
@@ -46,12 +47,21 @@ static inline var ORIGIN_Y = 1;
 static inline var ROOM_SPACING = 3;
 static inline var DIG_TRIES = 300;
 static inline var ROOMS_MAX = 15;
+static inline var ROOM_SIZE_MIN = 5;
+static inline var ROOM_SIZE_MAX = 15;
 
-static inline var ENEMY_ROOM_ENTITY_AMOUNT = 2;
+static inline function ENEMY_ROOM_ENTITY_AMOUNT(): Int {
+    return if (Main.current_floor <= 4) {
+        2;
+    } else if (Main.current_floor <= 8) {
+        3;
+    } else {
+        4;
+    }
+};
 static inline var ITEM_ROOM_ENTITY_AMOUNT = 2;
 static inline var MERCHANT_ITEM_AMOUNT = 3;
-static inline var MERCHANT_PER_LEVEL_CHANCE = 40;
-static inline var ROOM_SPELL_CHANCE = 5;
+static inline var ROOM_SPELL_CHANCE = 3;
 static inline var ROOM_SPELL_SPREADS_TO_NEIGHBORS_CHANCE = 50;
 
 static inline var ENEMY_TYPES_PER_LEVEL_MIN = 2;
@@ -59,6 +69,17 @@ static inline var ENEMY_TYPES_PER_LEVEL_MAX = 5;
 
 static inline var KEY_ON_ENEMY_CHANCE = 50;
 static inline var MERCHANT_ITEM_LEVEL_BONUS = 2;
+
+static inline var ENEMY_ITEM_IDEAL_RATIO = 0.5;
+// static function ENEMY_ITEM_RATIO_MARGIN(): Float { return Random.float(0.75, 1.25); };
+static function ENEMY_ITEM_RATIO_MARGIN(): Float { return 1.0; };
+
+static var enemy_rooms_this_floor = 0;
+static var item_rooms_this_floor = 0;
+static var enemies_this_floor = 0;
+static var items_this_floor = 0;
+
+static var floors_until_floor_with_merchant = Random.int(0, 2);
 
 static function room_free_positions_shuffled(r: Room): Array<Vec2i> {
     // Exclude positions next to walls to avoid creating impassable cells
@@ -105,11 +126,16 @@ static function fill_rooms_with_entities() {
         return Random.pick(enemy_types)(x, y);
     }
 
-    var spawned_merchant_this_level = false;
+    var spawned_merchant = false;
 
     var room_is_empty = [for (i in 0...Main.rooms.length) false];
 
-    var spawn_merchant_this_level = Random.chance(MERCHANT_PER_LEVEL_CHANCE);
+    var do_spawn_merchant = false;
+    floors_until_floor_with_merchant--;
+    if (floors_until_floor_with_merchant <= 0) {
+        floors_until_floor_with_merchant = Random.int(2, 3);
+        do_spawn_merchant = true;
+    }
 
     function health_potion(x: Int, y: Int): Int {
         return Entities.random_potion(x, y, SpellType_ModHealth);
@@ -118,6 +144,12 @@ static function fill_rooms_with_entities() {
     function health_max_potion(x: Int, y: Int): Int {
         return Entities.random_potion(x, y, SpellType_ModHealthMax);
     }
+
+    enemy_rooms_this_floor = 0;
+    item_rooms_this_floor = 0;
+
+    var enemies = new Array<Int>();
+    var items = new Array<Int>();
 
     // NOTE: leave start room(0th) empty
     for (i in 1...Main.rooms.length) {
@@ -136,13 +168,13 @@ static function fill_rooms_with_entities() {
 
         function enemy_room() {
             // Enemy/item room with possible location spells
-            var amount = Random.int(1, Math.round((r.width * r.height) / (Main.ROOM_SIZE_MAX * Main.ROOM_SIZE_MAX) * ENEMY_ROOM_ENTITY_AMOUNT));
+            var amount = Random.int(1, Math.round((r.width * r.height) / (ROOM_SIZE_MAX * ROOM_SIZE_MAX) * ENEMY_ROOM_ENTITY_AMOUNT()));
             for (i in 0...amount) {
                 if (positions.length == 0) {
                     break;
                 }
                 var pos = positions.pop();
-                Random.pick_chance([
+                var e = Random.pick_chance([
                     {v: random_enemy, c: 90.0},
                     {v: Entities.unlocked_chest, c: 12.0},
                     {v: health_potion, c: 3.0},
@@ -156,12 +188,20 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_statue, c: 1.0},
                     ])
                 (pos.x, pos.y);
+
+                if (Entity.combat.exists(e)) {
+                    enemies.push(e);
+                } else {
+                    items.push(e);
+                }
             }
+
+            enemy_rooms_this_floor++;
         }
 
         function merchant_room() {
             // Spawn merchant and items in a line starting from 3,3 away from top-left corner
-            spawned_merchant_this_level = true;
+            spawned_merchant = true;
 
             var positions = room_free_ODD_positions_shuffled(r);
             if (positions.length == 0) {
@@ -188,7 +228,7 @@ static function fill_rooms_with_entities() {
                 sell_items.push(health_potion(item_positions[0].x, item_positions[0].y));
                 for (i in 1...Std.int(Math.min(MERCHANT_ITEM_AMOUNT, item_positions.length))) {
                     sell_items.push(Random.pick_chance([
-                        {v: health_max_potion, c: 2.0},
+                        {v: health_max_potion, c: 1.0},
                         {v: Entities.random_potion, c: 3.0},
                         {v: Entities.random_armor, c: 1.0},
                         {v: Entities.random_scroll, c: 1.0},
@@ -202,25 +242,19 @@ static function fill_rooms_with_entities() {
 
                 // Add cost to items
                 for (e in sell_items) {
-                    Entity.cost[e] = Stats.get({min: 6, max: 7, scaling: 2.0}, Main.current_level);
-                }
-                // For Use entities, increase charges to make them more valuable
-                for (e in sell_items) {
-                    if (Entity.use.exists(e)) {
-                        Entity.use[e].charges += Random.int(2, 3);
-                    }
+                    Entity.cost[e] = Stats.get({min: 3, max: 5, scaling: 2.0}, Main.current_level);
                 }
             }
         }
 
         function item_room() {
-            var amount = Random.int(1, Math.round((r.width * r.height) / (Main.ROOM_SIZE_MAX * Main.ROOM_SIZE_MAX) * ITEM_ROOM_ENTITY_AMOUNT));
+            var amount = Random.int(1, Math.round((r.width * r.height) / (ROOM_SIZE_MAX * ROOM_SIZE_MAX) * ITEM_ROOM_ENTITY_AMOUNT));
             for (i in 0...amount) {
                 if (positions.length == 0) {
                     break;
                 }
                 var pos = positions.pop();
-                Random.pick_chance([
+                var e = Random.pick_chance([
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_weapon, c: 0.5},
                     {v: health_potion, c: 3.0},
@@ -232,7 +266,11 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_statue, c: 1.0},
                     ])
                 (pos.x, pos.y);
+
+                items.push(e);
             }
+
+            item_rooms_this_floor++;
         }
 
         function locked_room() {
@@ -280,7 +318,7 @@ static function fill_rooms_with_entities() {
             }
 
             // NOTE: spawning chests behind locked doors is okay
-            var amount = Random.int(1, Math.round((r.width * r.height) / (Main.ROOM_SIZE_MAX * Main.ROOM_SIZE_MAX) * ITEM_ROOM_ENTITY_AMOUNT));
+            var amount = Random.int(1, Math.round((r.width * r.height) / (ROOM_SIZE_MAX * ROOM_SIZE_MAX) * ITEM_ROOM_ENTITY_AMOUNT));
 
             for (i in 0...amount) {
                 if (positions.length == 0) {
@@ -299,42 +337,77 @@ static function fill_rooms_with_entities() {
 
         var dead_end = r.adjacent_rooms.length == 1;
 
-        if (!spawned_merchant_this_level && spawn_merchant_this_level) {
+        if (!spawned_merchant && do_spawn_merchant) {
             merchant_room();
         } else {
             Random.pick_chance([
-                {v: empty_room, c: 25.0},
+                {v: empty_room, c: if (dead_end) 5.0 else 15.0},
                 {v: enemy_room, c: 50.0},
-                {v: item_room, c: if (dead_end) 60.0 else 30.0},
+                {v: item_room, c: 40.0},
                 // {v: locked_room, c: 5.0},
                 ])
             ();
         }
+    }
 
-        // Sometimes add location spells
-        if (Random.chance(10)) {
-
+    // Balance enemy/item ratio
+    // Remove whichever one has spawned too much until within margins
+    if (enemies.length > 0 && items.length > 0) { 
+        Random.shuffle(enemies);
+        Random.shuffle(items);
+        var enemy_item_ratio = 1.0 * enemies.length / items.length;
+        var item_enemy_ratio = 1.0 * items.length / enemies.length;
+        var margin = ENEMY_ITEM_RATIO_MARGIN();
+        if (enemy_item_ratio > ENEMY_ITEM_IDEAL_RATIO * margin) {
+            while (enemy_item_ratio > ENEMY_ITEM_IDEAL_RATIO * margin) {
+                Entity.remove(enemies.pop());
+                enemy_item_ratio = 1.0 * enemies.length / items.length;
+            }
+        } else if (item_enemy_ratio > (1.0 / ENEMY_ITEM_IDEAL_RATIO) * margin) {
+            while (item_enemy_ratio > (1.0 / ENEMY_ITEM_IDEAL_RATIO) * margin) {
+                Entity.remove(items.pop());
+                item_enemy_ratio = 1.0 * items.length / enemies.length;
+            }
         }
     }
+
+    enemies_this_floor = enemies.length;
+    items_this_floor = items.length;
 
     var room_has_location_spell = [for (i in 0...Main.rooms.length) false];
 
     // Add location spells
     for (i in 0...Main.rooms.length) {
         if (Random.chance(ROOM_SPELL_CHANCE)) {
-            var location_spell = Random.pick_chance([
-                {v: Spells.poison_room, c: 1.0},
-                {v: Spells.teleport_room, c: 1.0},
-                ]);
+            var location_spell: Spell = Random.pick_chance([
+                {v: Spells.poison_room_spell, c: 1.0},
+                {v: Spells.teleport_room_spell, c: 1.0},
+                ])
+            ();
+            var location_spell_tile = switch (location_spell.type) {
+                case SpellType_RandomTeleport: Tile.Teleport;
+                case SpellType_ModHealth: Tile.Poison;
+                default: Tile.None;
+            }
 
             function add_location_spell_to_room_and_adjacent(room_i: Int, depth: Int) {
                 // NOTE: connections can be very long, don't put location spells if they are longer than max room dimension
                 var room = Main.rooms[room_i];
                 var max_dimension = Math.max(room.width, room.height);
 
-                if (!room_has_location_spell[room_i] && max_dimension <= Main.ROOM_SIZE_MAX * 1.1) {
+                if (!room_has_location_spell[room_i] && max_dimension <= ROOM_SIZE_MAX * 1.1) {
                     room_has_location_spell[room_i] = true;
-                    location_spell(Main.rooms[room_i]);
+
+                    // Set location spells and tiles
+                    // NOTE: all locations get a shared reference to spell so that duration is shared between them, otherwise the spell wouldn't tick unless you stood in the same place 
+                    for (x in room.x...room.x + room.width) {
+                        for (y in room.y...room.y + room.height) {
+                            if (Main.location_spells[x][y].length == 0) {
+                                Main.location_spells[x][y].push(location_spell);
+                                Main.tiles[x][y] = location_spell_tile;
+                            }
+                        }
+                    }
 
                     if (depth > 0 && Random.chance(ROOM_SPELL_SPREADS_TO_NEIGHBORS_CHANCE)) {
                         for (adj_i in Main.rooms[room_i].adjacent_rooms) {
@@ -568,11 +641,11 @@ static function generate_via_digging(): Array<Room> {
         }
 
         var new_room = {
-            x: Random.int(ORIGIN_X, world_width - Main.ROOM_SIZE_MAX - 1),
-            y: Random.int(ORIGIN_Y, world_height - Main.ROOM_SIZE_MAX - 1),
+            x: Random.int(ORIGIN_X, world_width - ROOM_SIZE_MAX - 1),
+            y: Random.int(ORIGIN_Y, world_height - ROOM_SIZE_MAX - 1),
             // NOTE: have to decrement max dimensions here because they are incremented by one later
-            width: Random.int(Main.ROOM_SIZE_MIN, Main.ROOM_SIZE_MAX - 1),
-            height: Random.int(Main.ROOM_SIZE_MIN, Main.ROOM_SIZE_MAX - 1),
+            width: Random.int(ROOM_SIZE_MIN, ROOM_SIZE_MAX - 1),
+            height: Random.int(ROOM_SIZE_MIN, ROOM_SIZE_MAX - 1),
             is_connection: false,
             adjacent_rooms: [],
             is_locked: false,
@@ -794,7 +867,7 @@ static function connect_rooms(rooms: Array<Room>, disconnect_factor: Float = 0.0
     }
     var removed_long = new Array<Connection>();
     for (c in connections) {
-        if (Math.dst(c.x1, c.y1, c.x2, c.y2) > Main.ROOM_SIZE_MAX || Random.chance(10)) {
+        if (Math.dst(c.x1, c.y1, c.x2, c.y2) > ROOM_SIZE_MAX || Random.chance(10)) {
             connected[c.i][c.j] = false;
             connected[c.j][c.i] = false;
 
