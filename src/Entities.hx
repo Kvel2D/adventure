@@ -342,7 +342,7 @@ static function test_potion(x: Int, y: Int): Int {
 }
 
 static function random_weapon(x: Int, y: Int): Int {
-    var level = Main.get_drop_entity_level();
+    var level = Main.current_level();
     
     var e = Entity.make();
     Entity.set_position(e, x, y);
@@ -399,7 +399,7 @@ static function random_weapon(x: Int, y: Int): Int {
 static function random_armor(x: Int, y: Int): Int {
     var e = Entity.make();
 
-    var level = Main.get_drop_entity_level();
+    var level = Main.current_level();
 
     Entity.set_position(e, x, y);
     var armor_type = Random.pick([EquipmentType_Head, EquipmentType_Chest, EquipmentType_Legs]);
@@ -451,7 +451,7 @@ static function random_armor(x: Int, y: Int): Int {
 static function random_ring(x: Int, y: Int): Int {
     var e = Entity.make();
 
-    var level = Main.get_drop_entity_level();
+    var level = Main.current_level();
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Ring';
@@ -471,7 +471,7 @@ static function random_ring(x: Int, y: Int): Int {
 static function random_potion(x: Int, y: Int, force_spell: SpellType = null): Int {
     var e = Entity.make();
 
-    var level = Main.get_drop_entity_level();
+    var level = Main.current_level();
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Potion';
@@ -499,7 +499,7 @@ static function random_potion(x: Int, y: Int, force_spell: SpellType = null): In
 static function random_scroll(x: Int, y: Int): Int {
     var e = Entity.make();
 
-    var level = Main.get_drop_entity_level();
+    var level = Main.current_level();
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Scroll';
@@ -527,7 +527,7 @@ static function random_scroll(x: Int, y: Int): Int {
 static function random_orb(x: Int, y: Int): Int {
     var e = Entity.make();
 
-    var level = Main.get_drop_entity_level();
+    var level = Main.current_level();
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Orb';
@@ -555,7 +555,7 @@ static function random_orb(x: Int, y: Int): Int {
 static function random_enemy_type(): Int->Int->Int {
     var name = generate_name();
 
-    var level = Main.current_level;
+    var level = Main.current_level();
 
     // NOTE: removed ranged enemies for now because they suck
     // var range: Int = if (level <= 1) {
@@ -582,7 +582,7 @@ static function random_enemy_type(): Int->Int->Int {
     if (attack == 0) {
         attack = 1;
     }
-    var health = Stats.get({min: 4 * range_factor, max: 5 * range_factor, scaling: 1.0}, level); 
+    var health = Stats.get({min: 4 * range_factor, max: 5 * range_factor, scaling: 2.0}, level); 
 
     // Make first floor easy
     if (Main.current_floor == 0) {
@@ -592,8 +592,8 @@ static function random_enemy_type(): Int->Int->Int {
 
     var aggression_type = Random.pick_chance([
         {v: AggressionType_Aggressive, c: 1.0},
-        {v: AggressionType_NeutralToAggressive, c: 0.1},
-        {v: AggressionType_Neutral, c: (0.1 / (1 + level))},
+        // {v: AggressionType_NeutralToAggressive, c: 0.1},
+        // {v: AggressionType_Neutral, c: (0.1 / (1 + level))},
         ]);
 
     // NeutralToAggressive start out stationary
@@ -604,8 +604,8 @@ static function random_enemy_type(): Int->Int->Int {
             type: Random.pick_chance([
                 // {v: MoveType_Astar, c: 1.0},
                 {v: MoveType_Straight, c: 2.0},
-                {v: MoveType_StayAway, c: 0.25},
-                {v: MoveType_Random, c: (1.0 / (1 + level))},
+                // {v: MoveType_StayAway, c: 0.25},
+                // {v: MoveType_Random, c: (1.0 / (1 + level))},
                 ]),
             cant_move: false,
             successive_moves: 0,
@@ -632,7 +632,6 @@ static function random_enemy_type(): Int->Int->Int {
         case AggressionType_Passive: '$name cowers in fear.';
     };
 
-    // TODO: diversify enemy colors
     var color = Col.GRAY;
 
     var item_drop_chance = ENEMY_BASE_ITEM_DROP_CHANCE + Player.dropchance_mod;
@@ -699,7 +698,7 @@ static function random_enemy_type(): Int->Int->Int {
 static function random_statue(x: Int, y: Int): Int {
     var e = Entity.make();
 
-    var level = Main.current_level;
+    var level = Main.current_level();
 
     Entity.set_position(e, x, y);
 
@@ -745,6 +744,10 @@ static function random_statue(x: Int, y: Int): Int {
 
     Entity.draw_tile[e] = Tile.Statue[Tile.col_to_index(color)];
 
+    if (statue_god == StatueGod_Sera) {
+        Entity.cost[e] = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+    }
+
     Entity.validate(e);
 
     return e;
@@ -753,7 +756,7 @@ static function random_statue(x: Int, y: Int): Int {
 static function merchant(x: Int, y: Int): Int {
     var e = Entity.make();
 
-    var level = Main.current_level;
+    var level = Main.current_level();
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Merchant';
@@ -811,7 +814,7 @@ static function golem(level: Int, x: Int, y: Int): Int {
         type: MoveType_Astar,
         cant_move: false,
         successive_moves: 0,
-        chase_dst: Random.int(7, 14),
+        chase_dst: 14,
         target: MoveTarget_EnemyThenPlayer,
     };
 
@@ -886,7 +889,7 @@ static function imp(level: Int, x: Int, y: Int): Int {
 static function copper(x: Int, y: Int): Int {
     var e = Entity.make();
 
-    var level = Main.current_level;
+    var level = Main.current_level();
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Copper';

@@ -47,6 +47,7 @@ static inline var MINIMAP_X = 0;
 static inline var MINIMAP_Y = 0;
 static inline var RINGS_MAX = 2;
 static inline var PLAYER_SPELLS_MAX = 10;
+static inline var SPELL_ITEM_LEVEL_BONUS = 1;
 
 static inline var UI_X = TILESIZE * VIEW_WIDTH * WORLD_SCALE + 13;
 static inline var PLAYER_STATS_Y = 0;
@@ -106,9 +107,8 @@ var added_message_this_turn = false;
 static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
 
 // Used by all generation functions, don't need to pass it around everywhere
-static var current_level = 0;
-static var increment_level = false;
 static var current_floor = 0;
+static var current_level_mod = 0;
 
 var start_targeting = false;
 var targeting_for_use = false;
@@ -118,6 +118,10 @@ var use_target = Entity.NONE;
 var game_stats = new Array<String>();
 var copper_gains = new Array<Int>();
 var copper_gained_this_floor = 0;
+var total_attack_this_level = 0;
+var total_defense_this_level = 0;
+var attack_count_this_level = 0;
+var defense_count_this_level = 0;
 
 var equipment_render_cache: Map<EquipmentType, EntityRenderData> = [
 EquipmentType_Head => null,
@@ -129,7 +133,6 @@ var inventory_render_cache: Array<Array<EntityRenderData>> = Data.create2darray(
 
 function new() {
     Gfx.resizescreen(SCREEN_WIDTH, SCREEN_HEIGHT);
-    // Core.showstats = true;
     Text.setfont('pixelfj8');
     Gfx.loadtiles('tiles', TILESIZE, TILESIZE);
     Gfx.createimage('tiles_canvas', TILESIZE * VIEW_WIDTH, TILESIZE * VIEW_HEIGHT);
@@ -190,12 +193,14 @@ function restart_game() {
     Player.spells = new Array<Spell>();
     spells_this_turn = [for (i in 0...(Spells.last_prio + 1)) new Array<Spell>()];
 
-    current_level = 0;
     current_floor = 0;
     Player.health = 10;
+    Player.health_max = 10;
     Player.copper_count = 0;
     Player.pure_absorb = 0;
     Player.damage_shield = 0;
+    Player.attack = 1;
+    Player.defense = 0;
 
     // Insert tutorial into messages
     var tutorial_text = [
@@ -342,8 +347,8 @@ function generate_level() {
         Player.y = rooms[0].y;
         
         for (dx in 1...10) {
-            // Entities.random_weapon(Player.x + dx, Player.y);
-            // Entities.random_armor(Player.x + dx, Player.y + 1);
+            Entities.random_weapon(Player.x + dx, Player.y);
+            Entities.random_armor(Player.x + dx, Player.y + 1);
             // Entities.random_scroll(Player.x + dx, Player.y + 2);
             // Entities.random_potion(Player.x + dx, Player.y + 3);
             // Entities.random_orb(Player.x + dx, Player.y + 4);
@@ -371,7 +376,11 @@ function generate_level() {
     //
     // Save game stats for this floor
     //
-    var floor_stats = 'floor=$current_floor hp=${Player.health}/${Player.health} attack=${Player.attack} defense=${Player.defense}';
+
+    var avg_attack = total_attack_this_level / attack_count_this_level;
+    var avg_defense = total_defense_this_level / defense_count_this_level;
+
+    var floor_stats = 'floor=$current_floor hp=${Player.health}/${Player.health} attack=${avg_attack} defense=${avg_defense}';
 
     // Count enemies by name
     var enemy_counts = new Map<String, Int>();
@@ -432,6 +441,10 @@ function generate_level() {
 
     copper_gains.push(copper_gained_this_floor);
     copper_gained_this_floor = 0;
+    total_attack_this_level = 0;
+    attack_count_this_level = 0;
+    total_defense_this_level = 0;
+    defense_count_this_level = 0;
 }
 
 static var time_stamp = 0.0;
@@ -468,13 +481,8 @@ inline function out_of_view_bounds(x, y) {
     return x < (Player.x - Math.floor(VIEW_WIDTH / 2)) || y < (Player.y - Math.floor(VIEW_HEIGHT / 2)) || x > (Player.x + Math.floor(VIEW_WIDTH / 2)) || y > (Player.y + Math.floor(VIEW_HEIGHT / 2));
 }
 
-static function get_drop_entity_level(): Int {
-    return 
-    if (Player.increase_drop_level) {
-        current_level + 1;
-    } else {
-        current_level;
-    }
+static function current_level(): Int {
+    return Std.int(Math.max(0, Math.floor(current_floor / 2) + current_level_mod));
 }
 
 static function get_level_tile_index(): Int {
@@ -591,7 +599,14 @@ function drop_entity_from_entity(e: Int) {
 
     Entity.remove_position(e);
 
+    if (Player.increase_drop_level) {
+        current_level_mod = SPELL_ITEM_LEVEL_BONUS;
+    }
+
     var drop = drop_entity.drop_func(pos.x, pos.y);
+
+    current_level_mod = 0;
+
     if (drop != Entity.NONE) {
         var drop_name = if (Entity.name.exists(drop)) {
             Entity.name[drop];
@@ -655,7 +670,14 @@ function use_entity(e: Int) {
     var use = Entity.use[e];
 
     if (use.charges > 0) {
-        use.charges--;
+
+        var charge_is_saved = Player.save_charge > 0 && Random.chance(Player.save_charge);
+
+        if (charge_is_saved) {
+            add_message("Lucky use! Charge is saved.");
+        } else {
+            use.charges--;
+        }
 
         if (use.flavor_text.length > 0) {
             add_message(use.flavor_text);
@@ -828,7 +850,8 @@ function move_entity(e: Int) {
     }
 
     // Skip moving sometimes as the number of successive moves goes up, this is so that monsters don't follow the player forever
-    if (Random.chance(Std.int(Math.min(100, prev_successive_moves * prev_successive_moves * prev_successive_moves)))) {
+    // NOTE: doesn't affect astar friendlies
+    if (move.type != MoveType_Astar && Random.chance(Std.int(Math.min(100, prev_successive_moves * prev_successive_moves * prev_successive_moves)))) {
         return;
     }
 
@@ -952,7 +975,7 @@ function move_entity(e: Int) {
             if (target_x != -1 && target_y != -1 && Math.dst(target_x, target_y, pos.x, pos.y) < move.chase_dst) {
                 var path = Path.astar_view(pos.x, pos.y, target_x, target_y);
 
-                if (path.length > 2) {
+                if (path.length > 3) {
                     Entity.set_position(e, path[path.length - 2].x + get_view_x(), path[path.length - 2].y + get_view_y());
                 }
             }
@@ -1154,6 +1177,8 @@ function entity_attack_player(e: Int): Bool {
         move.cant_move = true;
     }
 
+    total_defense_this_level += Player.defense + Player.defense_mod;
+
     return true;
 }
 
@@ -1212,6 +1237,10 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
         attack += Player.spell_damage_mod;
     }
 
+    if (Player.critical > 0 && Random.chance(Player.critical)) {
+        attack *= 2;
+    }
+
     combat.health -= attack;
     combat.attacked_by_player = true;
 
@@ -1236,6 +1265,10 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
 
     if (combat.health <= 0) {
         kill_entity(e);
+    }
+
+    if (!is_spell) {
+        total_attack_this_level += Player.attack + Player.attack_mod;
     }
 }
 
@@ -1286,7 +1319,6 @@ static function get_entity_render_data(e: Int): EntityRenderData {
     };
 }
 
-// TODO: optimize this, currently perfomance is bad when there are many entities on screen each with charge indicator
 function draw_entity(e: Int, x: Float, y: Float, render_data: EntityRenderData = null) {
     if (render_data == null) {
         render_data = get_entity_render_data(e);
@@ -1341,7 +1373,7 @@ function damage_player(damage: Int, from_text: String = '') {
 
 function do_spell(spell: Spell, effect_message: Bool = true) {
     // NOTE: some infinite spells(buffs from items) are printed, some aren't
-    // for example: printing that a sword increases ice attack every turn is NOT useful
+    // for example: printing that a sword increases attack every turn is NOT useful
     // printing that the sword is damaging the player every 5 turns IS useful
 
     function teleport_player_to_room(room_i: Int): Bool {
@@ -1468,10 +1500,6 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             Player.health_leech += spell.value;
         }
         case SpellType_NextFloor: {
-            if (increment_level) {
-                current_level++;
-            }
-            increment_level = !increment_level;
             current_floor++;
 
             generate_level();
@@ -1591,6 +1619,17 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 Entity.combat[use_target].aggression = AggressionType_NeutralToAggressive;
                 Entity.move.remove(use_target);
                 add_message('You put the enemy to sleep.');
+            }
+        }
+        case SpellType_Charm: {
+            if (Entity.combat.exists(use_target) && Entity.move.exists(use_target)) {
+                Entity.combat[use_target].aggression = AggressionType_Aggressive;
+                Entity.combat[use_target].target = CombatTarget_Enemy;
+                Entity.move[use_target].type = MoveType_Astar;
+                Entity.move[use_target].target = MoveTarget_EnemyThenPlayer;
+                Entity.move[use_target].chase_dst = 14;
+
+                add_message('You charm an enemy.');
             }
         }
         case SpellType_ImproveEquipment: {
@@ -1727,6 +1766,12 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModDefenseByCopper: {
             Player.defense_mod += 5 * Math.ceil(Math.sqrt(Player.copper_count / 10));
+        }
+        case SpellType_SaveCharge: {
+            Player.save_charge += spell.value;
+        }
+        case SpellType_Critical: {
+            Player.critical += spell.value;
         }
     }
 }
@@ -2038,6 +2083,13 @@ function render_world() {
         }
     }
 
+    // Draw enemies
+    for (e in entities_with(Entity.combat)) {
+        var pos = Entity.position[e];
+
+        Gfx.fillbox(MINIMAP_X + pos.x * MINIMAP_SCALE, MINIMAP_Y + pos.y * MINIMAP_SCALE, MINIMAP_SCALE * 1.5, MINIMAP_SCALE * 1.5, Col.RED);
+    }
+
     // Draw player
     Gfx.fillbox(MINIMAP_X + Player.x * MINIMAP_SCALE, MINIMAP_Y + Player.y * MINIMAP_SCALE, MINIMAP_SCALE, MINIMAP_SCALE, Col.RED);
 
@@ -2200,7 +2252,7 @@ function update_normal() {
         var tooltip = "";
         if (Entity.name.exists(e)) {
             // tooltip += 'Id: ${e}';
-            tooltip += '${Entity.name[e]}\n';
+            tooltip += '${Entity.name[e]}';
         }
         if (Entity.combat.exists(e)) {
             var entity_combat = Entity.combat[e];
@@ -2240,6 +2292,8 @@ function update_normal() {
         if (Entity.cost.exists(e)) {
             tooltip += '\nCost: ${Entity.cost[e]} copper.';
         }
+
+
         return tooltip;
     }
 
@@ -2247,10 +2301,16 @@ function update_normal() {
     if (interact_target == Entity.NONE) {
         var entity_tooltip = get_tooltip(hovered_anywhere);
 
+        if (Entity.equipment.exists(hovered_anywhere) && Entity.position.exists(hovered_anywhere)) {
+            var equipped = Player.equipment[Entity.equipment[hovered_anywhere].type];
+
+            if (Entity.equipment.exists(equipped) && !Entity.position.exists(equipped)) {
+                entity_tooltip += '\n\n\nCURRENTLY EQUIPPED:\n' + get_tooltip(equipped);
+            }
+        }
+
         if (entity_tooltip != "" && !Entity.combat.exists(hovered_anywhere)) {
-            // if (!Entity.position.exists(hovered_anywhere)) {
-                Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, Text.width(entity_tooltip) + 10, Text.height(entity_tooltip), Col.DARKBROWN);
-            // }
+            Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, Text.width(entity_tooltip) + 10, Text.height(entity_tooltip), Col.DARKBROWN);
             Text.display(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, entity_tooltip, Col.WHITE);
         }
     }
@@ -2464,10 +2524,6 @@ function update_normal() {
             DEV_nodeath = !DEV_nodeath;
         }
         if (GUI.auto_text_button('Next floor')) {
-            if (increment_level) {
-                current_level++;
-            }
-            increment_level = !increment_level;
             current_floor++;
 
             generate_level();
@@ -2531,6 +2587,8 @@ function update_normal() {
         Player.increase_drop_level = false;
         Player.invisible = false;
         Player.full_minimap = false;
+        Player.save_charge = 0;
+        Player.critical = 0;
 
         //
         // Process spells
@@ -2697,7 +2755,6 @@ function update_normal() {
             Player.room = get_room_index(Player.x, Player.y);
         }
 
-        // NOTE: can die from entity attacks or spells
         if (Player.health <= 0) {
             add_message('You died.');
         }

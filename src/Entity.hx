@@ -12,7 +12,7 @@ enum EquipmentType {
 }
 
 enum AggressionType {
-    AggressionType_Aggressive; // attack if player is close
+    AggressionType_Aggressive; // attack if target is close
     AggressionType_Neutral; // attack only in response
     AggressionType_NeutralToAggressive; // attack only in response
     AggressionType_Passive; // never attack

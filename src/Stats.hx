@@ -21,7 +21,7 @@ static function get_unrounded(stat: Stat, level: Int): Float {
 }
 
 static function get(stat: Stat, level: Int): Int {
-    return Std.int(Math.round(get_unrounded(stat, level))); 
+    return Std.int(Math.max(1, Math.round(get_unrounded(stat, level)))); 
 }
 
 }

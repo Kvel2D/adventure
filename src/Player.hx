@@ -39,6 +39,8 @@ static var dropchance_mod = 0;
 static var copper_drop_mod = 0;
 static var spell_damage_mod = 0;
 static var health_leech = 0;
+static var save_charge = 0;
+static var critical = 0;
 
 static var noclip = false;
 static var nolos = false;

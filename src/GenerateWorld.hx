@@ -50,15 +50,6 @@ static inline var ROOMS_MAX = 15;
 static inline var ROOM_SIZE_MIN = 5;
 static inline var ROOM_SIZE_MAX = 15;
 
-static inline function ENEMY_ROOM_ENTITY_AMOUNT(): Int {
-    return if (Main.current_floor <= 4) {
-        2;
-    } else if (Main.current_floor <= 8) {
-        3;
-    } else {
-        4;
-    }
-};
 static inline var ITEM_ROOM_ENTITY_AMOUNT = 2;
 static inline var MERCHANT_ITEM_AMOUNT = 3;
 static inline var ROOM_SPELL_CHANCE = 3;
@@ -168,7 +159,7 @@ static function fill_rooms_with_entities() {
 
         function enemy_room() {
             // Enemy/item room with possible location spells
-            var amount = Random.int(1, Math.round((r.width * r.height) / (ROOM_SIZE_MAX * ROOM_SIZE_MAX) * ENEMY_ROOM_ENTITY_AMOUNT()));
+            var amount = Stats.get({min: 1, max: 2, scaling: 1.0}, Main.current_level());
             for (i in 0...amount) {
                 if (positions.length == 0) {
                     break;
@@ -181,7 +172,7 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_potion, c: 3.0},
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_scroll, c: 4.0},
-                    {v: Entities.random_orb, c: 1.0},
+                    {v: Entities.random_orb, c: 1.5},
                     {v: Entities.random_weapon, c: 0.5},
                     {v: Entities.random_ring, c: 0.5},
                     {v: Entities.locked_chest, c: 2.0},
@@ -223,7 +214,7 @@ static function fill_rooms_with_entities() {
 
             if (item_positions.length > 0) {
                 // Spawn items with increased level
-                Main.current_level += MERCHANT_ITEM_LEVEL_BONUS;
+                Main.current_level_mod = MERCHANT_ITEM_LEVEL_BONUS;
                 var sell_items = new Array<Int>();
                 sell_items.push(health_potion(item_positions[0].x, item_positions[0].y));
                 for (i in 1...Std.int(Math.min(MERCHANT_ITEM_AMOUNT, item_positions.length))) {
@@ -238,11 +229,11 @@ static function fill_rooms_with_entities() {
                         ])
                     (item_positions[i].x, item_positions[i].y));
                 }
-                Main.current_level -= MERCHANT_ITEM_LEVEL_BONUS;
+                Main.current_level_mod = 0;
 
                 // Add cost to items
                 for (e in sell_items) {
-                    Entity.cost[e] = Stats.get({min: 3, max: 5, scaling: 2.0}, Main.current_level);
+                    Entity.cost[e] = Stats.get({min: 3, max: 5, scaling: 2.0}, Main.current_level());
                 }
             }
         }
@@ -260,7 +251,7 @@ static function fill_rooms_with_entities() {
                     {v: health_potion, c: 3.0},
                     {v: Entities.random_potion, c: 3.0},
                     {v: Entities.random_scroll, c: 3.0},
-                    {v: Entities.random_orb, c: 1.0},
+                    {v: Entities.random_orb, c: 1.5},
                     {v: Entities.locked_chest, c: 2.0},
                     {v: Entities.random_ring, c: 1.0},
                     {v: Entities.random_statue, c: 1.0},
