@@ -89,6 +89,7 @@ var DEV_nolos = false;
 var DEV_full_minimap = false;
 var DEV_frametime_graph = false;
 var DEV_nodeath = false;
+var DEV_show_enemies = false;
 
 static var stairs_x = 0;
 static var stairs_y = 0;
@@ -347,8 +348,8 @@ function generate_level() {
         Player.y = rooms[0].y;
         
         for (dx in 1...10) {
-            Entities.random_weapon(Player.x + dx, Player.y);
-            Entities.random_armor(Player.x + dx, Player.y + 1);
+            // Entities.random_weapon(Player.x + dx, Player.y);
+            // Entities.random_armor(Player.x + dx, Player.y + 1);
             // Entities.random_scroll(Player.x + dx, Player.y + 2);
             // Entities.random_potion(Player.x + dx, Player.y + 3);
             // Entities.random_orb(Player.x + dx, Player.y + 4);
@@ -671,7 +672,7 @@ function use_entity(e: Int) {
 
     if (use.charges > 0) {
 
-        var charge_is_saved = Player.save_charge > 0 && Random.chance(Player.save_charge);
+        var charge_is_saved = Player.lucky_charge > 0 && Random.chance(Player.lucky_charge);
 
         if (charge_is_saved) {
             add_message("Lucky use! Charge is saved.");
@@ -1257,6 +1258,7 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
             Player.health = Player.health_max;
         }
         add_message('Health Leech heals you for $attack.');
+        add_damage_number(attack);
     }
 
     if (combat.health <= 0) {
@@ -1767,8 +1769,8 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_ModDefenseByCopper: {
             Player.defense_mod += 5 * Math.ceil(Math.sqrt(Player.copper_count / 10));
         }
-        case SpellType_SaveCharge: {
-            Player.save_charge += spell.value;
+        case SpellType_LuckyCharge: {
+            Player.lucky_charge += spell.value;
         }
         case SpellType_Critical: {
             Player.critical += spell.value;
@@ -2084,10 +2086,12 @@ function render_world() {
     }
 
     // Draw enemies
-    for (e in entities_with(Entity.combat)) {
-        var pos = Entity.position[e];
+    if (DEV_show_enemies) {
+        for (e in entities_with(Entity.combat)) {
+            var pos = Entity.position[e];
 
-        Gfx.fillbox(MINIMAP_X + pos.x * MINIMAP_SCALE, MINIMAP_Y + pos.y * MINIMAP_SCALE, MINIMAP_SCALE * 1.5, MINIMAP_SCALE * 1.5, Col.RED);
+            Gfx.fillbox(MINIMAP_X + pos.x * MINIMAP_SCALE, MINIMAP_Y + pos.y * MINIMAP_SCALE, MINIMAP_SCALE * 1.5, MINIMAP_SCALE * 1.5, Col.RED);
+        }
     }
 
     // Draw player
@@ -2531,6 +2535,9 @@ function update_normal() {
         if (GUI.auto_text_button('Print game stats (L)')) {
             print_game_stats();
         }
+        if (GUI.auto_text_button('Show enemies')) {
+            DEV_show_enemies = !DEV_show_enemies;
+        }
     }
 
     //
@@ -2587,7 +2594,7 @@ function update_normal() {
         Player.increase_drop_level = false;
         Player.invisible = false;
         Player.full_minimap = false;
-        Player.save_charge = 0;
+        Player.lucky_charge = 0;
         Player.critical = 0;
 
         //
@@ -2628,6 +2635,10 @@ function update_normal() {
                     // Every attack spells activate only when attacking
                     if (attack_target != Entity.NONE) {
                         decrement_duration();
+                    }
+
+                    if (spell.type == SpellType_ModAttack || spell.type == SpellType_ModDefense) {
+                        active = true;
                     }
                 }
             }

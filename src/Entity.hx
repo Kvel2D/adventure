@@ -321,10 +321,6 @@ static function validate(e: Int) {
         trace('Missing dependency: DrawOnMinimap needs Position.');
         error = true;
     }
-    if (cost.exists(e) && !(item.exists(e) || equipment.exists(e))) {
-        trace('Missing dependency: Buy needs Item or Equipment.');
-        error = true;
-    }
 
     // Conflicts
     if (item.exists(e) && equipment.exists(e)) {

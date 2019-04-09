@@ -54,6 +54,7 @@ static inline var ITEM_ROOM_ENTITY_AMOUNT = 2;
 static inline var MERCHANT_ITEM_AMOUNT = 3;
 static inline var ROOM_SPELL_CHANCE = 3;
 static inline var ROOM_SPELL_SPREADS_TO_NEIGHBORS_CHANCE = 50;
+static inline var ITEM_IN_ENEMY_ROOM_CHANCE = 33;
 
 static inline var ENEMY_TYPES_PER_LEVEL_MIN = 2;
 static inline var ENEMY_TYPES_PER_LEVEL_MAX = 5;
@@ -70,7 +71,12 @@ static var item_rooms_this_floor = 0;
 static var enemies_this_floor = 0;
 static var items_this_floor = 0;
 
-static var floors_until_floor_with_merchant = Random.int(0, 2);
+// NOTE: Start at a minimum of 1 so that no merchant is spawned
+static var floors_until_floor_with_merchant = 1 + Random.int(0, 2);
+
+static var health_potion_tally = new Array<Bool>();
+
+static var weapons_on_floor = new Map<Int, Bool>();
 
 static function room_free_positions_shuffled(r: Room): Array<Vec2i> {
     // Exclude positions next to walls to avoid creating impassable cells
@@ -105,7 +111,29 @@ static function room_free_ODD_positions_shuffled(r: Room): Array<Vec2i> {
     return positions;
 }
 
+static function weapon_bad_streak_mod(): Float {
+    var weapons_floor = Main.current_floor - 1;
+    var floors_without_weapons_streak = 0;
+
+    while (weapons_floor >= 0) {
+        if (!GenerateWorld.weapons_on_floor.exists(Main.current_floor) || !GenerateWorld.weapons_on_floor[Main.current_floor]) {
+            floors_without_weapons_streak++;
+        } else {
+            break;
+        }
+        weapons_floor--;
+    }
+
+    return if (floors_without_weapons_streak >= 2) {
+        3.0;
+    } else {
+        1.0;
+    }
+}
+
 static function fill_rooms_with_entities() {
+    weapons_on_floor[Main.current_floor] = false;
+
     // Reset first chars for new level
     Entities.generated_first_chars = new Array<String>();
 
@@ -123,8 +151,8 @@ static function fill_rooms_with_entities() {
 
     var do_spawn_merchant = false;
     floors_until_floor_with_merchant--;
-    if (floors_until_floor_with_merchant <= 0) {
-        floors_until_floor_with_merchant = Random.int(2, 3);
+    if (floors_until_floor_with_merchant < 0) {
+        floors_until_floor_with_merchant = Random.int(0, 2);
         do_spawn_merchant = true;
     }
 
@@ -136,11 +164,35 @@ static function fill_rooms_with_entities() {
         return Entities.random_potion(x, y, SpellType_ModHealthMax);
     }
 
+    function tally_health_potions(is_health_potion: Bool) {
+        health_potion_tally.push(is_health_potion);
+        if (health_potion_tally.length > 10) {
+            health_potion_tally.shift();
+        }
+    }
+
+    function health_potion_bad_streak_mod(): Float {
+        var tally = 0;
+        for (e in health_potion_tally) {
+            if (e) {
+                tally++;
+            }
+        }
+        
+        return if (tally / health_potion_tally.length < 0.1) {
+            3.0;
+        } else {
+            1.0;
+        }
+    }
+
     enemy_rooms_this_floor = 0;
     item_rooms_this_floor = 0;
 
     var enemies = new Array<Int>();
     var items = new Array<Int>();
+
+    var spawned_weapon_this_floor = false;
 
     // NOTE: leave start room(0th) empty
     for (i in 1...Main.rooms.length) {
@@ -159,32 +211,41 @@ static function fill_rooms_with_entities() {
 
         function enemy_room() {
             // Enemy/item room with possible location spells
-            var amount = Stats.get({min: 1, max: 2, scaling: 1.0}, Main.current_level());
+            var amount = Stats.get({min: 1, max: 2, scaling: 0.75}, Main.current_level());
             for (i in 0...amount) {
                 if (positions.length == 0) {
                     break;
                 }
                 var pos = positions.pop();
-                var e = Random.pick_chance([
-                    {v: random_enemy, c: 90.0},
+                var e = random_enemy(pos.x, pos.y);
+
+                enemies.push(e);
+            }
+
+            if (positions.length > 0 && Random.chance(ITEM_IN_ENEMY_ROOM_CHANCE)) {
+                var pos = positions.pop();
+                var f = Random.pick_chance([
                     {v: Entities.unlocked_chest, c: 12.0},
-                    {v: health_potion, c: 3.0},
-                    {v: Entities.random_potion, c: 3.0},
+                    {v: health_potion, c: 3.0 * health_potion_bad_streak_mod()},
+                    {v: Entities.random_potion, c: 2.0},
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_scroll, c: 4.0},
                     {v: Entities.random_orb, c: 1.5},
-                    {v: Entities.random_weapon, c: 0.5},
+                    {v: Entities.random_weapon, c: 0.5 * weapon_bad_streak_mod()},
                     {v: Entities.random_ring, c: 0.5},
                     {v: Entities.locked_chest, c: 2.0},
                     {v: Entities.random_statue, c: 1.0},
-                    ])
-                (pos.x, pos.y);
+                    ]);
 
-                if (Entity.combat.exists(e)) {
-                    enemies.push(e);
-                } else {
-                    items.push(e);
+                var e = f(pos.x, pos.y);
+
+                tally_health_potions(f == health_potion);
+
+                if (f == Entities.random_weapon) {
+                    spawned_weapon_this_floor = true;
                 }
+
+                items.push(e);
             }
 
             enemy_rooms_this_floor++;
@@ -219,8 +280,8 @@ static function fill_rooms_with_entities() {
                 sell_items.push(health_potion(item_positions[0].x, item_positions[0].y));
                 for (i in 1...Std.int(Math.min(MERCHANT_ITEM_AMOUNT, item_positions.length))) {
                     sell_items.push(Random.pick_chance([
-                        {v: health_max_potion, c: 1.0},
-                        {v: Entities.random_potion, c: 3.0},
+                        {v: health_max_potion, c: 2.0},
+                        {v: Entities.random_potion, c: 2.0},
                         {v: Entities.random_armor, c: 1.0},
                         {v: Entities.random_scroll, c: 1.0},
                         {v: Entities.random_orb, c: 0.5},
@@ -245,18 +306,25 @@ static function fill_rooms_with_entities() {
                     break;
                 }
                 var pos = positions.pop();
-                var e = Random.pick_chance([
+                var f = Random.pick_chance([
                     {v: Entities.random_armor, c: 3.0},
-                    {v: Entities.random_weapon, c: 0.5},
-                    {v: health_potion, c: 3.0},
-                    {v: Entities.random_potion, c: 3.0},
+                    {v: Entities.random_weapon, c: 0.5 * weapon_bad_streak_mod()},
+                    {v: health_potion, c: 3.0 * health_potion_bad_streak_mod()},
+                    {v: Entities.random_potion, c: 2.0},
                     {v: Entities.random_scroll, c: 3.0},
                     {v: Entities.random_orb, c: 1.5},
                     {v: Entities.locked_chest, c: 2.0},
                     {v: Entities.random_ring, c: 1.0},
                     {v: Entities.random_statue, c: 1.0},
-                    ])
-                (pos.x, pos.y);
+                    ]);
+
+                var e = f(pos.x, pos.y);
+
+                tally_health_potions(f == health_potion);
+
+                if (f== Entities.random_weapon) {
+                    spawned_weapon_this_floor = true;
+                }
 
                 items.push(e);
             }

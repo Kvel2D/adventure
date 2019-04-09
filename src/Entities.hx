@@ -219,9 +219,9 @@ static function unlocked_chest(x: Int, y: Int): Int {
     Entity.drop_entity[e] = {
         drop_func: function(x, y) {
             return (Random.pick_chance([
-                {v: Entities.random_weapon, c: 1.0},
+                {v: Entities.random_weapon, c: 1.0 * GenerateWorld.weapon_bad_streak_mod()},
                 {v: Entities.random_armor, c: 6.0},
-                {v: Entities.random_potion, c: 3.0},
+                {v: Entities.random_potion, c: 2.0},
                 {v: Entities.random_ring, c: 2.0},
                 ])
             (x, y));
@@ -254,7 +254,7 @@ static function locked_chest(x: Int, y: Int): Int {
     Entity.drop_entity[e] = {
         drop_func: function(x, y) {
             return (Random.pick_chance([
-                {v: Entities.random_weapon, c: 1.0},
+                {v: Entities.random_weapon, c: 1.0 * GenerateWorld.weapon_bad_streak_mod()},
                 {v: Entities.random_armor, c: 6.0},
                 {v: Entities.random_ring, c: 1.0},
                 ])
@@ -342,6 +342,8 @@ static function test_potion(x: Int, y: Int): Int {
 }
 
 static function random_weapon(x: Int, y: Int): Int {
+    GenerateWorld.weapons_on_floor[Main.current_floor] = true;
+
     var level = Main.current_level();
     
     var e = Entity.make();
@@ -396,13 +398,41 @@ static function random_weapon(x: Int, y: Int): Int {
     return e;
 }
 
+static var armor_type_tallies = new Array<EquipmentType>();
+
 static function random_armor(x: Int, y: Int): Int {
     var e = Entity.make();
 
     var level = Main.current_level();
 
     Entity.set_position(e, x, y);
-    var armor_type = Random.pick([EquipmentType_Head, EquipmentType_Chest, EquipmentType_Legs]);
+
+    var armor_tally_head = 0;
+    var armor_tally_chest = 0;
+    var armor_tally_legs = 0;
+    for (t in armor_type_tallies) {
+        switch (t) {
+            case EquipmentType_Head: armor_tally_head++; 
+            case EquipmentType_Chest: armor_tally_chest++; 
+            case EquipmentType_Legs: armor_tally_legs++;
+            default:
+        }
+    }
+    var head_ratio: Float = armor_tally_head / armor_type_tallies.length;
+    var chest_ratio: Float = armor_tally_chest / armor_type_tallies.length;
+    var legs_ratio: Float = armor_tally_legs / armor_type_tallies.length;
+
+    // NOTE: ideal type distribution is 0.33 for each
+    var armor_type = Random.pick_chance([
+        {v: EquipmentType_Head, c: if (head_ratio > 0.2) 1.0 else 2.0 },
+        {v: EquipmentType_Chest, c: if (chest_ratio > 0.2) 1.0 else 2.0 },
+        {v: EquipmentType_Legs, c: if (legs_ratio > 0.2) 1.0 else 2.0 },
+        ]);
+    armor_type_tallies.push(armor_type);
+    if (armor_type_tallies.length > 10) {
+        armor_type_tallies.shift();
+    }
+
     Entity.name[e] = switch (armor_type) {
         case EquipmentType_Head: 'Helmet'; 
         case EquipmentType_Chest: 'Chestplate'; 
@@ -678,235 +708,235 @@ static function random_enemy_type(): Int->Int->Int {
                         c: ENEMY_NOTHING_DROP_CHANCE
                     },
                     ])(x, y);
-            },
-        };
-
-        if (move != null) {
-            Entity.move[e] = {
-                type: move.type,
-                cant_move: move.cant_move,
-                successive_moves: move.successive_moves,
-                chase_dst: move.chase_dst,
-                target: move.target,
+                },
             };
+
+            if (move != null) {
+                Entity.move[e] = {
+                    type: move.type,
+                    cant_move: move.cant_move,
+                    successive_moves: move.successive_moves,
+                    chase_dst: move.chase_dst,
+                    target: move.target,
+                };
+            }
+
+            return e;
+        };
+    } 
+
+    static function random_statue(x: Int, y: Int): Int {
+        var e = Entity.make();
+
+        var level = Main.current_level();
+
+        Entity.set_position(e, x, y);
+
+        var statue_god = Random.pick(Type.allEnums(StatueGod));
+
+        Entity.name[e] = switch (statue_god) {
+            case StatueGod_Sera: 'Altar of Sera';
+            case StatueGod_Subere: 'Statue of Subere';
+            case StatueGod_Ollopa: 'Ollopa\'s effigy';
+            case StatueGod_Suthaephes: 'Shrine of Suthaephes';
+            case StatueGod_Enohik: 'Enohik\'s pedestal';
         }
 
+        Entity.use[e] = {
+            spells: switch (statue_god) {
+                case StatueGod_Sera: Spells.statue_sera(level);
+                case StatueGod_Subere: Spells.statue_subere(level);
+                case StatueGod_Ollopa: Spells.statue_ollopa(level);
+                case StatueGod_Suthaephes: Spells.statue_suthaephes(level);
+                case StatueGod_Enohik: Spells.statue_enohik(level);
+            },
+            charges: 1,
+            consumable: false,
+            flavor_text: switch (statue_god) {
+                case StatueGod_Sera: 'Sera\'s war cry echoes around you.';
+                case StatueGod_Subere: 'Subere\'s shadow descends on the tower.';
+                case StatueGod_Ollopa: 'You obtain Ollopa\'s blessing.';
+                case StatueGod_Suthaephes: 'Suthaephes\' burns and strengthens you.';
+                case StatueGod_Enohik: 'You feel Enohik\'s chill run through your bones.';
+            },
+            need_target: false,
+            draw_charges: true,
+        };
+
+        var color = switch (statue_god) {
+            case StatueGod_Sera: SpellColor_Gray;
+            case StatueGod_Subere: SpellColor_Purple;
+            case StatueGod_Ollopa: SpellColor_Yellow;
+            case StatueGod_Suthaephes: SpellColor_Red;
+            case StatueGod_Enohik: SpellColor_Blue;
+            default: SpellColor_Green;
+        }
+
+        Entity.draw_tile[e] = Tile.Statue[Tile.col_to_index(color)];
+
+        if (statue_god == StatueGod_Sera) {
+            Entity.cost[e] = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+        }
+
+        Entity.validate(e);
+
         return e;
-    };
-} 
-
-static function random_statue(x: Int, y: Int): Int {
-    var e = Entity.make();
-
-    var level = Main.current_level();
-
-    Entity.set_position(e, x, y);
-
-    var statue_god = Random.pick(Type.allEnums(StatueGod));
-
-    Entity.name[e] = switch (statue_god) {
-        case StatueGod_Sera: 'Altar of Sera';
-        case StatueGod_Subere: 'Statue of Subere';
-        case StatueGod_Ollopa: 'Ollopa\'s effigy';
-        case StatueGod_Suthaephes: 'Shrine of Suthaephes';
-        case StatueGod_Enohik: 'Enohik\'s pedestal';
     }
 
-    Entity.use[e] = {
-        spells: switch (statue_god) {
-            case StatueGod_Sera: Spells.statue_sera(level);
-            case StatueGod_Subere: Spells.statue_subere(level);
-            case StatueGod_Ollopa: Spells.statue_ollopa(level);
-            case StatueGod_Suthaephes: Spells.statue_suthaephes(level);
-            case StatueGod_Enohik: Spells.statue_enohik(level);
-        },
-        charges: 1,
-        consumable: false,
-        flavor_text: switch (statue_god) {
-            case StatueGod_Sera: 'Sera\'s war cry echoes around you.';
-            case StatueGod_Subere: 'Subere\'s shadow descends on the tower.';
-            case StatueGod_Ollopa: 'You obtain Ollopa\'s blessing.';
-            case StatueGod_Suthaephes: 'Suthaephes\' burns and strengthens you.';
-            case StatueGod_Enohik: 'You feel Enohik\'s chill run through your bones.';
-        },
-        need_target: false,
-        draw_charges: true,
-    };
+    static function merchant(x: Int, y: Int): Int {
+        var e = Entity.make();
 
-    var color = switch (statue_god) {
-        case StatueGod_Sera: SpellColor_Gray;
-        case StatueGod_Subere: SpellColor_Purple;
-        case StatueGod_Ollopa: SpellColor_Yellow;
-        case StatueGod_Suthaephes: SpellColor_Red;
-        case StatueGod_Enohik: SpellColor_Blue;
-        default: SpellColor_Green;
+        var level = Main.current_level();
+
+        Entity.set_position(e, x, y);
+        Entity.name[e] = 'Merchant';
+        Entity.description[e] = 'It\'s a merchant.';
+        Entity.talk[e] = 'Merchant says: "I\'ve got kids to feed".';
+        Entity.draw_char[e] = {
+            char: 'M',
+            color: Col.PINK,
+        };
+        var health = Stats.get({min: 10, max: 20, scaling: 2.0}, level);
+        Entity.combat[e] = {
+            health: health,
+            health_max: health, 
+            attack: Stats.get({min: 3, max: 3, scaling: 1.0}, level), 
+            message: 'Merchant says: "You will regret this".',
+            aggression: AggressionType_NeutralToAggressive,
+            attacked_by_player: false,
+            range_squared: 2,
+            target: CombatTarget_FriendlyThenPlayer,
+        };
+        Entity.draw_on_minimap[e] = {
+            color: Col.PINK,
+            seen: false,
+        };
+        Entity.merchant[e] = true;
+
+        Entity.validate(e);
+
+        return e;
     }
 
-    Entity.draw_tile[e] = Tile.Statue[Tile.col_to_index(color)];
+    static function golem(level: Int, x: Int, y: Int): Int {
+        var e = Entity.make();
 
-    if (statue_god == StatueGod_Sera) {
-        Entity.cost[e] = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+        Entity.set_position(e, x, y);
+        Entity.name[e] = 'Golem';
+        Entity.description[e] = 'It\'s a golem.';
+        Entity.talk[e] = 'Golem says: "Protect you"';
+        Entity.draw_char[e] = {
+            char: 'g',
+            color: Col.GREEN,
+        };
+        var health = Stats.get({min: 4, max: 7, scaling: 1.0}, level);
+        Entity.combat[e] = {
+            health: health, 
+            health_max: health, 
+            attack: Stats.get({min: 1, max: 2, scaling: 1.0}, level), 
+            message: 'Golem says: "Why?"',
+            aggression: AggressionType_Aggressive,
+            attacked_by_player: false,
+            range_squared: 1,
+            target: CombatTarget_Enemy,
+        };
+        Entity.move[e] = {
+            type: MoveType_Astar,
+            cant_move: false,
+            successive_moves: 0,
+            chase_dst: 14,
+            target: MoveTarget_EnemyThenPlayer,
+        };
+
+        Entity.validate(e);
+
+        return e;
     }
 
-    Entity.validate(e);
+    static function skeleton(level: Int, x: Int, y: Int): Int {
+        var e = Entity.make();
 
-    return e;
-}
+        Entity.set_position(e, x, y);
+        Entity.name[e] = 'Skeleton';
+        Entity.description[e] = 'It\'s a skeleton.';
+        Entity.talk[e] = 'Skeleton says: "Click clack"';
+        Entity.draw_char[e] = {
+            char: 's',
+            color: Col.GREEN,
+        };
+        var health = Stats.get({min: 1, max: 2, scaling: 1.0}, level);
+        Entity.combat[e] = {
+            health: health,
+            health_max: health, 
+            attack: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
+            message: 'Skeleton attacks.',
+            aggression: AggressionType_Aggressive,
+            attacked_by_player: false,
+            range_squared: 1,
+            target: CombatTarget_Enemy,
+        };
+        Entity.move[e] = {
+            type: MoveType_Straight,
+            cant_move: false,
+            successive_moves: 0,
+            chase_dst: Random.int(7, 14),
+            target: MoveTarget_EnemyOnly,
+        };
 
-static function merchant(x: Int, y: Int): Int {
-    var e = Entity.make();
+        Entity.validate(e);
 
-    var level = Main.current_level();
+        return e;
+    }
 
-    Entity.set_position(e, x, y);
-    Entity.name[e] = 'Merchant';
-    Entity.description[e] = 'It\'s a merchant.';
-    Entity.talk[e] = 'Merchant says: "I\'ve got kids to feed".';
-    Entity.draw_char[e] = {
-        char: 'M',
-        color: Col.PINK,
-    };
-    var health = Stats.get({min: 10, max: 20, scaling: 2.0}, level);
-    Entity.combat[e] = {
-        health: health,
-        health_max: health, 
-        attack: Stats.get({min: 3, max: 3, scaling: 1.0}, level), 
-        message: 'Merchant says: "You will regret this".',
-        aggression: AggressionType_NeutralToAggressive,
-        attacked_by_player: false,
-        range_squared: 2,
-        target: CombatTarget_FriendlyThenPlayer,
-    };
-    Entity.draw_on_minimap[e] = {
-        color: Col.PINK,
-        seen: false,
-    };
-    Entity.merchant[e] = true;
+    static function imp(level: Int, x: Int, y: Int): Int {
+        var e = Entity.make();
 
-    Entity.validate(e);
+        Entity.set_position(e, x, y);
+        Entity.name[e] = 'Imp';
+        Entity.description[e] = 'It\'s an imp.';
+        Entity.talk[e] = 'Imp grins at you.';
+        Entity.draw_char[e] = {
+            char: 'i',
+            color: Col.GREEN,
+        };
+        var health = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+        Entity.combat[e] = {
+            health: health, 
+            health_max: health, 
+            attack: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
+            message: 'Imp attacks.',
+            aggression: AggressionType_Aggressive,
+            attacked_by_player: false,
+            range_squared: 9,
+            target: CombatTarget_Enemy,
+        };
 
-    return e;
-}
+        Entity.validate(e);
 
-static function golem(level: Int, x: Int, y: Int): Int {
-    var e = Entity.make();
+        return e;
+    }
 
-    Entity.set_position(e, x, y);
-    Entity.name[e] = 'Golem';
-    Entity.description[e] = 'It\'s a golem.';
-    Entity.talk[e] = 'Golem says: "Protect you"';
-    Entity.draw_char[e] = {
-        char: 'g',
-        color: Col.GREEN,
-    };
-    var health = Stats.get({min: 4, max: 7, scaling: 1.0}, level);
-    Entity.combat[e] = {
-        health: health, 
-        health_max: health, 
-        attack: Stats.get({min: 1, max: 2, scaling: 1.0}, level), 
-        message: 'Golem says: "Why?"',
-        aggression: AggressionType_Aggressive,
-        attacked_by_player: false,
-        range_squared: 1,
-        target: CombatTarget_Enemy,
-    };
-    Entity.move[e] = {
-        type: MoveType_Astar,
-        cant_move: false,
-        successive_moves: 0,
-        chase_dst: 14,
-        target: MoveTarget_EnemyThenPlayer,
-    };
+    static function copper(x: Int, y: Int): Int {
+        var e = Entity.make();
 
-    Entity.validate(e);
+        var level = Main.current_level();
 
-    return e;
-}
+        Entity.set_position(e, x, y);
+        Entity.name[e] = 'Copper';
+        Entity.description[e] = 'A bunch of copper pieces';
+        Entity.draw_tile[e] = Tile.Copper;
+        Entity.use[e] = {
+            spells: [Spells.mod_copper(Stats.get({min: 1, max: 2, scaling: 1.0}, level))],
+            charges: 1,
+            consumable: true,
+            flavor_text: 'You pick up the copper.',
+            need_target: false,
+            draw_charges: false,
+        };
 
-static function skeleton(level: Int, x: Int, y: Int): Int {
-    var e = Entity.make();
+        Entity.validate(e);
 
-    Entity.set_position(e, x, y);
-    Entity.name[e] = 'Skeleton';
-    Entity.description[e] = 'It\'s a skeleton.';
-    Entity.talk[e] = 'Skeleton says: "Click clack"';
-    Entity.draw_char[e] = {
-        char: 's',
-        color: Col.GREEN,
-    };
-    var health = Stats.get({min: 1, max: 2, scaling: 1.0}, level);
-    Entity.combat[e] = {
-        health: health,
-        health_max: health, 
-        attack: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
-        message: 'Skeleton attacks.',
-        aggression: AggressionType_Aggressive,
-        attacked_by_player: false,
-        range_squared: 1,
-        target: CombatTarget_Enemy,
-    };
-    Entity.move[e] = {
-        type: MoveType_Straight,
-        cant_move: false,
-        successive_moves: 0,
-        chase_dst: Random.int(7, 14),
-        target: MoveTarget_EnemyOnly,
-    };
-
-    Entity.validate(e);
-
-    return e;
-}
-
-static function imp(level: Int, x: Int, y: Int): Int {
-    var e = Entity.make();
-
-    Entity.set_position(e, x, y);
-    Entity.name[e] = 'Imp';
-    Entity.description[e] = 'It\'s an imp.';
-    Entity.talk[e] = 'Imp grins at you.';
-    Entity.draw_char[e] = {
-        char: 'i',
-        color: Col.GREEN,
-    };
-    var health = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
-    Entity.combat[e] = {
-        health: health, 
-        health_max: health, 
-        attack: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
-        message: 'Imp attacks.',
-        aggression: AggressionType_Aggressive,
-        attacked_by_player: false,
-        range_squared: 9,
-        target: CombatTarget_Enemy,
-    };
-
-    Entity.validate(e);
-
-    return e;
-}
-
-static function copper(x: Int, y: Int): Int {
-    var e = Entity.make();
-
-    var level = Main.current_level();
-
-    Entity.set_position(e, x, y);
-    Entity.name[e] = 'Copper';
-    Entity.description[e] = 'A bunch of copper pieces';
-    Entity.draw_tile[e] = Tile.Copper;
-    Entity.use[e] = {
-        spells: [Spells.mod_copper(Stats.get({min: 1, max: 2, scaling: 1.0}, level))],
-        charges: 1,
-        consumable: true,
-        flavor_text: 'You pick up the copper.',
-        need_target: false,
-        draw_charges: false,
-    };
-
-    Entity.validate(e);
-
-    return e;
-}
+        return e;
+    }
 
 }
