@@ -672,7 +672,9 @@ function use_entity(e: Int) {
 
     if (use.charges > 0) {
 
-        var charge_is_saved = Player.lucky_charge > 0 && Random.chance(Player.lucky_charge);
+        var is_copper = (use.spells[0].type == ModCopper);
+
+        var charge_is_saved = Player.lucky_charge > 0 && Random.chance(Player.lucky_charge) && !is_copper;
 
         if (charge_is_saved) {
             add_message("Lucky use! Charge is saved.");

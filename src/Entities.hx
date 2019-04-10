@@ -639,7 +639,7 @@ static function random_enemy_type(): Int->Int->Int {
                 ]),
             cant_move: false,
             successive_moves: 0,
-            chase_dst: Random.int(7, 14),
+            chase_dst: Random.int(10, 16),
             target: MoveTarget_FriendlyThenPlayer,
         }
     } else {
@@ -796,11 +796,11 @@ static function random_enemy_type(): Int->Int->Int {
             char: 'M',
             color: Col.PINK,
         };
-        var health = Stats.get({min: 10, max: 20, scaling: 2.0}, level);
+        var health = Stats.get({min: 15, max: 20, scaling: 4.0}, level);
         Entity.combat[e] = {
             health: health,
             health_max: health, 
-            attack: Stats.get({min: 3, max: 3, scaling: 1.0}, level), 
+            attack: Stats.get({min: 4, max: 6, scaling: 1.5}, level), 
             message: 'Merchant says: "You will regret this".',
             aggression: AggressionType_NeutralToAggressive,
             attacked_by_player: false,
