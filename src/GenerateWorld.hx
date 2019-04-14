@@ -62,8 +62,7 @@ static inline var ENEMY_TYPES_PER_LEVEL_MAX = 5;
 static inline var KEY_ON_ENEMY_CHANCE = 50;
 static inline var MERCHANT_ITEM_LEVEL_BONUS = 2;
 
-static inline var ENEMY_ITEM_IDEAL_RATIO = 0.5;
-// static function ENEMY_ITEM_RATIO_MARGIN(): Float { return Random.float(0.75, 1.25); };
+static inline var ENEMY_ITEM_IDEAL_RATIO = 0.6;
 static function ENEMY_ITEM_RATIO_MARGIN(): Float { return 1.0; };
 
 static var enemy_rooms_this_floor = 0;
@@ -77,6 +76,7 @@ static var floors_until_floor_with_merchant = 1 + Random.int(0, 2);
 static var health_potion_tally = new Array<Bool>();
 
 static var weapons_on_floor = new Map<Int, Bool>();
+static var statues_on_floor = new Map<Int, Bool>();
 
 static function room_free_positions_shuffled(r: Room): Array<Vec2i> {
     // Exclude positions next to walls to avoid creating impassable cells
@@ -111,28 +111,46 @@ static function room_free_ODD_positions_shuffled(r: Room): Array<Vec2i> {
     return positions;
 }
 
-static function weapon_bad_streak_mod(): Float {
-    var weapons_floor = Main.current_floor - 1;
-    var floors_without_weapons_streak = 0;
+static function get_streak(history: Map<Int, Bool>): Int {
+    var floor = Main.current_floor - 1;
+    var streak = 0;
 
-    while (weapons_floor >= 0) {
-        if (!GenerateWorld.weapons_on_floor.exists(Main.current_floor) || !GenerateWorld.weapons_on_floor[Main.current_floor]) {
-            floors_without_weapons_streak++;
+    while (floor >= 0) {
+        if (!history.exists(floor) || !history[floor]) {
+            streak++;
         } else {
             break;
         }
-        weapons_floor--;
+
+        floor--;
     }
 
-    return if (floors_without_weapons_streak >= 2) {
+    return streak;
+}
+
+static function weapon_bad_streak_mod(): Float {
+    return if (get_streak(weapons_on_floor) >= 2) {
         3.0;
     } else {
         1.0;
     }
 }
 
+static function statue_chance(): Float {
+    if (statues_on_floor[Main.current_floor]) {
+        return 0.0;
+    } else {
+        return if (get_streak(statues_on_floor) >= 2) {
+            10.0;
+        } else {
+            1.0;
+        }
+    }
+}
+
 static function fill_rooms_with_entities() {
     weapons_on_floor[Main.current_floor] = false;
+    statues_on_floor[Main.current_floor] = false;
 
     // Reset first chars for new level
     Entities.generated_first_chars = new Array<String>();
@@ -192,8 +210,6 @@ static function fill_rooms_with_entities() {
     var enemies = new Array<Int>();
     var items = new Array<Int>();
 
-    var spawned_weapon_this_floor = false;
-
     // NOTE: leave start room(0th) empty
     for (i in 1...Main.rooms.length) {
         var r = Main.rooms[i];
@@ -234,15 +250,15 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_weapon, c: 0.5 * weapon_bad_streak_mod()},
                     {v: Entities.random_ring, c: 0.5},
                     {v: Entities.locked_chest, c: 2.0},
-                    {v: Entities.random_statue, c: 1.0},
+                    {v: Entities.random_statue, c: statue_chance()},
                     ]);
 
                 var e = f(pos.x, pos.y);
 
                 tally_health_potions(f == health_potion);
 
-                if (f == Entities.random_weapon) {
-                    spawned_weapon_this_floor = true;
+                if (f == Entities.random_statue) {
+                    statues_on_floor[Main.current_floor] = true;
                 }
 
                 items.push(e);
@@ -315,15 +331,15 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_orb, c: 1.5},
                     {v: Entities.locked_chest, c: 2.0},
                     {v: Entities.random_ring, c: 1.0},
-                    {v: Entities.random_statue, c: 1.0},
+                    {v: Entities.random_statue, c: statue_chance()},
                     ]);
 
                 var e = f(pos.x, pos.y);
 
                 tally_health_potions(f == health_potion);
 
-                if (f== Entities.random_weapon) {
-                    spawned_weapon_this_floor = true;
+                if (f == Entities.random_statue) {
+                    statues_on_floor[Main.current_floor] = true;
                 }
 
                 items.push(e);
@@ -1080,6 +1096,27 @@ static function decorate_rooms_with_walls() {
             for (y in (r.y + 3)...(r.y + r.height - 3)) {
                 Main.walls[x][y] = true;
                 Main.tiles[x][y] = Tile.Black;
+            }
+        }
+    }
+
+    function wall_protrustion(r: Room) {
+        for (x in (r.x + 3)...(r.x + r.width - 3)) {
+            for (y in (r.y + 3)...(r.y + r.height - 3)) {
+                Main.walls[x][y] = true;
+                Main.tiles[x][y] = Tile.Black;
+            }
+        }
+
+        var width = 3;
+
+        var x1 = r.x;
+        var x2 = Std.int(Math.min(x1 + width, r.x + r.width));
+
+        for (x in x1...x2) {
+            for (dy in 0...3) {
+                Main.walls[x][r.y + r.height - dy] = true;
+                Main.tiles[x][r.y + r.height - dy] = Tile.Black;
             }
         }
     }

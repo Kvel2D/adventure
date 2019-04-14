@@ -11,10 +11,14 @@ class Tile {
     static inline var None = at(0, 0); // for bugged/invisible things
     static inline var Black = at(9, 7);
 
-    static var Stairs = [for (i in 0...5) at(7, i)];
-    static var Ground = [for (i in 0...5) at(8, i)];
-    static var GroundDark = [for (i in 0...5) at(9, i)];
+    static var Ground = at(7, 0);
+    static var Shadow = at(8, 0);
+    static var Wall = at(9, 0);
 
+    static var LevelPalette = at(9, 1);
+    static inline var LevelPalette_count = 5;
+
+    static inline var Stairs = at(8, 1);
     static inline var Teleport = at(8, 5);
     static inline var TeleportDark = at(9, 5);
     static inline var Poison = at(8, 6);

@@ -912,7 +912,7 @@ class Gfx {
 		drawto.setPixel32(x, y, color);
 	}
 
-	public static function get_pixel(x: Float, y: Float): Int {
+	public static function getpixel(x: Float, y: Float): Int {
 		var pixelalpha: Int = drawto.getPixel32(Std.int(x), Std.int(y)) >> 24 & 0xFF;
 		var pixel: Int = drawto.getPixel(Std.int(x), Std.int(y));
 

@@ -90,6 +90,7 @@ var DEV_full_minimap = false;
 var DEV_frametime_graph = false;
 var DEV_nodeath = false;
 var DEV_show_enemies = false;
+var TILE_PATTERNS = true;
 
 static var stairs_x = 0;
 static var stairs_y = 0;
@@ -224,6 +225,7 @@ function restart_game() {
     'Press L to print game log. It\'s printed to the browser console,',
     'which is opened by ctrl+shift+J. I would appreciate if you copied', 
     'and sent me that log after you are done playing.',
+    'Press T to toggle tile patterns(updates on level change).',
     ];
     messages = [for (i in 0...MESSAGES_LENGTH_MAX) TURN_DELIMITER];
     var tutorial_i = tutorial_text.length; 
@@ -249,6 +251,109 @@ static function random_good_room(): Int {
 // NOTE: this is a copy, so can it's safe to modify components while iterating
 static function entities_with(map: Map<Int, Dynamic>): Array<Int> {
     return [for (key in map.keys()) key];
+}
+
+function random_pattern(chance: Int): Array<Array<Bool>> {
+    var pattern = Data.create2darray(8, 8, false);
+
+    for (x in 0...8) {
+        for (y in 0...8) {
+            pattern[x][y] = Random.chance(chance);
+        }
+    }
+
+    return pattern;
+}
+
+function horizontal_reflected_pattern(chance: Int): Array<Array<Bool>> {
+    var pattern = Data.create2darray(8, 8, false);
+
+    for (x in 0...4) {
+        for (y in 0...8) {
+            pattern[x][y] = Random.chance(chance);
+        }
+    }
+
+    for (x in 0...4) {
+        for (y in 0...8) {
+            pattern[7 - x][y] = pattern[x][y];
+        }
+    }
+
+    return pattern;
+}
+
+function vertical_reflected_pattern(chance: Int): Array<Array<Bool>> {
+    var pattern = Data.create2darray(8, 8, false);
+
+    for (x in 0...8) {
+        for (y in 0...4) {
+            pattern[x][y] = Random.chance(chance);
+        }
+    }
+
+    for (x in 0...8) {
+        for (y in 0...4) {
+            pattern[x][7 - y] = pattern[x][y];
+        }
+    }
+
+    return pattern;
+}
+
+function four_reflected_pattern(chance: Int): Array<Array<Bool>> {
+    var pattern = Data.create2darray(8, 8, false);
+
+    for (x in 0...4) {
+        for (y in 0...4) {
+            pattern[x][y] = Random.chance(chance);
+        }
+    }
+
+    for (x in 0...4) {
+        for (y in 0...4) {
+            pattern[7 - x][y] = pattern[x][y];
+        }
+    }
+
+    for (x in 0...8) {
+        for (y in 0...4) {
+            pattern[x][7 - y] = pattern[x][y];
+        }
+    }
+
+    return pattern;
+}
+
+function color_tiles() {
+    var level_tile_index = get_level_tile_index();
+
+    // Get palette colors for current level
+    Gfx.drawtotile(Tile.LevelPalette);
+    var ground = Gfx.getpixel(0, level_tile_index);
+    var shadow = Gfx.getpixel(1, level_tile_index);
+    var wall = Gfx.getpixel(2, level_tile_index);
+
+    // Color tiles based on palette
+    Gfx.drawtotile(Tile.Ground);
+    Gfx.fillbox(0, 0, 8, 8, ground);
+    Gfx.drawtotile(Tile.Shadow);
+    Gfx.fillbox(0, 0, 8, 8, shadow);
+
+    Gfx.drawtotile(Tile.Wall);
+    Gfx.fillbox(0, 0, 8, 8, wall);
+    if (TILE_PATTERNS) {
+        var pattern = Random.pick([horizontal_reflected_pattern, vertical_reflected_pattern, four_reflected_pattern, random_pattern])(Random.int(0, 75));
+        for (x in 0...8) {
+            for (y in 0...8) {
+                if (pattern[x][y]) {
+                    Gfx.fillbox(x, y, 1, 1, shadow);
+                }
+            }
+        }
+    }
+
+    Gfx.drawtoscreen();
 }
 
 function generate_level() {
@@ -285,7 +390,7 @@ function generate_level() {
         for (x in 0...MAP_WIDTH) {
             for (y in 0...MAP_HEIGHT) {
                 walls[x][y] = true;
-                tiles[x][y] = Tile.Black;
+                tiles[x][y] = Tile.Wall;
             }
         }
 
@@ -299,14 +404,14 @@ function generate_level() {
         }
         GenerateWorld.fatten_connections();
 
-        var current_ground_tile = Tile.Ground[get_level_tile_index()];
+        color_tiles();
 
         // Clear walls inside rooms
         for (r in rooms) {
             for (x in r.x...(r.x + r.width)) {
                 for (y in r.y...(r.y + r.height)) {
                     walls[x][y] = false;
-                    tiles[x][y] = current_ground_tile;
+                    tiles[x][y] = Tile.Ground;
                 }
             }
         }
@@ -365,7 +470,7 @@ function generate_level() {
 
         // NOTE: we check for path from stairs to player but stairs can still spawn in walls(decoration in center of room) if it's at the edge, so just remove wall at stair location
         walls[stairs_x][stairs_y] = false;
-        tiles[stairs_x][stairs_y] = current_ground_tile;
+        tiles[stairs_x][stairs_y] = Tile.Ground;
     } while (Path.astar_map(Player.x, Player.y, stairs_x, stairs_y).length == 0);
 
     GenerateWorld.fill_rooms_with_entities();
@@ -446,6 +551,36 @@ function generate_level() {
     attack_count_this_level = 0;
     total_defense_this_level = 0;
     defense_count_this_level = 0;
+
+    //
+    // Update los and tile canvas
+    //
+    LOS.update_los(los);
+    var view_x = get_view_x();
+    var view_y = get_view_y();
+    Gfx.scale(1);
+    Gfx.drawtoimage('tiles_canvas');
+    for (x in 0...VIEW_WIDTH) {
+        for (y in 0...VIEW_HEIGHT) {
+            var map_x = view_x + x;
+            var map_y = view_y + y;
+
+            var new_tile = Tile.None;
+            if (out_of_map_bounds(map_x, map_y) || walls[map_x][map_y]) {
+                new_tile = Tile.Wall;
+            } else {
+                if (position_visible(x, y)) {
+                    new_tile = tiles[map_x][map_y];
+                } else {
+                    new_tile = Tile.Shadow;
+                }
+            }
+
+            Gfx.drawtile(unscaled_screen_x(map_x), unscaled_screen_y(map_y), new_tile);
+            tiles_render_cache[x][y] = new_tile;
+        }
+    }
+    Gfx.drawtoscreen();
 }
 
 static var time_stamp = 0.0;
@@ -488,7 +623,7 @@ static function current_level(): Int {
 
 static function get_level_tile_index(): Int {
     var level_tile_index = Math.round(current_floor / 3);
-    if (level_tile_index >= Tile.Stairs.length) {
+    if (level_tile_index >= Tile.LevelPalette_count) {
         level_tile_index = 0;
     }
     return level_tile_index;
@@ -672,9 +807,7 @@ function use_entity(e: Int) {
 
     if (use.charges > 0) {
 
-        var is_copper = (use.spells[0].type == ModCopper);
-
-        var charge_is_saved = Player.lucky_charge > 0 && Random.chance(Player.lucky_charge) && !is_copper;
+        var charge_is_saved = Player.lucky_charge > 0 && Random.chance(Player.lucky_charge) && (Entity.equipment.exists(e) || Entity.item.exists(e));
 
         if (charge_is_saved) {
             add_message("Lucky use! Charge is saved.");
@@ -909,22 +1042,25 @@ function move_entity(e: Int) {
                     continue;
                 }
 
-                var other_target = Entity.combat[other_e].target;
-                var dst = Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y);
+                var other_combat = Entity.combat[other_e];
+                if (other_combat.aggression == AggressionType_Aggressive) {
+                    var other_target = other_combat.target;
+                    var dst = Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y);
 
-                switch (other_target) {
-                    case CombatTarget_Enemy: {
-                        if (dst < closest_friendly_dst) {
-                            closest_friendly_dst = dst;
-                            friendly_x = other_pos.x;
-                            friendly_y = other_pos.y;
+                    switch (other_target) {
+                        case CombatTarget_Enemy: {
+                            if (dst < closest_friendly_dst) {
+                                closest_friendly_dst = dst;
+                                friendly_x = other_pos.x;
+                                friendly_y = other_pos.y;
+                            }
                         }
-                    }
-                    case CombatTarget_FriendlyThenPlayer: {
-                        if (dst < closest_enemy_dst) {
-                            closest_enemy_dst = dst;
-                            enemy_x = other_pos.x;
-                            enemy_y = other_pos.y;
+                        case CombatTarget_FriendlyThenPlayer: {
+                            if (dst < closest_enemy_dst) {
+                                closest_enemy_dst = dst;
+                                enemy_x = other_pos.x;
+                                enemy_y = other_pos.y;
+                            }
                         }
                     }
                 }
@@ -1203,7 +1339,7 @@ function entity_attack(e: Int): Bool {
         return entity_attack_player(e);
     }
 
-    // Find target entity of opposite faction
+    // Find target entity of opposite faction, that's also aggressive
     var target_e = Entity.NONE;
     for (other_e in entities_with(Entity.combat)) {
         // Skip itself
@@ -1212,7 +1348,7 @@ function entity_attack(e: Int): Bool {
         }
 
         // Target must have position, combat and have opposite target
-        if (Entity.position.exists(other_e) && Entity.combat.exists(other_e) && Entity.combat[other_e].target != combat.target) {
+        if (Entity.position.exists(other_e) && Entity.combat.exists(other_e) && Entity.combat[other_e].target != combat.target && Entity.combat[other_e].aggression == AggressionType_Aggressive) {
             var other_pos = Entity.position[other_e];
 
             if (Math.dst2(other_pos.x, other_pos.y, pos.x, pos.y) <= combat.range_squared) {
@@ -1814,7 +1950,7 @@ function render_world() {
 
             var new_tile = Tile.None;
             if (out_of_map_bounds(map_x, map_y) || walls[map_x][map_y]) {
-                new_tile = Tile.Black;
+                new_tile = Tile.Wall;
             } else {
                 if (position_visible(x, y)) {
                     new_tile = tiles[map_x][map_y];
@@ -2874,6 +3010,10 @@ function update() {
 
     if (Input.pressed(Key.P) && Input.pressed(Key.O) && Input.pressed(Key.I)) {
         DEV_show_buttons = true;
+    }
+
+    if (Input.justpressed(Key.T)) {
+        TILE_PATTERNS = !TILE_PATTERNS;
     }
 }
 

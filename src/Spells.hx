@@ -1343,6 +1343,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
             {v: SpellType_ShowThings, c: 1.0},
             {v: SpellType_ModHealth, c: 1.0},
             {v: SpellType_HealthLeech, c: 1.0},
+            {v: SpellType_Nolos, c: 1.0},
 
             {v: SpellType_ModAttackByCopper, c: 1.0},
             ]);
@@ -1386,6 +1387,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
         case SpellType_Critical: SpellDuration_EveryTurn;
         case SpellType_HealthLeech: SpellDuration_EveryTurn;
         case SpellType_ModCopper: SpellDuration_EveryAttack;
+        case SpellType_Nolos: SpellDuration_EveryTurn;
         default: SpellDuration_Permanent;
     }
 
@@ -1434,8 +1436,8 @@ static function get_equipment_spell_use_charges(s: Spell): Int {
         case SpellType_Nolos: Random.int(2, 3);
         case SpellType_ModHealth: Random.int(1, 2);
         case SpellType_ModMoveSpeed: Random.int(1, 2);
-        case SpellType_SummonGolem: Random.int(1, 2);
-        case SpellType_SummonImp: Random.int(1, 2);
+        case SpellType_SummonGolem: 1;
+        case SpellType_SummonImp: 1;
         case SpellType_ModAttack: Random.int(1, 2);
         case SpellType_ChainDamage: Random.int(2, 3);
         case SpellType_RandomTeleport: 1;
@@ -1471,13 +1473,12 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
         case EquipmentType_Weapon: Random.pick_chance([
             {v: SpellType_AoeDamage, c: 1.0},
             {v: SpellType_Invisibility, c: 0.5},
-            {v: SpellType_EnergyShield, c: 1.0},
+            // {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_SummonGolem, c: 1.0},
             {v: SpellType_ModAttack, c: 1.0},
             ]);
         case EquipmentType_Head: Random.pick_chance([
-            {v: SpellType_Nolos, c: 1.0},
-            {v: SpellType_EnergyShield, c: 1.0},
+            // {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_SummonImp, c: 1.0},
             {v: SpellType_ChainDamage, c: 1.0},
             {v: SpellType_Combust, c: 1.0},
@@ -1490,7 +1491,7 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
             ]);
         case EquipmentType_Legs: Random.pick_chance([
             {v: SpellType_ModMoveSpeed, c: 1.0},
-            {v: SpellType_EnergyShield, c: 1.0},
+            // {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_RandomTeleport, c: 0.5},
             {v: SpellType_SafeTeleport, c: 0.5},
             ]);

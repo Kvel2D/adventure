@@ -1,7 +1,6 @@
 ---------------------------------------------------------------------------------
 TODO
 
-
 ---------------------------------------------------------------------------------
 DONE
 
@@ -15,13 +14,17 @@ openfl release has an error in compress/uncompress for flash (github.com/openfl/
 ---------------------------------------------------------------------------------
 IDEAS
 
-work on statues
-    change statue spawn mechanic
-    spawn at least one per 1-3 levels, with possibility of multiple
+balance item/enemy ratio and potion amounts
+    currently seems to be too many items
+        lower enemy power/amount if necessary
+        need to have enough items to fill inventory but not too much so that you don't have to routinely leave a bunch behind when going to next floor
+    not sure if even need to rely on inventory filling mechanic
+    but do want to have a lot of items so that playing is fun
 
-statue that consumes health and has a chance to spawn items
-    make it exactly 1/3 chance and 1/3 the merchant cost
-    maybe level bonus too?
+enemies possibly die too fast
+    need to at least be able to hit back once
 
-statue that spawns more enemies
+try protrustions from walls
+    pretty simple, pick a patch on wall, then extend it as a simple rectangle
+    if there's space on outside of a cell, don't extend that one(meaning it would block a connection
 
