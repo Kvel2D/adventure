@@ -796,7 +796,7 @@ static function random_enemy_type(): Int->Int->Int {
             char: 'M',
             color: Col.PINK,
         };
-        var health = Stats.get({min: 15, max: 20, scaling: 4.0}, level);
+        var health = Stats.get({min: 15, max: 20, scaling: 8.0}, level);
         Entity.combat[e] = {
             health: health,
             health_max: health, 
@@ -903,7 +903,7 @@ static function random_enemy_type(): Int->Int->Int {
         Entity.combat[e] = {
             health: health, 
             health_max: health, 
-            attack: Stats.get({min: 1, max: 1, scaling: 1.0}, level), 
+            attack: Stats.get({min: 1, max: 1, scaling: 0.5}, level), 
             message: 'Imp attacks.',
             aggression: AggressionType_Aggressive,
             attacked_by_player: false,

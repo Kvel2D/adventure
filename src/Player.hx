@@ -48,5 +48,6 @@ static var show_things = false;
 static var full_minimap = false;
 static var invisible = false;
 static var increase_drop_level = false;
+static var summon_buff = false;
 
 }

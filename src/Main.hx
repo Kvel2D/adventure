@@ -486,7 +486,7 @@ function generate_level() {
     var avg_attack = total_attack_this_level / attack_count_this_level;
     var avg_defense = total_defense_this_level / defense_count_this_level;
 
-    var floor_stats = 'floor=$current_floor hp=${Player.health}/${Player.health} attack=${avg_attack} defense=${avg_defense}';
+    var floor_stats = 'floor=$current_floor hp=${Player.health}/${Player.health_max} attack=${avg_attack} defense=${avg_defense}';
 
     // Count enemies by name
     var enemy_counts = new Map<String, Int>();
@@ -1317,6 +1317,7 @@ function entity_attack_player(e: Int): Bool {
     }
 
     total_defense_this_level += Player.defense + Player.defense_mod;
+    defense_count_this_level++;
 
     return true;
 }
@@ -1409,6 +1410,7 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
 
     if (!is_spell) {
         total_attack_this_level += Player.attack + Player.attack_mod;
+        attack_count_this_level++;
     }
 }
 
@@ -1724,19 +1726,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModUseCharges: {
             if (Entity.use.exists(use_target)) {
-                var can_add_charges = true;
-                // Check that use doesn't contain copy or usecharges spells
-                for (s in Entity.use[use_target].spells) {
-                    if (s.type == SpellType_ModUseCharges || s.type == SpellType_CopyEntity) {
-                        can_add_charges = false;
-                        break;
-                    }
-                }
-                if (can_add_charges) {
-                    Entity.use[use_target].charges += spell.value;
-                } else {
-                    add_message('Can\'t add charges to this item.');
-                }
+                Entity.use[use_target].charges += spell.value;
             }
         }
         case SpellType_CopyEntity: {
@@ -1775,11 +1765,9 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_ImproveEquipment: {
             if (Entity.equipment.exists(use_target)) {
                 for (s in Entity.equipment[use_target].spells) {
-                    if (s.type == SpellType_ModAttack) {
-                        s.value += spell.value;
-                    } else if (s.type == SpellType_ModDefense) {
-                        // NOTE: need to scale enchantment of defense to make it comparable to attack enchantment
-                        s.value += spell.value * 4;
+                    // NOTE: affects other attack/def spells than just the straight stat increase, but that's ok and like an extra bonus
+                    if (s.type == SpellType_ModAttack || s.type == SpellType_ModDefense) {
+                        s.value += Std.int(Math.max(1, Math.round(spell.value * 0.1)));
                     }
                 }
                 add_message('You improve equipment.');
@@ -1822,7 +1810,11 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             var free_pos = free_position_around_player();
 
             if (free_pos.x != -1 && free_pos.y != -1) {
-                Entities.golem(spell.value, free_pos.x, free_pos.y);
+                var level = spell.value;
+                if (Player.summon_buff) {
+                    level += 1;
+                }
+                Entities.golem(level, free_pos.x, free_pos.y);
                 add_message('You summon a golem, it smiles at you.');
             } else {
                 add_message('No space to summon golem, spell fails!');
@@ -1833,7 +1825,11 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             for (i in 0...3) {
                 var free_pos = free_position_around_player();
                 if (free_pos.x != -1 && free_pos.y != -1) {
-                    Entities.skeleton(spell.value, free_pos.x, free_pos.y);
+                    var level = spell.value;
+                    if (Player.summon_buff) {
+                        level += 1;
+                    }
+                    Entities.skeleton(level, free_pos.x, free_pos.y);
                     summon_count++;
                 } else {
                     break;
@@ -1852,7 +1848,11 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             var free_pos = free_position_around_player();
 
             if (free_pos.x != -1 && free_pos.y != -1) {
-                Entities.imp(spell.value, free_pos.x, free_pos.y);
+                var level = spell.value;
+                if (Player.summon_buff) {
+                    level += 1;
+                }
+                Entities.imp(level, free_pos.x, free_pos.y);
                 add_message('You summon a imp, it grins at you.');
             } else {
                 add_message('No space to summon imp, spell fails!');
@@ -1900,12 +1900,13 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModSpellDamage: {
             Player.spell_damage_mod += spell.value;
+            Player.summon_buff = true;
         }
         case SpellType_ModAttackByCopper: {
             Player.attack_mod += Math.ceil(Math.sqrt(Player.copper_count / 10));
         }
         case SpellType_ModDefenseByCopper: {
-            Player.defense_mod += 5 * Math.ceil(Math.sqrt(Player.copper_count / 10));
+            Player.defense_mod += 2 * Math.ceil(Math.sqrt(Player.copper_count / 10));
         }
         case SpellType_LuckyCharge: {
             Player.lucky_charge += spell.value;
@@ -2729,6 +2730,7 @@ function update_normal() {
         Player.dropchance_mod = 0;
         Player.copper_drop_mod = 0;
         Player.spell_damage_mod = 0;
+        Player.summon_buff = false;
         Player.increase_drop_level = false;
         Player.invisible = false;
         Player.full_minimap = false;

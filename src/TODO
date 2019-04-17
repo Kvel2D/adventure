@@ -1,30 +1,22 @@
 ---------------------------------------------------------------------------------
 TODO
 
+make sure enemies have enough health
+    need to at least be able to hit back once
+
 ---------------------------------------------------------------------------------
 DONE
 
 
-
----------------------------------------------------------------------------------
-PROBLEMS
-
-openfl release has an error in compress/uncompress for flash (github.com/openfl/starling/issues/117)
-
 ---------------------------------------------------------------------------------
 IDEAS
 
-balance item/enemy ratio and potion amounts
-    currently seems to be too many items
-        lower enemy power/amount if necessary
-        need to have enough items to fill inventory but not too much so that you don't have to routinely leave a bunch behind when going to next floor
-    not sure if even need to rely on inventory filling mechanic
-    but do want to have a lot of items so that playing is fun
+try drawing chest again
 
-enemies possibly die too fast
-    need to at least be able to hit back once
+need option to toggle tile patterns 
+    should be saved to shareobject
+    needs to be instant
+    make it an escape/tab menu, like the dev menu buttons
 
-try protrustions from walls
-    pretty simple, pick a patch on wall, then extend it as a simple rectangle
-    if there's space on outside of a cell, don't extend that one(meaning it would block a connection
-
+compare merchant stats to player stats progression
+    make merchant almost impossible to kill

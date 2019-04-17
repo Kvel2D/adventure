@@ -24,4 +24,15 @@ static function get(stat: Stat, level: Int): Int {
     return Std.int(Math.max(1, Math.round(get_unrounded(stat, level)))); 
 }
 
+static function print(stat: Stat) {
+    for (level in 0...10) {
+        var sum = 0;
+        var samples = 100;
+        for (i in 0...samples) {
+            sum += get(stat, level);
+        }
+        trace('${level}=${sum / samples}');
+    }
+}
+
 }

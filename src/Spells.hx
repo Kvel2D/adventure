@@ -198,7 +198,7 @@ static function get_description(spell: Spell): String {
         case SpellType_ModCopper: '$sign ${spell.value} copper';
         case SpellType_HealthLeech: 'Health Leech: damage dealt to enemies has a chance to heal you';
         case SpellType_SwapHealth: 'Swap Health: swaps yours and target enemy\'s current health, doesn\'t affect max health';
-        case SpellType_ModSpellDamage: 'increases all spell damage by ${spell.value}';
+        case SpellType_ModSpellDamage: 'increases all spell damage by ${spell.value}, also increase power of summons';
         case SpellType_ModAttackByCopper: '+ to attack based on copper count';
         case SpellType_ModDefenseByCopper: '+ to defense based on copper count';
         case SpellType_Combust: 'Combust: blow up an enemy dealing ${spell.value} damage to everything nearby';
@@ -310,15 +310,25 @@ static function need_target(type: SpellType): Bool {
 }
 
 static function spell_can_be_used_on_target(type: SpellType, target: Int): Bool {
+    var copy_or_charges_spell = false;
+    if (Entity.use.exists(target)) {
+        for (s in Entity.use[target].spells) {
+            if (s.type == SpellType_ModUseCharges || s.type == SpellType_CopyEntity) {
+                copy_or_charges_spell = true;
+                break;
+            }
+        }
+    }
+
     return switch (type) {
-        case SpellType_ModUseCharges: Entity.item.exists(target) && !Entity.position.exists(target);
-        case SpellType_CopyEntity: Entity.position.exists(target) || (!Entity.position.exists(target) && (Entity.item.exists(target) || Entity.equipment.exists(target)));
+        case SpellType_ModUseCharges: Entity.item.exists(target) && !Entity.position.exists(target) && !copy_or_charges_spell;
+        case SpellType_CopyEntity:  !copy_or_charges_spell && (Entity.position.exists(target) || (!Entity.position.exists(target) && (Entity.item.exists(target) || Entity.equipment.exists(target))));
         case SpellType_Passify: Entity.combat.exists(target) && !Entity.merchant.exists(target);
         case SpellType_Sleep: Entity.combat.exists(target) && !Entity.merchant.exists(target);
         case SpellType_Charm: Entity.combat.exists(target) && !Entity.merchant.exists(target);
         case SpellType_ImproveEquipment: Entity.equipment.exists(target);
         case SpellType_EnchantEquipment: Entity.equipment.exists(target);
-        case SpellType_SwapHealth: Entity.combat.exists(target);
+        case SpellType_SwapHealth: Entity.combat.exists(target) && !Entity.merchant.exists(target);
         case SpellType_Combust: Entity.combat.exists(target);
         default: false;
     }
@@ -677,7 +687,7 @@ static function random_potion_spell(level: Int, force_spell: SpellType): Spell {
         force_spell;
     } else {
         Random.pick_chance([
-            // NOTE: health potions are rolled separately from random_potion through force_spell
+            // NOTE: ModHealth potions are rolled separately via force_spell in GenerateWorld
             // {v: SpellType_ModHealth, c: 1.0},
 
             {v: SpellType_ModAttack, c: 1.0},
@@ -709,17 +719,22 @@ static function random_potion_spell(level: Int, force_spell: SpellType): Spell {
         }
         case SpellType_ModAttack: {
             duration_type = SpellDuration_EveryAttack;
-            duration = Random.int(3, 7);
+            duration = Random.int(3, 5);
             value = Stats.get({min: 1, max: 1, scaling: 0.5}, level);
         }
         case SpellType_ModDefense: {
             duration_type = SpellDuration_EveryAttack;
-            duration = Random.int(3, 7);
+            duration = Random.int(3, 5);
             value = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+        }
+        case SpellType_ModCopperChance: {
+            duration_type = SpellDuration_EveryAttack;
+            duration = Random.int(4, 8);
+            value = ModCopperChance_value;
         }
         case SpellType_Critical: {
             duration_type = SpellDuration_EveryAttack;
-            duration = Random.int(3, 7);
+            duration = Random.int(3, 5);
             value = Random.int(20, 30);
         }
         case SpellType_ModSpellDamage: {
@@ -746,11 +761,6 @@ static function random_potion_spell(level: Int, force_spell: SpellType): Spell {
             duration_type = SpellDuration_EveryTurn;
             duration = Random.int(60, 80);
             value = 0;
-        }
-        case SpellType_ModCopperChance: {
-            duration_type = SpellDuration_EveryAttack;
-            duration = Random.int(7, 11);
-            value = ModCopperChance_value;
         }
         case SpellType_ModHealthMax: {
             duration_type = SpellDuration_Permanent;
@@ -1000,7 +1010,7 @@ static function random_orb_spell(level: Int): Spell {
         case SpellType_CopyEntity: {
         }
         case SpellType_ImproveEquipment: {
-            value = Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+            value = 0;
         }
         case SpellType_EnchantEquipment: {
         }
@@ -1430,7 +1440,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
 // NOTE: update this when adding new types to random_equipment_spell_use()
 static function get_equipment_spell_use_charges(s: Spell): Int {
     return switch (s.type) {
-        case SpellType_AoeDamage: Random.int(2, 3);
+        case SpellType_AoeDamage: Random.int(1, 2);
         case SpellType_Invisibility: Random.int(1, 2);
         case SpellType_EnergyShield: Random.int(1, 2);
         case SpellType_Nolos: Random.int(2, 3);
@@ -1439,7 +1449,7 @@ static function get_equipment_spell_use_charges(s: Spell): Int {
         case SpellType_SummonGolem: 1;
         case SpellType_SummonImp: 1;
         case SpellType_ModAttack: Random.int(1, 2);
-        case SpellType_ChainDamage: Random.int(2, 3);
+        case SpellType_ChainDamage: Random.int(1, 2);
         case SpellType_RandomTeleport: 1;
         case SpellType_SafeTeleport: 1;
         default: 100;
@@ -1473,12 +1483,10 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
         case EquipmentType_Weapon: Random.pick_chance([
             {v: SpellType_AoeDamage, c: 1.0},
             {v: SpellType_Invisibility, c: 0.5},
-            // {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_SummonGolem, c: 1.0},
             {v: SpellType_ModAttack, c: 1.0},
             ]);
         case EquipmentType_Head: Random.pick_chance([
-            // {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_SummonImp, c: 1.0},
             {v: SpellType_ChainDamage, c: 1.0},
             {v: SpellType_Combust, c: 1.0},
@@ -1491,7 +1499,6 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
             ]);
         case EquipmentType_Legs: Random.pick_chance([
             {v: SpellType_ModMoveSpeed, c: 1.0},
-            // {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_RandomTeleport, c: 0.5},
             {v: SpellType_SafeTeleport, c: 0.5},
             ]);

@@ -60,10 +60,9 @@ static inline var ENEMY_TYPES_PER_LEVEL_MIN = 2;
 static inline var ENEMY_TYPES_PER_LEVEL_MAX = 5;
 
 static inline var KEY_ON_ENEMY_CHANCE = 50;
-static inline var MERCHANT_ITEM_LEVEL_BONUS = 2;
+static inline var MERCHANT_ITEM_LEVEL_BONUS = 1;
 
 static inline var ENEMY_ITEM_IDEAL_RATIO = 0.6;
-static function ENEMY_ITEM_RATIO_MARGIN(): Float { return 1.0; };
 
 static var enemy_rooms_this_floor = 0;
 static var item_rooms_this_floor = 0;
@@ -72,9 +71,11 @@ static var items_this_floor = 0;
 
 // NOTE: Start at a minimum of 1 so that no merchant is spawned
 static var floors_until_floor_with_merchant = 1 + Random.int(0, 2);
+static inline function MERCHANT_ITEM_COST(): Int {
+    return Stats.get({min: 4, max: 6, scaling: 2.5}, Main.current_level());
+}
 
 static var health_potion_tally = new Array<Bool>();
-
 static var weapons_on_floor = new Map<Int, Bool>();
 static var statues_on_floor = new Map<Int, Bool>();
 
@@ -219,6 +220,11 @@ static function fill_rooms_with_entities() {
             continue;
         }
 
+        // Don't generate entities in disconnected rooms
+        if (r.adjacent_rooms.length == 0) {
+            continue;
+        }
+
         var positions = room_free_ODD_positions_shuffled(r);
 
         function empty_room() {
@@ -310,7 +316,8 @@ static function fill_rooms_with_entities() {
 
                 // Add cost to items
                 for (e in sell_items) {
-                    Entity.cost[e] = Stats.get({min: 3, max: 5, scaling: 2.0}, Main.current_level());
+                    // Entity.cost[e] = Stats.get({min: 3, max: 5, scaling: 2.0}, Main.current_level());
+                    Entity.cost[e] = MERCHANT_ITEM_COST();
                 }
             }
         }
@@ -432,14 +439,13 @@ static function fill_rooms_with_entities() {
         Random.shuffle(items);
         var enemy_item_ratio = 1.0 * enemies.length / items.length;
         var item_enemy_ratio = 1.0 * items.length / enemies.length;
-        var margin = ENEMY_ITEM_RATIO_MARGIN();
-        if (enemy_item_ratio > ENEMY_ITEM_IDEAL_RATIO * margin) {
-            while (enemy_item_ratio > ENEMY_ITEM_IDEAL_RATIO * margin) {
+        if (enemy_item_ratio > ENEMY_ITEM_IDEAL_RATIO) {
+            while (enemy_item_ratio > ENEMY_ITEM_IDEAL_RATIO) {
                 Entity.remove(enemies.pop());
                 enemy_item_ratio = 1.0 * enemies.length / items.length;
             }
-        } else if (item_enemy_ratio > (1.0 / ENEMY_ITEM_IDEAL_RATIO) * margin) {
-            while (item_enemy_ratio > (1.0 / ENEMY_ITEM_IDEAL_RATIO) * margin) {
+        } else if (item_enemy_ratio > (1.0 / ENEMY_ITEM_IDEAL_RATIO)) {
+            while (item_enemy_ratio > (1.0 / ENEMY_ITEM_IDEAL_RATIO)) {
                 Entity.remove(items.pop());
                 item_enemy_ratio = 1.0 * items.length / enemies.length;
             }
@@ -561,6 +567,25 @@ static function fill_rooms_with_entities() {
                     room_is_empty[furthest_r_i] = false;
                     Entities.key(furthest_pos.x, furthest_pos.y, locked.color);
                 }
+            }
+        }
+    }
+
+    // Place extra chests in disconnected rooms
+    for (r in Main.rooms) {
+        // A disconnected room has no adjacent rooms though sometimes it happens with connected rooms so do an extra path check
+        if (r.adjacent_rooms.length == 0 && Path.astar_map(r.x, r.y, Main.stairs_x, Main.stairs_y).length == 0) {
+            var positions = room_free_ODD_positions_shuffled(r);
+
+            var chest_count = Random.int(1, 3);
+
+            for (i in 0...chest_count) {
+                if (positions.length == 0) {
+                    break;
+                }
+
+                var pos = positions.pop();
+                Entities.unlocked_chest(pos.x, pos.y);
             }
         }
     }
@@ -997,6 +1022,47 @@ static function connect_rooms(rooms: Array<Room>, disconnect_factor: Float = 0.0
             is_locked: false,
             is_horizontal: (height == 0),
         });
+    }
+
+    //
+    // Add some disconnected rooms
+    //
+    if (Random.chance(50)) {
+        var disconnected_count = 1;
+
+        var width_max = Math.floor((Main.MAP_WIDTH - ORIGIN_X - 1) * 0.75);
+        var height_max = Math.floor((Main.MAP_HEIGHT - ORIGIN_Y - 1) * 0.75);
+        var world_width = Random.int(width_max - 25, width_max);
+        var world_height = Random.int(height_max - 25, height_max);
+
+        for (i in 0...DIG_TRIES) {
+            if (disconnected_count == 0) {
+                break;
+            }
+
+            var new_room = {
+                x: Random.int(ORIGIN_X, world_width - ROOM_SIZE_MAX - 1),
+                y: Random.int(ORIGIN_Y, world_height - ROOM_SIZE_MAX - 1),
+                // NOTE: have to decrement max dimensions here because they are incremented by one later
+                width: Random.int(ROOM_SIZE_MIN, ROOM_SIZE_MAX - 1),
+                height: Random.int(ROOM_SIZE_MIN, ROOM_SIZE_MAX - 1),
+                is_connection: false,
+                adjacent_rooms: [],
+                is_locked: false,
+                is_horizontal: false,
+            };
+            var no_intersections = true;
+            for (r in rooms) {
+                if (Math.box_box_intersect(r.x - ROOM_SPACING, r.y - ROOM_SPACING, r.width + ROOM_SPACING, r.height + ROOM_SPACING, new_room.x - ROOM_SPACING, new_room.y - ROOM_SPACING, new_room.width + ROOM_SPACING, new_room.height + ROOM_SPACING)) {
+                    no_intersections = false;
+                    break;
+                }
+            }
+            if (no_intersections) {
+                Main.rooms.push(new_room);
+                disconnected_count--;
+            }
+        }
     }
 }
 
