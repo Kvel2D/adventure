@@ -59,4 +59,15 @@ class Tile {
     static inline var KeyOrange = at(1, 9);
     static inline var KeyGreen = at(2, 9);
     static inline var KeyBlue = at(3, 9);
+
+    static inline var UnlockedChest = at(6, 4);
+    static inline var RedChest = at(6, 5);
+    static inline var OrangeChest = at(6, 6);
+    static inline var GreenChest = at(6, 7);
+    static inline var BlueChest = at(6, 8);
+
+    static inline var Golem = at(7, 1);
+    static inline var Skeleton = at(7, 2);
+    static inline var Imp = at(7, 3);
+    static inline var Merchant = at(7, 4);
 }

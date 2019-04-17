@@ -208,10 +208,7 @@ static function unlocked_chest(x: Int, y: Int): Int {
 
     var color = unlocked_color;
     Entity.description[e] = 'An unlocked chest.';
-    Entity.draw_char[e] = {
-        char: 'C',
-        color: color,
-    };
+    Entity.draw_tile[e] = Tile.UnlockedChest;
     Entity.container[e] = {
         color: color,
         locked: false,
@@ -243,10 +240,13 @@ static function locked_chest(x: Int, y: Int): Int {
 
     var color = Random.pick(locked_colors);
     Entity.description[e] = 'A locked chest.';
-    Entity.draw_char[e] = {
-        char: 'C',
-        color: color,
-    };
+    Entity.draw_tile[e] = switch(color) {
+        case Col.RED: Tile.RedChest;
+        case Col.ORANGE: Tile.OrangeChest;
+        case Col.GREEN: Tile.GreenChest;
+        case Col.BLUE: Tile.BlueChest;
+        default: Tile.None;
+    }
     Entity.container[e] = {
         color: color,
         locked: true,
@@ -792,10 +792,7 @@ static function random_enemy_type(): Int->Int->Int {
         Entity.name[e] = 'Merchant';
         Entity.description[e] = 'It\'s a merchant.';
         Entity.talk[e] = 'Merchant says: "I\'ve got kids to feed".';
-        Entity.draw_char[e] = {
-            char: 'M',
-            color: Col.PINK,
-        };
+        Entity.draw_tile[e] = Tile.Merchant;
         var health = Stats.get({min: 15, max: 20, scaling: 8.0}, level);
         Entity.combat[e] = {
             health: health,
@@ -825,10 +822,7 @@ static function random_enemy_type(): Int->Int->Int {
         Entity.name[e] = 'Golem';
         Entity.description[e] = 'It\'s a golem.';
         Entity.talk[e] = 'Golem says: "Protect you"';
-        Entity.draw_char[e] = {
-            char: 'g',
-            color: Col.GREEN,
-        };
+        Entity.draw_tile[e] = Tile.Golem;
         var health = Stats.get({min: 4, max: 7, scaling: 1.0}, level);
         Entity.combat[e] = {
             health: health, 
@@ -860,10 +854,7 @@ static function random_enemy_type(): Int->Int->Int {
         Entity.name[e] = 'Skeleton';
         Entity.description[e] = 'It\'s a skeleton.';
         Entity.talk[e] = 'Skeleton says: "Click clack"';
-        Entity.draw_char[e] = {
-            char: 's',
-            color: Col.GREEN,
-        };
+        Entity.draw_tile[e] = Tile.Skeleton;
         var health = Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         Entity.combat[e] = {
             health: health,
@@ -895,10 +886,7 @@ static function random_enemy_type(): Int->Int->Int {
         Entity.name[e] = 'Imp';
         Entity.description[e] = 'It\'s an imp.';
         Entity.talk[e] = 'Imp grins at you.';
-        Entity.draw_char[e] = {
-            char: 'i',
-            color: Col.GREEN,
-        };
+        Entity.draw_tile[e] = Tile.Imp;
         var health = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
         Entity.combat[e] = {
             health: health, 
