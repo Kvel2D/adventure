@@ -187,6 +187,10 @@ static function key(x: Int, y: Int, color: Int): Int {
     } else {
         Tile.None;
     }
+    Entity.draw_char[e] = {
+        char: 'K',
+        color: color,
+    };
     Entity.unlocker[e] = {
         color: color,
     };
@@ -209,6 +213,10 @@ static function unlocked_chest(x: Int, y: Int): Int {
     var color = unlocked_color;
     Entity.description[e] = 'An unlocked chest.';
     Entity.draw_tile[e] = Tile.UnlockedChest;
+    Entity.draw_char[e] = {
+        char: 'C',
+        color: Col.BROWN,
+    };
     Entity.container[e] = {
         color: color,
         locked: false,
@@ -247,6 +255,10 @@ static function locked_chest(x: Int, y: Int): Int {
         case Col.BLUE: Tile.BlueChest;
         default: Tile.None;
     }
+    Entity.draw_char[e] = {
+        char: 'C',
+        color: color,
+    };
     Entity.container[e] = {
         color: color,
         locked: true,
@@ -302,6 +314,10 @@ static function stairs(x: Int, y: Int): Int {
     var color = Random.pick(locked_colors);
     Entity.description[e] = 'Stairs to the next level.';
     Entity.draw_tile[e] = Tile.Stairs;
+    Entity.draw_char[e] = {
+        char: 'S',
+        color: Col.BLUE,
+    };
     Entity.draw_on_minimap[e] = {
         color: Col.LIGHTBLUE,
         seen: false,
@@ -351,6 +367,10 @@ static function random_weapon(x: Int, y: Int): Int {
 
     var tile_index = Math.floor(Math.min(Tile.Head.length - 1, level / 2));
     Entity.draw_tile[e] = Tile.Sword[tile_index];
+    Entity.draw_char[e] = {
+        char: 'W',
+        color: Col.BLUE,
+    };
 
     Entity.name[e] = 'Sword';
 
@@ -439,6 +459,10 @@ static function random_armor(x: Int, y: Int): Int {
         case EquipmentType_Legs: 'Pants';
         case EquipmentType_Weapon: 'invalid';
     }
+    Entity.draw_char[e] = {
+        char: '${Entity.name[e].charAt(0)}',
+        color: Col.BLUE,
+    };
     // NOTE: +1 because the 0th armors are the default body parts
     var tile_index = Math.floor(Math.min(Tile.Head.length - 1, 1 + level));
     Entity.draw_tile[e] = switch (armor_type) {
@@ -492,6 +516,10 @@ static function random_ring(x: Int, y: Int): Int {
     Entity.ring[e] = true;
     var spell_color = Spells.get_color(spell);
     Entity.draw_tile[e] = Tile.Ring[Tile.col_to_index(spell_color)];
+    Entity.draw_char[e] = {
+        char: 'R',
+        color: Spells.spell_color_to_color(spell_color),
+    };
 
     Entity.validate(e);
 
@@ -520,6 +548,10 @@ static function random_potion(x: Int, y: Int, force_spell: SpellType = null): In
 
     var spell_color = Spells.get_color(spell);
     Entity.draw_tile[e] = Tile.Potion[Tile.col_to_index(spell_color)];
+    Entity.draw_char[e] = {
+        char: 'P',
+        color: Spells.spell_color_to_color(spell_color),
+    };
 
     Entity.validate(e);
 
@@ -548,6 +580,10 @@ static function random_scroll(x: Int, y: Int): Int {
 
     var spell_color = Spells.get_color(spell);
     Entity.draw_tile[e] = Tile.Scroll[Tile.col_to_index(spell_color)];
+    Entity.draw_char[e] = {
+        char: 'S',
+        color: Spells.spell_color_to_color(spell_color),
+    };
 
     Entity.validate(e);
 
@@ -576,6 +612,10 @@ static function random_orb(x: Int, y: Int): Int {
 
     var spell_color = Spells.get_color(spell);
     Entity.draw_tile[e] = Tile.Orb[Tile.col_to_index(spell_color)];
+    Entity.draw_char[e] = {
+        char: 'O',
+        color: Spells.spell_color_to_color(spell_color),
+    };
 
     Entity.validate(e);
 
@@ -774,6 +814,11 @@ static function random_enemy_type(): Int->Int->Int {
 
         Entity.draw_tile[e] = Tile.Statue[Tile.col_to_index(color)];
 
+        Entity.draw_char[e] = {
+            char: 'T',
+            color: Spells.spell_color_to_color(color),
+        };
+
         if (statue_god == StatueGod_Sera) {
             Entity.cost[e] = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
         }
@@ -793,6 +838,10 @@ static function random_enemy_type(): Int->Int->Int {
         Entity.description[e] = 'It\'s a merchant.';
         Entity.talk[e] = 'Merchant says: "I\'ve got kids to feed".';
         Entity.draw_tile[e] = Tile.Merchant;
+        Entity.draw_char[e] = {
+            char: 'M',
+            color: Col.PINK,
+        };
         var health = Stats.get({min: 15, max: 20, scaling: 8.0}, level);
         Entity.combat[e] = {
             health: health,
@@ -823,6 +872,10 @@ static function random_enemy_type(): Int->Int->Int {
         Entity.description[e] = 'It\'s a golem.';
         Entity.talk[e] = 'Golem says: "Protect you"';
         Entity.draw_tile[e] = Tile.Golem;
+        Entity.draw_char[e] = {
+            char: 'g',
+            color: Col.ORANGE,
+        };
         var health = Stats.get({min: 4, max: 7, scaling: 1.0}, level);
         Entity.combat[e] = {
             health: health, 
@@ -855,6 +908,10 @@ static function random_enemy_type(): Int->Int->Int {
         Entity.description[e] = 'It\'s a skeleton.';
         Entity.talk[e] = 'Skeleton says: "Click clack"';
         Entity.draw_tile[e] = Tile.Skeleton;
+        Entity.draw_char[e] = {
+            char: 's',
+            color: Col.GRAY,
+        };
         var health = Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         Entity.combat[e] = {
             health: health,
@@ -887,6 +944,10 @@ static function random_enemy_type(): Int->Int->Int {
         Entity.description[e] = 'It\'s an imp.';
         Entity.talk[e] = 'Imp grins at you.';
         Entity.draw_tile[e] = Tile.Imp;
+        Entity.draw_char[e] = {
+            char: 'i',
+            color: Col.PINK,
+        };
         var health = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
         Entity.combat[e] = {
             health: health, 
@@ -911,6 +972,10 @@ static function random_enemy_type(): Int->Int->Int {
 
         Entity.set_position(e, x, y);
         Entity.name[e] = 'Copper';
+        Entity.draw_char[e] = {
+            char: 'C',
+            color: Col.YELLOW,
+        };
         Entity.description[e] = 'A bunch of copper pieces';
         Entity.draw_tile[e] = Tile.Copper;
         Entity.use[e] = {

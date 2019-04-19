@@ -708,7 +708,7 @@ class Gfx {
 		drawto.draw(tempshape, shapematrix);
 	}
 
-	public static function fill_circle(x: Float, y: Float, radius: Float, col: Int, alpha: Float = 1.0) {
+	public static function fillcircle(x: Float, y: Float, radius: Float, col: Int, alpha: Float = 1.0) {
 		if (!clearscreeneachframe) if (skiprender && drawingtoscreen) return;
 		tempshape.graphics.clear();
 		tempshape.graphics.beginFill(col, alpha);

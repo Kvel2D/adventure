@@ -161,6 +161,8 @@ static function get_description(spell: Spell): String {
 
     // negative numbers already have '-' in front
     var sign = if (spell.value > 0) '+' else '';
+    
+    var long = Main.USER_long_spell_descriptions;
 
     var effect = switch (spell.type) {
         case SpellType_ModHealth: '$sign${spell.value} health';
@@ -172,9 +174,11 @@ static function get_description(spell: Spell): String {
         case SpellType_ModCopperChance: '+copper drop chance';
         case SpellType_ModLevelHealth: '$sign${spell.value} health to all enemies on the current floor';
         case SpellType_ModLevelAttack: '$sign${spell.value} attack to all enemies on the current floor';
-        case SpellType_EnergyShield: 'Energy Shield: get energy shield that absorbs ${spell.value} damage';
+        case SpellType_EnergyShield: if (long) 
+        'Energy Shield: get energy shield that absorbs ${spell.value} damage' else 
+        'Energy Shield ${spell.value}';
         case SpellType_Invisibility: 'turn invisible';
-        case SpellType_ModDropLevel: 'make item drops more powerful';
+        case SpellType_ModDropLevel: '+item drop power';
         case SpellType_UncoverMap: 'uncover map';
         case SpellType_RandomTeleport: 'random teleport';
         case SpellType_SafeTeleport: 'safe teleport';
@@ -182,28 +186,91 @@ static function get_description(spell: Spell): String {
         case SpellType_Noclip: 'go through walls';
         case SpellType_ShowThings: 'see treasure on the map';
         case SpellType_NextFloor: 'go to next floor';
-        case SpellType_AoeDamage: 'Inferno: deal ${spell.value} damage to all visible enemies';
-        case SpellType_ModUseCharges: 'add ${spell.value} use charges to item in your inventory';
-        case SpellType_CopyEntity: 'Copy: copy anything (copy is placed on the ground, must have free space around you or the spell fails and orb disappears)';
-        case SpellType_Passify: 'Passify: passify an enemy';
-        case SpellType_Sleep: 'Sleep: put an enemy to sleep';
-        case SpellType_Charm: 'Charm: turn an enemy into an ally';
-        case SpellType_ImproveEquipment: 'Improve equipment: improve weapon or armor, increasing it\'s attack or defense bonus permanently';
-        case SpellType_EnchantEquipment: 'Enchant Equipment: enchant weapon or armor, giving it a random equip spell';
-        case SpellType_DamageShield: 'Damaging Shield: deal ${spell.value} damage to attackers';
-        case SpellType_SummonGolem: 'Summon Golem: summon a golem that follows and protects you';
-        case SpellType_SummonSkeletons: 'Summon Skeletons: summon three skeletons that attack nearest enemies';
-        case SpellType_SummonImp: 'Summon Imp: summon an imp that protects you, it can\'t move but it can shoot fireballs!';
-        case SpellType_ChainDamage: 'Light Chain: deals ${spell.value} damage to an enemy near to you, then jumps to nearby enemies, doubling the damage with each jump';
+        case SpellType_AoeDamage: if (long) 
+        'Inferno: deal ${spell.value} damage to all visible enemies' 
+        else 
+            'Inferno ${spell.value}';
+        case SpellType_ModUseCharges: if (long) 
+        'Add ${spell.value} charges to item in your inventory' 
+        else 
+            'Add ${spell.value} charges';
+        case SpellType_CopyEntity: if (long) 
+        'Copy: copy anything (copy is placed on the ground, must have free space around you)' 
+        else 
+            'Copy';
+        case SpellType_Passify: if (long) 
+        'Passify: passify an enemy' 
+        else
+            'Passify';
+        case SpellType_Sleep: if (long)
+        'Sleep: put an enemy to sleep' 
+        else
+            'Sleep';
+        case SpellType_Charm: if (long)
+        'Charm: turn an enemy into an ally' 
+        else
+            'Charm';
+        case SpellType_ImproveEquipment: if (long)
+        'Improve equipment: make armor or weapons more powerful' 
+        else
+            'Improve equipment';
+        case SpellType_EnchantEquipment: if (long)
+        'Enchant equipment: enchant weapon or armor with a random equip spell' 
+        else
+            'Enchant equipment';
+        case SpellType_DamageShield: if (long)
+        'Damaging shield: deal ${spell.value} damage to attackers' 
+        else
+            'Damaging shield ${spell.value}';
+        case SpellType_SummonGolem: if (long)
+        'Summon Golem that follows and protects you' 
+        else
+            'Summon Golem';
+        case SpellType_SummonSkeletons: if (long)
+        'Summon Skeletons that attack nearby enemies' 
+        else
+            'Summon Skeletons';
+        case SpellType_SummonImp: if (long)
+        'Summon Imp that can\'t move but will throw fireballs at enemies' 
+        else
+            'Summon Imp';
+        case SpellType_ChainDamage: if (long)
+        'Light chain: deals ${spell.value} damage to an enemy near to you, then jumps to nearby enemies, doubling the damage with each jump' 
+        else
+            'Light chain ${spell.value}';
         case SpellType_ModCopper: '$sign ${spell.value} copper';
-        case SpellType_HealthLeech: 'Health Leech: damage dealt to enemies has a chance to heal you';
-        case SpellType_SwapHealth: 'Swap Health: swaps yours and target enemy\'s current health, doesn\'t affect max health';
-        case SpellType_ModSpellDamage: 'increases all spell damage by ${spell.value}, also increase power of summons';
-        case SpellType_ModAttackByCopper: '+ to attack based on copper count';
-        case SpellType_ModDefenseByCopper: '+ to defense based on copper count';
-        case SpellType_Combust: 'Combust: blow up an enemy dealing ${spell.value} damage to everything nearby';
-        case SpellType_LuckyCharge: 'Lucky Use: chance of preserving a charge when using anything';
-        case SpellType_Critical: 'Critical: chance of dealing double damage to enemies';
+        case SpellType_HealthLeech: if (long)
+        'Health leech: damage dealt to enemies has a chance to heal you' 
+        else
+            'Health leech';
+        case SpellType_SwapHealth: if (long)
+        'Swap health: swaps yours and target enemy\'s current health' 
+        else
+            'Swap health';
+        case SpellType_ModSpellDamage: if (long)
+        'Increases all spell damage by ${spell.value}, also increase power of summons' 
+        else
+            '+Spell power ${spell.value}';
+        case SpellType_ModAttackByCopper: if (long)
+        'Copper attack: + to attack based on copper count' 
+        else
+            'Copper attack';
+        case SpellType_ModDefenseByCopper: if (long)
+        'Copper defense: + to defense based on copper count' 
+        else
+            'Copper defense';
+        case SpellType_Combust: if (long)
+        'Combust: blow up an enemy dealing ${spell.value} damage to everything nearby' 
+        else
+            'Combust';
+        case SpellType_LuckyCharge: if (long)
+        'Lucky use: chance of preserving a charge when using anything' 
+        else
+            'Lucky use';
+        case SpellType_Critical: if (long)
+        'Critical: chance of dealing double damage' 
+        else
+            'Critical';
     }
 
     var interval = 
@@ -246,7 +313,19 @@ static function get_description(spell: Spell): String {
     return '$effect$interval$duration';
 }
 
-static function get_color(spell: Spell) {
+static function spell_color_to_color(spell_color: SpellColor): Int {
+    return switch (spell_color) {
+        case SpellColor_Gray: Col.GRAY;
+        case SpellColor_Yellow: Col.YELLOW;
+        case SpellColor_Purple: Col.DARKBLUE;
+        case SpellColor_Red: Col.RED;
+        case SpellColor_Green: Col.GREEN;
+        case SpellColor_Blue: Col.BLUE;
+        case SpellColor_None: Col.WHITE;
+    }
+}
+
+static function get_color(spell: Spell): SpellColor {
     return switch (spell.type) {
         case SpellType_ModAttack: SpellColor_Gray;
         case SpellType_ModDefense: SpellColor_Gray;

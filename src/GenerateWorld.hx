@@ -1193,10 +1193,26 @@ static function decorate_rooms_with_walls() {
                 {v: no_walls, c: 10.0},
                 {v: thin_ring, c: 0.5},
                 {v: fat_ring, c: 1.0},
-                ])(r);
+                ])
+            (r);
+        }
+    }
+}
+
+static function draw_mob(x: Int, y: Int) {
+    Gfx.scale(1);
+    Gfx.drawtoimage('test_canvas');
+
+    for (dx in 0...8) {
+        for (dy in 0...8) {
+            if (Random.chance(50)) {
+                Gfx.fillbox(x * Main.TILESIZE + dx, y * Main.TILESIZE + dy, 1, 1, Col.BLUE);
             }
         }
     }
 
-    function new() {}
+    Gfx.drawtoscreen();
+}
+
+function new() {}
 }

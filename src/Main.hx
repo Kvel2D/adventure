@@ -1,6 +1,8 @@
 
 import haxe.Timer;
 import haxegon.*;
+import openfl.net.SharedObject;
+
 import Entity;
 import Spells;
 import Entities;
@@ -90,7 +92,11 @@ var DEV_full_minimap = false;
 var DEV_frametime_graph = false;
 var DEV_nodeath = false;
 var DEV_show_enemies = false;
-var TILE_PATTERNS = true;
+
+var USER_show_buttons = false;
+var USER_tile_patterns = true;
+var USER_draw_chars_only = false;
+static var USER_long_spell_descriptions = true;
 
 static var stairs_x = 0;
 static var stairs_y = 0;
@@ -133,7 +139,21 @@ EquipmentType_Weapon => null,
 ];
 var inventory_render_cache: Array<Array<EntityRenderData>> = Data.create2darray(Main.INVENTORY_WIDTH, Main.INVENTORY_HEIGHT, null);
 
+var obj: SharedObject;
+
 function new() {
+    // Load options
+    obj = SharedObject.getLocal("options");
+    if (obj.data.USER_tile_patterns != null) {
+        USER_tile_patterns = obj.data.USER_tile_patterns;
+    }
+    if (obj.data.USER_long_spell_descriptions != null) {
+        USER_long_spell_descriptions = obj.data.USER_long_spell_descriptions;
+    }
+    if (obj.data.USER_draw_chars_only != null) {
+        USER_draw_chars_only = obj.data.USER_draw_chars_only;
+    }
+
     Gfx.resizescreen(SCREEN_WIDTH, SCREEN_HEIGHT);
     Text.setfont('pixelfj8');
     Gfx.loadtiles('tiles', TILESIZE, TILESIZE);
@@ -145,6 +165,8 @@ function new() {
     Gfx.createimage('minimap_canvas_rooms', MAP_WIDTH * MINIMAP_SCALE, MAP_HEIGHT * MINIMAP_SCALE);
     Gfx.createimage('minimap_canvas_full', MAP_WIDTH * MINIMAP_SCALE, MAP_HEIGHT * MINIMAP_SCALE);
     Gfx.createimage('ui_items_canvas', INVENTORY_WIDTH * TILESIZE * WORLD_SCALE, SCREEN_HEIGHT);
+    
+    Gfx.createimage('test_canvas', 10 * TILESIZE, 10 * TILESIZE);
 
     Gfx.changetileset('tiles');
 
@@ -183,6 +205,54 @@ function new() {
 
     restart_game();
     generate_level();
+
+    Gfx.scale(1);
+    Gfx.scale(WORLD_SCALE);
+    Gfx.drawtoimage('test_canvas');
+    Gfx.clearscreen(Col.GRAY);
+    for (x in 0...5) {
+        for (y in 0...5) {
+            Gfx.drawtile(x * TILESIZE, y * TILESIZE, Tile.Ground);
+        }
+    }    
+    Gfx.drawtoscreen();
+
+    for (x in 0...4) {
+        for (y in 0...4) {
+            GenerateWorld.draw_mob(x * 2, y * 2);
+        }
+    }
+}
+
+function print_tutorial() {
+    // Insert tutorial into messages
+    var tutorial_text = [
+    'TUTORIAL',
+    'WASD to move',
+    'SPACE to skip a turn',
+    'Press ESC/TAB to open options menu.',
+    TURN_DELIMITER,
+    'Right-click on things to interact with them.',
+    'You can interact with things on the map if they are next to you.',
+    'You can interact with your equipment and items.',
+    TURN_DELIMITER,
+    'Left-click on enemies to attack them.',
+    'Left-click on items and equipment on the ground to pick them up.',
+    'Left-click on items in inventory to use them.',
+    TURN_DELIMITER,
+    'PLAYTEST NOTES',
+    'Press F to toggle frametime graph. Let me know if the',
+    'perfomance is bad!(above 16ms is bad)',
+    'Press L to print game log. It\'s printed to the browser console,',
+    'which is opened by ctrl+shift+J. I would appreciate if you copied', 
+    'and sent me that log after you are done playing.',
+    ];
+    messages = [for (i in 0...MESSAGES_LENGTH_MAX) TURN_DELIMITER];
+    var tutorial_i = tutorial_text.length; 
+    for (line in tutorial_text) {
+        messages[tutorial_i] = line;
+        tutorial_i--;
+    }
 }
 
 function restart_game() {
@@ -204,35 +274,7 @@ function restart_game() {
     Player.attack = 1;
     Player.defense = 0;
 
-    // Insert tutorial into messages
-    var tutorial_text = [
-    'TUTORIAL',
-    TURN_DELIMITER,
-    'WASD to move',
-    'SPACE to skip a turn',
-    TURN_DELIMITER,
-    'Right-click on things to interact with them.',
-    'You can interact with things on the map if they are next to you.',
-    'You can interact with your equipment and items.',
-    TURN_DELIMITER,
-    'Left-click on enemies to attack them.',
-    'Left-click on items and equipment on the ground to pick them up.',
-    'Left-click on items in inventory to use them.',
-    TURN_DELIMITER,
-    'PLAYTEST NOTES',
-    'Press F to toggle frametime graph. Let me know if the',
-    'perfomance is bad!(above 16ms is bad)',
-    'Press L to print game log. It\'s printed to the browser console,',
-    'which is opened by ctrl+shift+J. I would appreciate if you copied', 
-    'and sent me that log after you are done playing.',
-    'Press T to toggle tile patterns(updates on level change).',
-    ];
-    messages = [for (i in 0...MESSAGES_LENGTH_MAX) TURN_DELIMITER];
-    var tutorial_i = tutorial_text.length; 
-    for (line in tutorial_text) {
-        messages[tutorial_i] = line;
-        tutorial_i--;
-    }
+    print_tutorial();
 
     Entities.generated_names = new Array<String>();
 }
@@ -342,7 +384,7 @@ function color_tiles() {
 
     Gfx.drawtotile(Tile.Wall);
     Gfx.fillbox(0, 0, 8, 8, wall);
-    if (TILE_PATTERNS) {
+    if (USER_tile_patterns) {
         var pattern = Random.pick([horizontal_reflected_pattern, vertical_reflected_pattern, four_reflected_pattern, random_pattern])(Random.int(0, 75));
         for (x in 0...8) {
             for (y in 0...8) {
@@ -353,6 +395,35 @@ function color_tiles() {
         }
     }
 
+    Gfx.drawtoscreen();
+}
+
+function redraw_screen_tiles() {
+    LOS.update_los(los);
+    var view_x = get_view_x();
+    var view_y = get_view_y();
+    Gfx.scale(1);
+    Gfx.drawtoimage('tiles_canvas');
+    for (x in 0...VIEW_WIDTH) {
+        for (y in 0...VIEW_HEIGHT) {
+            var map_x = view_x + x;
+            var map_y = view_y + y;
+
+            var new_tile = Tile.None;
+            if (out_of_map_bounds(map_x, map_y) || walls[map_x][map_y]) {
+                new_tile = Tile.Wall;
+            } else {
+                if (position_visible(x, y)) {
+                    new_tile = tiles[map_x][map_y];
+                } else {
+                    new_tile = Tile.Shadow;
+                }
+            }
+
+            Gfx.drawtile(unscaled_screen_x(map_x), unscaled_screen_y(map_y), new_tile);
+            tiles_render_cache[x][y] = new_tile;
+        }
+    }
     Gfx.drawtoscreen();
 }
 
@@ -453,12 +524,12 @@ function generate_level() {
         Player.y = rooms[0].y;
         
         for (dx in 1...10) {
-            // Entities.random_weapon(Player.x + dx, Player.y);
-            // Entities.random_armor(Player.x + dx, Player.y + 1);
-            // Entities.random_scroll(Player.x + dx, Player.y + 2);
-            // Entities.random_potion(Player.x + dx, Player.y + 3);
-            // Entities.random_orb(Player.x + dx, Player.y + 4);
-            // Entities.random_ring(Player.x + dx, Player.y + 5);
+            Entities.random_weapon(Player.x + dx, Player.y);
+            Entities.random_armor(Player.x + dx, Player.y + 1);
+            Entities.random_scroll(Player.x + dx, Player.y + 2);
+            Entities.random_potion(Player.x + dx, Player.y + 3);
+            Entities.random_orb(Player.x + dx, Player.y + 4);
+            Entities.random_ring(Player.x + dx, Player.y + 5);
             // Entities.random_statue(Player.x + dx, Player.y + 6);
         }
 
@@ -552,35 +623,7 @@ function generate_level() {
     total_defense_this_level = 0;
     defense_count_this_level = 0;
 
-    //
-    // Update los and tile canvas
-    //
-    LOS.update_los(los);
-    var view_x = get_view_x();
-    var view_y = get_view_y();
-    Gfx.scale(1);
-    Gfx.drawtoimage('tiles_canvas');
-    for (x in 0...VIEW_WIDTH) {
-        for (y in 0...VIEW_HEIGHT) {
-            var map_x = view_x + x;
-            var map_y = view_y + y;
-
-            var new_tile = Tile.None;
-            if (out_of_map_bounds(map_x, map_y) || walls[map_x][map_y]) {
-                new_tile = Tile.Wall;
-            } else {
-                if (position_visible(x, y)) {
-                    new_tile = tiles[map_x][map_y];
-                } else {
-                    new_tile = Tile.Shadow;
-                }
-            }
-
-            Gfx.drawtile(unscaled_screen_x(map_x), unscaled_screen_y(map_y), new_tile);
-            tiles_render_cache[x][y] = new_tile;
-        }
-    }
-    Gfx.drawtoscreen();
+    redraw_screen_tiles();
 }
 
 static var time_stamp = 0.0;
@@ -1430,9 +1473,12 @@ static function get_entity_render_data(e: Int): EntityRenderData {
     if (Entity.draw_char.exists(e)) {
         draw_char = Entity.draw_char[e].char;
         draw_char_color = Entity.draw_char[e].color;
-    } else if (Entity.draw_tile.exists(e)) {
+    }
+    if (Entity.draw_tile.exists(e)) {
         draw_tile = Entity.draw_tile[e];
-    } else if (DRAW_INVISIBLE_ENTITIES) {
+    }
+
+    if (!Entity.draw_char.exists(e) && !Entity.draw_tile.exists(e) && DRAW_INVISIBLE_ENTITIES) {
         // Draw invisible entities as question mark
         draw_tile = Tile.None;
     }
@@ -1466,7 +1512,7 @@ function draw_entity(e: Int, x: Float, y: Float, render_data: EntityRenderData =
         render_data = get_entity_render_data(e);
     }
 
-    if (render_data.draw_char != 'null') {
+    if (render_data.draw_char != 'null' && (render_data.draw_tile == -1 || USER_draw_chars_only)) {
         // Draw char
         Text.change_size(DRAW_CHAR_TEXT_SIZE);
         Text.display(x, y, render_data.draw_char, render_data.draw_char_color);
@@ -1727,6 +1773,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_ModUseCharges: {
             if (Entity.use.exists(use_target)) {
                 Entity.use[use_target].charges += spell.value;
+                add_message('You add charge to an item.');
             }
         }
         case SpellType_CopyEntity: {
@@ -1853,7 +1900,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                     level += 1;
                 }
                 Entities.imp(level, free_pos.x, free_pos.y);
-                add_message('You summon a imp, it grins at you.');
+                add_message('You summon an imp, it grins at you.');
             } else {
                 add_message('No space to summon imp, spell fails!');
             }
@@ -1890,6 +1937,8 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
 
             do_chain({x: Player.x, y: Player.y}, entities_with(Entity.combat), spell.value);
+
+            add_message('Light chain jumps from your pinky finger.');
         }
         case SpellType_ModCopper: {
             Player.copper_count += spell.value;
@@ -1897,6 +1946,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             if (Player.copper_count < 0) {
                 Player.copper_count = 0;
             }
+            add_message('You gain ${spell.value} copper.');
         }
         case SpellType_ModSpellDamage: {
             Player.spell_damage_mod += spell.value;
@@ -1910,6 +1960,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_LuckyCharge: {
             Player.lucky_charge += spell.value;
+            add_message('Lucky! You get an extra charge on just used item.');
         }
         case SpellType_Critical: {
             Player.critical += spell.value;
@@ -1983,37 +2034,42 @@ function render_world() {
     }
 
     // Player, draw as parts of each equipment
-    for (equipment_type in Type.allEnums(EquipmentType)) {
-        var e = Player.equipment[equipment_type];
+    if (USER_draw_chars_only) {
+        Text.change_size(DRAW_CHAR_TEXT_SIZE);
+        Text.display(screen_x(Player.x), screen_y(Player.y), '@', Col.YELLOW);
+    } else {
+        for (equipment_type in Type.allEnums(EquipmentType)) {
+            var e = Player.equipment[equipment_type];
 
-        // Check that equipment exists, is equipped and has a draw tile
-        // Otherwise draw default equipment(naked)
-        var equipment_tile = if (Entity.equipment.exists(e) && !Entity.position.exists(e) && Entity.draw_tile.exists(e)) {
-            Entity.draw_tile[e];
-        } else {
-            switch (equipment_type) {
-                case EquipmentType_Weapon: Tile.None;
-                case EquipmentType_Head: Tile.Head[0];
-                case EquipmentType_Chest: Tile.Chest[0];
-                case EquipmentType_Legs: Tile.Legs[0];
+            // Check that equipment exists, is equipped and has a draw tile
+            // Otherwise draw default equipment(naked)
+            var equipment_tile = if (Entity.equipment.exists(e) && !Entity.position.exists(e) && Entity.draw_tile.exists(e)) {
+                Entity.draw_tile[e];
+            } else {
+                switch (equipment_type) {
+                    case EquipmentType_Weapon: Tile.None;
+                    case EquipmentType_Head: Tile.Head[0];
+                    case EquipmentType_Chest: Tile.Chest[0];
+                    case EquipmentType_Legs: Tile.Legs[0];
+                }
             }
-        }
 
-        var x_offset = if (equipment_type == EquipmentType_Weapon) {
-            // Draw sword a bit to the side
-            0.3 * TILESIZE * WORLD_SCALE;
-        } else {
-            0;
-        }
+            var x_offset = if (equipment_type == EquipmentType_Weapon) {
+                // Draw sword a bit to the side
+                0.3 * TILESIZE * WORLD_SCALE;
+            } else {
+                0;
+            }
 
-        var y_offset = switch (equipment_type) {
-            case EquipmentType_Head: -2 * WORLD_SCALE;
-            case EquipmentType_Legs: 3 * WORLD_SCALE;
-            default: 0;
-        }
+            var y_offset = switch (equipment_type) {
+                case EquipmentType_Head: -2 * WORLD_SCALE;
+                case EquipmentType_Legs: 3 * WORLD_SCALE;
+                default: 0;
+            }
 
-        if (equipment_tile != Tile.None) {
-            Gfx.drawtile(screen_x(Player.x) + x_offset, screen_y(Player.y) + y_offset, equipment_tile); 
+            if (equipment_tile != Tile.None) {
+                Gfx.drawtile(screen_x(Player.x) + x_offset, screen_y(Player.y) + y_offset, equipment_tile); 
+            }
         }
     }
 
@@ -2395,12 +2451,12 @@ function update_normal() {
         var tooltip = "";
         if (Entity.name.exists(e)) {
             // tooltip += 'Id: ${e}';
-            tooltip += '${Entity.name[e]}';
+            // tooltip += '${Entity.name[e]}';
         }
         if (Entity.combat.exists(e)) {
             var entity_combat = Entity.combat[e];
-            tooltip += '\nHealth: ${entity_combat.health}';
-            tooltip += '\nAttack: ${entity_combat.attack}';
+            tooltip += 'Health: ${entity_combat.health}\n';
+            tooltip += 'Attack: ${entity_combat.attack}\n';
             // actual numbers drawn later, because they need to be colored
         }
         if (Entity.description.exists(e)) {
@@ -2409,31 +2465,30 @@ function update_normal() {
         if (Entity.equipment.exists(e)) {
             var equipment = Entity.equipment[e];
             if (equipment.spells.length > 0) {
-                tooltip += '\n';
                 for (s in equipment.spells) {
-                    tooltip += '\n' + Spells.get_description(s);
+                    tooltip += Spells.get_description(s) + '\n';
                 }
             }
         }
         if (Entity.item.exists(e) && Entity.item[e].spells.length > 0) {
             var item = Entity.item[e];
             for (s in item.spells) {
-                tooltip += '\n' + Spells.get_description(s);
+                tooltip += Spells.get_description(s) + '\n';
             }
         }
         if (Entity.use.exists(e)) {
             var use = Entity.use[e];
-            tooltip += '\nUse';
-            if (use.consumable) {
-                tooltip += ' (consumable)';
-            }
+            // tooltip += '\nUse';
+            // if (use.consumable) {
+            //     tooltip += ' (consumable)';
+            // }
             for (s in use.spells) {
-                tooltip += '\n' + Spells.get_description(s);
+                tooltip += Spells.get_description(s) + '\n';
             }
         }
         
         if (Entity.cost.exists(e)) {
-            tooltip += '\nCost: ${Entity.cost[e]} copper.';
+            tooltip += 'Cost: ${Entity.cost[e]} copper\n';
         }
 
 
@@ -2453,7 +2508,10 @@ function update_normal() {
         }
 
         if (entity_tooltip != "" && !Entity.combat.exists(hovered_anywhere)) {
-            Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, Text.width(entity_tooltip) + 10, Text.height(entity_tooltip), Col.DARKBROWN);
+            var border = 10;
+            Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE - border, hovered_anywhere_y - border, Text.width(entity_tooltip) + 10 + border * 2, Text.height(entity_tooltip) + border * 2, Col.GRAY);
+            border = 5;
+            Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE - border, hovered_anywhere_y - border, Text.width(entity_tooltip) + 10 + border * 2, Text.height(entity_tooltip) + border * 2, Col.DARKBROWN);
             Text.display(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, entity_tooltip, Col.WHITE);
         }
     }
@@ -3014,9 +3072,49 @@ function update() {
         DEV_show_buttons = true;
     }
 
-    if (Input.justpressed(Key.T)) {
-        TILE_PATTERNS = !TILE_PATTERNS;
+    if (Input.justpressed(Key.ESCAPE) || Input.justpressed(Key.TAB)) {
+        USER_show_buttons = !USER_show_buttons;
     }
+
+    GUI.x = 0;
+    GUI.y = 0;
+    if (USER_show_buttons) {
+        if (GUI.auto_text_button('Long spell descriptions: ' + if (USER_long_spell_descriptions) 'ON' else 'OFF')) {
+            USER_long_spell_descriptions = !USER_long_spell_descriptions;
+            obj.data.USER_long_spell_descriptions = USER_long_spell_descriptions;
+            obj.flush();
+        }
+        if (GUI.auto_text_button('Patterned tiles: ' + if (USER_tile_patterns) 'ON' else 'OFF')) {
+            USER_tile_patterns = !USER_tile_patterns;
+            obj.data.USER_tile_patterns = USER_tile_patterns;
+            obj.flush();
+
+            color_tiles();
+            redraw_screen_tiles();
+        }
+        if (GUI.auto_text_button('Graphics: ' + if (USER_draw_chars_only) 'OFF' else 'ON')) {
+            USER_draw_chars_only = !USER_draw_chars_only;
+            obj.data.USER_draw_chars_only = USER_draw_chars_only;
+            obj.flush();
+            inventory_render_cache = Data.create2darray(Main.INVENTORY_WIDTH, Main.INVENTORY_HEIGHT, null);
+            equipment_render_cache = [
+            EquipmentType_Head => null,
+            EquipmentType_Chest => null,
+            EquipmentType_Legs => null,
+            EquipmentType_Weapon => null,
+            ];
+        }
+        if (GUI.auto_text_button('Tutorial')) {
+            print_tutorial();
+            need_to_update_messages_canvas = true;
+        }
+        if (GUI.auto_text_button('Close menu')) {
+            USER_show_buttons = false;
+        }
+    }
+
+    // Gfx.scale(WORLD_SCALE);
+    // Gfx.drawimage(0, 0, 'test_canvas');
 }
 
 }

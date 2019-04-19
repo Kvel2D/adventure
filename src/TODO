@@ -4,22 +4,22 @@ TODO
 make sure enemies have enough health
     need to at least be able to hit back once
 
+try generating enemy tiles
+    completely random?
+    pattern-based
+    automata
+
 ---------------------------------------------------------------------------------
 DONE
+
 
 ---------------------------------------------------------------------------------
 IDEAS
 
-need option to toggle tile patterns 
-    should be saved to shareobject
-    needs to be instant
-    make it an escape/tab menu, like the dev menu buttons
-
 compare merchant stats to player stats progression
     make merchant almost impossible to kill
-
-try generating enemy tiles
-
+    
 how to tell the player that they "won"?
     also figure out where the max floor is
     could add some more to the current ones if it scales well
+
