@@ -45,10 +45,10 @@ class GenerateWorld {
 static inline var ORIGIN_X = 1;
 static inline var ORIGIN_Y = 1;
 static inline var ROOM_SPACING = 3;
-static inline var DIG_TRIES = 300;
+static inline var DIG_TRIES = 1000;
 static inline var ROOMS_MAX = 15;
 static inline var ROOM_SIZE_MIN = 5;
-static inline var ROOM_SIZE_MAX = 15;
+static var ROOM_SIZE_MAX = 15;
 
 static inline var ITEM_ROOM_ENTITY_AMOUNT = 2;
 static inline var MERCHANT_ITEM_AMOUNT = 3;
@@ -62,7 +62,8 @@ static inline var ENEMY_TYPES_PER_LEVEL_MAX = 5;
 static inline var KEY_ON_ENEMY_CHANCE = 50;
 static inline var MERCHANT_ITEM_LEVEL_BONUS = 1;
 
-static inline var ENEMY_ITEM_IDEAL_RATIO = 0.6;
+static inline var ENEMY_ITEM_IDEAL_RATIO = 0.7;
+static inline var HEALTH_POTION_TALLY_SIZE = 15;
 
 static var enemy_rooms_this_floor = 0;
 static var item_rooms_this_floor = 0;
@@ -137,15 +138,11 @@ static function weapon_bad_streak_mod(): Float {
     }
 }
 
-static function statue_chance(): Float {
-    if (statues_on_floor[Main.current_floor]) {
-        return 0.0;
+static function statue_chance(): Int {
+    return if (get_streak(statues_on_floor) >= 2) {
+        50;
     } else {
-        return if (get_streak(statues_on_floor) >= 2) {
-            10.0;
-        } else {
-            1.0;
-        }
+        10;
     }
 }
 
@@ -185,7 +182,7 @@ static function fill_rooms_with_entities() {
 
     function tally_health_potions(is_health_potion: Bool) {
         health_potion_tally.push(is_health_potion);
-        if (health_potion_tally.length > 10) {
+        if (health_potion_tally.length > HEALTH_POTION_TALLY_SIZE) {
             health_potion_tally.shift();
         }
     }
@@ -198,7 +195,7 @@ static function fill_rooms_with_entities() {
             }
         }
         
-        return if (tally / health_potion_tally.length < 0.1) {
+        return if (tally == 0) {
             3.0;
         } else {
             1.0;
@@ -256,16 +253,11 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_weapon, c: 0.5 * weapon_bad_streak_mod()},
                     {v: Entities.random_ring, c: 0.5},
                     {v: Entities.locked_chest, c: 2.0},
-                    {v: Entities.random_statue, c: statue_chance()},
                     ]);
 
                 var e = f(pos.x, pos.y);
 
                 tally_health_potions(f == health_potion);
-
-                if (f == Entities.random_statue) {
-                    statues_on_floor[Main.current_floor] = true;
-                }
 
                 items.push(e);
             }
@@ -338,16 +330,11 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_orb, c: 1.5},
                     {v: Entities.locked_chest, c: 2.0},
                     {v: Entities.random_ring, c: 1.0},
-                    {v: Entities.random_statue, c: statue_chance()},
                     ]);
 
                 var e = f(pos.x, pos.y);
 
                 tally_health_potions(f == health_potion);
-
-                if (f == Entities.random_statue) {
-                    statues_on_floor[Main.current_floor] = true;
-                }
 
                 items.push(e);
             }
@@ -411,7 +398,6 @@ static function fill_rooms_with_entities() {
                     {v: Entities.random_armor, c: 3.0},
                     {v: Entities.random_ring, c: 3.0},
                     {v: Entities.random_weapon, c: 1.0},
-                    {v: Entities.random_statue, c: 1.0},
                     ])
                 (pos.x, pos.y);
             }
@@ -590,6 +576,36 @@ static function fill_rooms_with_entities() {
         }
     }
 
+    // Spawn statue
+    if (Random.chance(statue_chance())) {
+        statues_on_floor[Main.current_floor] = true;
+
+        var statue_rooms = new Array<Room>();
+
+        var start_room = Main.rooms[Player.room];
+        statue_rooms.push(start_room);
+
+        for (i in start_room.adjacent_rooms) {
+            var r = Main.rooms[i];
+            for (j in r.adjacent_rooms) {
+                var adj_r = Main.rooms[j];
+                if (adj_r != start_room) {
+                    statue_rooms.push(adj_r);
+                }
+            }
+        }
+
+        Random.shuffle(statue_rooms);
+
+        var room = statue_rooms.pop();
+
+        var positions = room_free_positions_shuffled(room);
+
+        var pos = positions.pop();
+
+        Entities.random_statue(pos.x, pos.y);
+    }
+
     //
     // Trim down empty rooms to intersections and bends
     //
@@ -728,8 +744,29 @@ static function fill_rooms_with_entities() {
 // Randomly place rooms that don't intersect with other rooms
 static function generate_via_digging(): Array<Room> {
 
-    var width_max = Math.floor((Main.MAP_WIDTH - ORIGIN_X - 1) * 0.75);
-    var height_max = Math.floor((Main.MAP_HEIGHT - ORIGIN_Y - 1) * 0.75);
+    if (Random.chance(25)) {
+        ROOM_SIZE_MAX = 10;
+    } else {
+        ROOM_SIZE_MAX = 15;
+    }
+
+    // NOTE:
+    // 0.6 0.6   => cute and small
+    // 0.75 0.75 => standard and beefy
+    // 0.95 0.5  => long and linear
+
+    var width_multiplier = 1.0;
+    var height_multiplier = 1.0;
+
+    Random.pick_chance([
+        {v: function() { width_multiplier = 0.75; height_multiplier = 0.75; }, c: 2.0},
+        {v: function() { width_multiplier = 0.6; height_multiplier = 0.6; }, c: 1.0},
+        {v: function() { width_multiplier = 0.95; height_multiplier = 0.5; }, c: 1.0},
+        ])
+    ();
+
+    var width_max = Math.floor((Main.MAP_WIDTH - ORIGIN_X - 1) * width_multiplier);
+    var height_max = Math.floor((Main.MAP_HEIGHT - ORIGIN_Y - 1) * height_multiplier);
     var world_width = Random.int(width_max - 25, width_max);
     var world_height = Random.int(height_max - 25, height_max);
 
@@ -1187,8 +1224,10 @@ static function decorate_rooms_with_walls() {
         }
     }
 
+    var start_room = Main.rooms[Player.room];
+
     for (r in Main.rooms) {
-        if (!r.is_connection) {
+        if (!r.is_connection && r != start_room) {
             Random.pick_chance([
                 {v: no_walls, c: 10.0},
                 {v: thin_ring, c: 0.5},

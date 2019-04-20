@@ -50,6 +50,8 @@ static inline var MINIMAP_Y = 0;
 static inline var RINGS_MAX = 2;
 static inline var PLAYER_SPELLS_MAX = 10;
 static inline var SPELL_ITEM_LEVEL_BONUS = 1;
+static inline var FLOORS_PER_PALETTE = 3;
+static inline var FLOORS_PER_LEVEL = 2;
 
 static inline var UI_X = TILESIZE * VIEW_WIDTH * WORLD_SCALE + 13;
 static inline var PLAYER_STATS_Y = 0;
@@ -205,6 +207,7 @@ function new() {
 
     restart_game();
     generate_level();
+    print_tutorial();
 
     Gfx.scale(1);
     Gfx.scale(WORLD_SCALE);
@@ -273,8 +276,6 @@ function restart_game() {
     Player.damage_shield = 0;
     Player.attack = 1;
     Player.defense = 0;
-
-    print_tutorial();
 
     Entities.generated_names = new Array<String>();
 }
@@ -467,7 +468,11 @@ function generate_level() {
 
         // Generate and connect rooms
         rooms = GenerateWorld.generate_via_digging();
-        GenerateWorld.connect_rooms(rooms, Random.float(0.5, 2));
+        // NOTE: disconnect factor observations
+        // 2.0 => very disconnected, no unnecessary connections
+        // 0.5 => medium, a couple extra connections here and there
+        // 0.1 => highly connected
+        GenerateWorld.connect_rooms(rooms, Random.pick([0.1, 0.5, 2.0]));
         // NOTE: need to increment room dimensions because connections have one dimension of 0 and rooms are really one bigger as well
         for (r in rooms) {
             r.width++;
@@ -526,9 +531,9 @@ function generate_level() {
         for (dx in 1...10) {
             Entities.random_weapon(Player.x + dx, Player.y);
             Entities.random_armor(Player.x + dx, Player.y + 1);
-            Entities.random_scroll(Player.x + dx, Player.y + 2);
-            Entities.random_potion(Player.x + dx, Player.y + 3);
-            Entities.random_orb(Player.x + dx, Player.y + 4);
+            // Entities.random_scroll(Player.x + dx, Player.y + 2);
+            // Entities.random_potion(Player.x + dx, Player.y + 3);
+            // Entities.random_orb(Player.x + dx, Player.y + 4);
             Entities.random_ring(Player.x + dx, Player.y + 5);
             // Entities.random_statue(Player.x + dx, Player.y + 6);
         }
@@ -624,6 +629,14 @@ function generate_level() {
     defense_count_this_level = 0;
 
     redraw_screen_tiles();
+
+    if (current_floor > 0 && (current_floor + 1) % (FLOORS_PER_PALETTE * Tile.LevelPalette_count) == 0) {
+        var positions = GenerateWorld.room_free_positions_shuffled(rooms[Player.room]);
+        if (positions.length > 0) {
+            var pos = positions.pop();
+            Entities.loop_talker(pos.x, pos.y);
+        }
+    }
 }
 
 static var time_stamp = 0.0;
@@ -661,15 +674,12 @@ inline function out_of_view_bounds(x, y) {
 }
 
 static function current_level(): Int {
-    return Std.int(Math.max(0, Math.floor(current_floor / 2) + current_level_mod));
+    return Std.int(Math.max(0, Math.floor(current_floor / FLOORS_PER_LEVEL) + current_level_mod));
 }
 
 static function get_level_tile_index(): Int {
-    var level_tile_index = Math.round(current_floor / 3);
-    if (level_tile_index >= Tile.LevelPalette_count) {
-        level_tile_index = 0;
-    }
-    return level_tile_index;
+    var level_tile_index = Math.round(current_floor / FLOORS_PER_PALETTE);
+    return level_tile_index % Tile.LevelPalette_count;
 }
 
 function player_next_to(pos: Position): Bool {
@@ -677,7 +687,16 @@ function player_next_to(pos: Position): Bool {
 }
 
 function add_message(new_message: String) {
-    messages.insert(0, new_message);
+    var msg_newlined = new_message.split('\n');
+
+    if (msg_newlined.length > 1) {
+        for (m in msg_newlined) {
+            messages.insert(0, m);
+        }
+    } else {
+        messages.insert(0, new_message);
+    }
+
     added_message_this_turn = true;
     need_to_update_messages_canvas = true;
 }
@@ -1960,7 +1979,6 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_LuckyCharge: {
             Player.lucky_charge += spell.value;
-            add_message('Lucky! You get an extra charge on just used item.');
         }
         case SpellType_Critical: {
             Player.critical += spell.value;
@@ -2478,7 +2496,7 @@ function update_normal() {
         }
         if (Entity.use.exists(e)) {
             var use = Entity.use[e];
-            // tooltip += '\nUse';
+            tooltip += 'Use:\n';
             // if (use.consumable) {
             //     tooltip += ' (consumable)';
             // }
@@ -2509,10 +2527,10 @@ function update_normal() {
 
         if (entity_tooltip != "" && !Entity.combat.exists(hovered_anywhere)) {
             var border = 10;
-            Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE - border, hovered_anywhere_y - border, Text.width(entity_tooltip) + 10 + border * 2, Text.height(entity_tooltip) + border * 2, Col.GRAY);
+            Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, Text.width(entity_tooltip) + border * 2, Text.height(entity_tooltip) + border * 2, Col.GRAY);
             border = 5;
-            Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE - border, hovered_anywhere_y - border, Text.width(entity_tooltip) + 10 + border * 2, Text.height(entity_tooltip) + border * 2, Col.DARKBROWN);
-            Text.display(hovered_anywhere_x + TILESIZE * WORLD_SCALE, hovered_anywhere_y, entity_tooltip, Col.WHITE);
+            Gfx.fillbox(hovered_anywhere_x + TILESIZE * WORLD_SCALE + border, hovered_anywhere_y + border, Text.width(entity_tooltip) + border * 2, Text.height(entity_tooltip) + border * 2, Col.DARKBROWN);
+            Text.display(hovered_anywhere_x + TILESIZE * WORLD_SCALE + border * 2, hovered_anywhere_y + border * 2, entity_tooltip, Col.WHITE);
         }
     }
     
@@ -2805,8 +2823,18 @@ function update_normal() {
             var active = false;
 
             function decrement_duration() {
+                // EveryAttackChance uses "interval" as chance value
+                if (spell.duration_type == SpellDuration_EveryAttackChance) {
+                    if (Random.chance(spell.interval)) {
+                        spell.interval_current = spell.interval;
+                    } else {
+                        spell.interval_current = 0;
+                    }
+                } else {
+                    spell.interval_current++;
+                }
+
                 // Spell is active every interval, until duration reaches zero
-                spell.interval_current++;
                 if (spell.interval_current >= spell.interval) {
                     spell.interval_current = 0;
                     active = true;
@@ -2826,17 +2854,24 @@ function update_normal() {
                     active = true;
                 }
                 case SpellDuration_EveryTurn: {
-                    // Every turn spells activate every turn
+                    // Activate every turn
                     decrement_duration();
                 }
                 case SpellDuration_EveryAttack: {
-                    // Every attack spells activate only when attacking
+                    // Activate only when attacking
                     if (attack_target != Entity.NONE) {
                         decrement_duration();
                     }
 
+                    // Hack for attack/defense stats to display correctly
                     if (spell.type == SpellType_ModAttack || spell.type == SpellType_ModDefense) {
                         active = true;
+                    }
+                }
+                case SpellDuration_EveryAttackChance: {
+                    // Activate randomly when attacking
+                    if (attack_target != Entity.NONE) {
+                        decrement_duration();
                     }
                 }
             }
@@ -2868,9 +2903,9 @@ function update_normal() {
                 }
             }
             for (spell in expired_spells) {
-                if (spell.duration_type != SpellDuration_Permanent) {
-                    add_message('Spell ${spell.type} wore off.');
-                }
+                // if (spell.duration_type != SpellDuration_Permanent) {
+                //     add_message('Spell ${spell.type} wore off.');
+                // }
                 if (remove_from_list) {
                     list.remove(spell);
                 }

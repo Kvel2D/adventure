@@ -1,8 +1,14 @@
 ---------------------------------------------------------------------------------
 TODO
 
-make sure enemies have enough health
-    need to at least be able to hit back once
+19.04 balance changes
+    ENEMY_ITEM_IDEAL_RATIO      0.6 => 0.7
+        too easy in general
+    HEALTH_POTION_TALLY_SIZE    10 => 15
+        too many health potions last game
+    enemy health scaling        2.0 => 2.5
+        in the later half i sometimes one-hit enemies
+    new map variation might mess with balance a bit as well
 
 try generating enemy tiles
     completely random?
@@ -15,11 +21,4 @@ DONE
 
 ---------------------------------------------------------------------------------
 IDEAS
-
-compare merchant stats to player stats progression
-    make merchant almost impossible to kill
     
-how to tell the player that they "won"?
-    also figure out where the max floor is
-    could add some more to the current ones if it scales well
-
