@@ -70,4 +70,6 @@ class Tile {
     static inline var Skeleton = at(7, 2);
     static inline var Imp = at(7, 3);
     static inline var Merchant = at(7, 4);
+
+    static var Enemy = [for (i in 0...5) at(7, 5 + i)];
 }

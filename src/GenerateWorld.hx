@@ -45,7 +45,7 @@ class GenerateWorld {
 static inline var ORIGIN_X = 1;
 static inline var ORIGIN_Y = 1;
 static inline var ROOM_SPACING = 3;
-static inline var DIG_TRIES = 1000;
+static inline var GENERATE_ROOM_ITERATIONS = 1000;
 static inline var ROOMS_MAX = 15;
 static inline var ROOM_SIZE_MIN = 5;
 static var ROOM_SIZE_MAX = 15;
@@ -55,9 +55,9 @@ static inline var MERCHANT_ITEM_AMOUNT = 3;
 static inline var ROOM_SPELL_CHANCE = 3;
 static inline var ROOM_SPELL_SPREADS_TO_NEIGHBORS_CHANCE = 50;
 static inline var ITEM_IN_ENEMY_ROOM_CHANCE = 33;
+static inline var TALK_TALKER_CHANCE = 10;
 
-static inline var ENEMY_TYPES_PER_LEVEL_MIN = 2;
-static inline var ENEMY_TYPES_PER_LEVEL_MAX = 5;
+static function ENEMY_TYPES_PER_LEVEL() { return Random.int(2, 3); };
 
 static inline var KEY_ON_ENEMY_CHANCE = 50;
 static inline var MERCHANT_ITEM_LEVEL_BONUS = 1;
@@ -73,12 +73,13 @@ static var items_this_floor = 0;
 // NOTE: Start at a minimum of 1 so that no merchant is spawned
 static var floors_until_floor_with_merchant = 1 + Random.int(0, 2);
 static inline function MERCHANT_ITEM_COST(): Int {
-    return Stats.get({min: 4, max: 6, scaling: 2.5}, Main.current_level());
+    return Stats.get({min: 4, max: 6, scaling: 3.0}, Main.current_level());
 }
 
 static var health_potion_tally = new Array<Bool>();
 static var weapons_on_floor = new Map<Int, Bool>();
 static var statues_on_floor = new Map<Int, Bool>();
+static var healthmax_on_floor = new Map<Int, Bool>();
 
 static function room_free_positions_shuffled(r: Room): Array<Vec2i> {
     // Exclude positions next to walls to avoid creating impassable cells
@@ -149,13 +150,14 @@ static function statue_chance(): Int {
 static function fill_rooms_with_entities() {
     weapons_on_floor[Main.current_floor] = false;
     statues_on_floor[Main.current_floor] = false;
+    healthmax_on_floor[Main.current_floor] = false;
 
     // Reset first chars for new level
     Entities.generated_first_chars = new Array<String>();
 
     // Generate enemy types for level
-    var enemy_types_per_level = Random.int(ENEMY_TYPES_PER_LEVEL_MIN, ENEMY_TYPES_PER_LEVEL_MAX);
-    var enemy_types = [for (i in 0...enemy_types_per_level) Entities.random_enemy_type()];
+    var enemy_types_per_level = ENEMY_TYPES_PER_LEVEL();
+    var enemy_types = [for (i in 0...enemy_types_per_level) Entities.random_enemy_type(i)];
 
     function random_enemy(x: Int, y: Int): Int {
         return Random.pick(enemy_types)(x, y);
@@ -247,10 +249,10 @@ static function fill_rooms_with_entities() {
                     {v: Entities.unlocked_chest, c: 12.0},
                     {v: health_potion, c: 3.0 * health_potion_bad_streak_mod()},
                     {v: Entities.random_potion, c: 2.0},
-                    {v: Entities.random_armor, c: 3.0},
+                    {v: Entities.random_armor, c: 1.0},
                     {v: Entities.random_scroll, c: 4.0},
-                    {v: Entities.random_orb, c: 1.5},
-                    {v: Entities.random_weapon, c: 0.5 * weapon_bad_streak_mod()},
+                    {v: Entities.random_orb, c: 1.0},
+                    {v: Entities.random_weapon, c: 0.25 * weapon_bad_streak_mod()},
                     {v: Entities.random_ring, c: 0.5},
                     {v: Entities.locked_chest, c: 2.0},
                     ]);
@@ -296,7 +298,7 @@ static function fill_rooms_with_entities() {
                     sell_items.push(Random.pick_chance([
                         {v: health_max_potion, c: 2.0},
                         {v: Entities.random_potion, c: 2.0},
-                        {v: Entities.random_armor, c: 1.0},
+                        {v: Entities.random_armor, c: 1.5},
                         {v: Entities.random_scroll, c: 1.0},
                         {v: Entities.random_orb, c: 0.5},
                         {v: Entities.random_weapon, c: 0.5},
@@ -322,8 +324,8 @@ static function fill_rooms_with_entities() {
                 }
                 var pos = positions.pop();
                 var f = Random.pick_chance([
-                    {v: Entities.random_armor, c: 3.0},
-                    {v: Entities.random_weapon, c: 0.5 * weapon_bad_streak_mod()},
+                    {v: Entities.random_armor, c: 1.5},
+                    {v: Entities.random_weapon, c: 0.25 * weapon_bad_streak_mod()},
                     {v: health_potion, c: 3.0 * health_potion_bad_streak_mod()},
                     {v: Entities.random_potion, c: 2.0},
                     {v: Entities.random_scroll, c: 3.0},
@@ -606,6 +608,29 @@ static function fill_rooms_with_entities() {
         Entities.random_statue(pos.x, pos.y);
     }
 
+    function random_pos(): Vec2i {
+        var random_room = Random.pick(Main.rooms);
+        var positions = room_free_positions_shuffled(random_room);
+        if (positions.length > 0) {
+            return positions.pop();
+        } else {
+            return null;
+        }
+    }
+
+    if (Random.chance(TALK_TALKER_CHANCE)) {
+        var pos = random_pos();
+        if (pos != null) {
+            if (Random.chance(5) && !Main.out_of_map_bounds(pos.x, pos.y) && !Main.walls[pos.x + 1][pos.y]) {
+                Entities.talk_talker(pos.x, pos.y, true);
+                Entities.talk_talker(pos.x + 1, pos.y, true);
+            } else {
+                Entities.talk_talker(pos.x, pos.y, false);
+            }
+        }
+    }
+
+
     //
     // Trim down empty rooms to intersections and bends
     //
@@ -742,8 +767,7 @@ static function fill_rooms_with_entities() {
 }
 
 // Randomly place rooms that don't intersect with other rooms
-static function generate_via_digging(): Array<Room> {
-
+static function generate_rooms(): Array<Room> {
     if (Random.chance(25)) {
         ROOM_SIZE_MAX = 10;
     } else {
@@ -753,7 +777,8 @@ static function generate_via_digging(): Array<Room> {
     // NOTE:
     // 0.6 0.6   => cute and small
     // 0.75 0.75 => standard and beefy
-    // 0.95 0.5  => long and linear
+    // 0.95 0.5  => horizontal half
+    // 0.95 0.5  => vertical half
 
     var width_multiplier = 1.0;
     var height_multiplier = 1.0;
@@ -762,6 +787,7 @@ static function generate_via_digging(): Array<Room> {
         {v: function() { width_multiplier = 0.75; height_multiplier = 0.75; }, c: 2.0},
         {v: function() { width_multiplier = 0.6; height_multiplier = 0.6; }, c: 1.0},
         {v: function() { width_multiplier = 0.95; height_multiplier = 0.5; }, c: 1.0},
+        {v: function() { width_multiplier = 0.5; height_multiplier = 0.95; }, c: 1.0},
         ])
     ();
 
@@ -772,7 +798,7 @@ static function generate_via_digging(): Array<Room> {
 
     var rooms = new Array<Room>();
 
-    for (i in 0...DIG_TRIES) {
+    for (i in 0...GENERATE_ROOM_ITERATIONS) {
         if (rooms.length >= ROOMS_MAX) {
             break;
         }
@@ -1072,7 +1098,7 @@ static function connect_rooms(rooms: Array<Room>, disconnect_factor: Float = 0.0
         var world_width = Random.int(width_max - 25, width_max);
         var world_height = Random.int(height_max - 25, height_max);
 
-        for (i in 0...DIG_TRIES) {
+        for (i in 0...GENERATE_ROOM_ITERATIONS) {
             if (disconnected_count == 0) {
                 break;
             }
@@ -1173,17 +1199,17 @@ static function decorate_rooms_with_walls() {
         }
     }
 
-    function columns(r: Room) {
-        var spacing = Random.int(3, 4);
+    // function columns(r: Room) {
+    //     var spacing = Random.int(3, 4);
 
-        for (x in r.x + 1...r.x + r.width - 1) {
-            for (y in r.y + 1...r.y + r.height - 1) {
-                if (x % spacing == 0 && y % spacing == 0) {
-                    Main.walls[x][y] = true;
-                }
-            }
-        }
-    }
+    //     for (x in r.x + 1...r.x + r.width - 1) {
+    //         for (y in r.y + 1...r.y + r.height - 1) {
+    //             if (x % spacing == 0 && y % spacing == 0) {
+    //                 Main.walls[x][y] = true;
+    //             }
+    //         }
+    //     }
+    // }
 
     function thin_ring(r: Room) {
         for (x in (r.x + 2)...(r.x + r.width - 2)) {
@@ -1203,26 +1229,26 @@ static function decorate_rooms_with_walls() {
         }
     }
 
-    function wall_protrustion(r: Room) {
-        for (x in (r.x + 3)...(r.x + r.width - 3)) {
-            for (y in (r.y + 3)...(r.y + r.height - 3)) {
-                Main.walls[x][y] = true;
-                Main.tiles[x][y] = Tile.Black;
-            }
-        }
+    // function wall_protrustion(r: Room) {
+    //     for (x in (r.x + 3)...(r.x + r.width - 3)) {
+    //         for (y in (r.y + 3)...(r.y + r.height - 3)) {
+    //             Main.walls[x][y] = true;
+    //             Main.tiles[x][y] = Tile.Black;
+    //         }
+    //     }
 
-        var width = 3;
+    //     var width = 3;
 
-        var x1 = r.x;
-        var x2 = Std.int(Math.min(x1 + width, r.x + r.width));
+    //     var x1 = r.x;
+    //     var x2 = Std.int(Math.min(x1 + width, r.x + r.width));
 
-        for (x in x1...x2) {
-            for (dy in 0...3) {
-                Main.walls[x][r.y + r.height - dy] = true;
-                Main.tiles[x][r.y + r.height - dy] = Tile.Black;
-            }
-        }
-    }
+    //     for (x in x1...x2) {
+    //         for (dy in 0...3) {
+    //             Main.walls[x][r.y + r.height - dy] = true;
+    //             Main.tiles[x][r.y + r.height - dy] = Tile.Black;
+    //         }
+    //     }
+    // }
 
     var start_room = Main.rooms[Player.room];
 
@@ -1230,8 +1256,8 @@ static function decorate_rooms_with_walls() {
         if (!r.is_connection && r != start_room) {
             Random.pick_chance([
                 {v: no_walls, c: 10.0},
-                {v: thin_ring, c: 0.5},
                 {v: fat_ring, c: 1.0},
+                {v: thin_ring, c: 0.5},
                 ])
             (r);
         }

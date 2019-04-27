@@ -226,7 +226,8 @@ static function unlocked_chest(x: Int, y: Int): Int {
             return (Random.pick_chance([
                 {v: Entities.random_weapon, c: 1.0 * GenerateWorld.weapon_bad_streak_mod()},
                 {v: Entities.random_armor, c: 6.0},
-                {v: Entities.random_potion, c: 2.0},
+                {v: Entities.random_potion, c: 1.0},
+                {v: Entities.random_orb, c: 1.0},
                 {v: Entities.random_ring, c: 2.0},
                 ])
             (x, y));
@@ -269,6 +270,7 @@ static function locked_chest(x: Int, y: Int): Int {
                 {v: Entities.random_weapon, c: 1.0 * GenerateWorld.weapon_bad_streak_mod()},
                 {v: Entities.random_armor, c: 6.0},
                 {v: Entities.random_ring, c: 1.0},
+                {v: Entities.random_orb, c: 1.0},
                 ])
             (x, y));
         }
@@ -381,15 +383,6 @@ static function random_weapon(x: Int, y: Int): Int {
     var equip_spells = equip_plus_use_spells[0];
     var use_spells = equip_plus_use_spells[1];
 
-    var spells_weight: Float = 0;
-    for (s in equip_spells) {
-        spells_weight += Spells.get_weapon_equip_spell_weight(s);
-    }
-    for (s in use_spells) {
-        spells_weight += Spells.get_weapon_use_spell_weight(s);
-    }
-
-    attack_buff_value -= spells_weight;
     attack_buff_value = Math.round(attack_buff_value);
     if (attack_buff_value < 0) {
         attack_buff_value = 0;
@@ -403,7 +396,7 @@ static function random_weapon(x: Int, y: Int): Int {
             charges: Spells.get_spells_min_use_charges(use_spells),
             consumable: false,
             flavor_text: 'You use weapon\'s spell.',
-            need_target: false,
+            need_target: Spells.need_target(use_spells[0].type),
             draw_charges: true,
         };
     }
@@ -487,7 +480,7 @@ static function random_armor(x: Int, y: Int): Int {
             charges: Spells.get_spells_min_use_charges(use_spells),
             consumable: false,
             flavor_text: 'You use armor\'s spell.',
-            need_target: false,
+            need_target: Spells.need_target(use_spells[0].type),
             draw_charges: true,
         };
     }
@@ -498,7 +491,6 @@ static function random_armor(x: Int, y: Int): Int {
     };
 
     Entity.validate(e);
-
     return e;
 }
 
@@ -622,7 +614,7 @@ static function random_orb(x: Int, y: Int): Int {
     return e;
 }
 
-static function random_enemy_type(): Int->Int->Int {
+static function random_enemy_type(type_number: Int): Int->Int->Int {
     var name = generate_name();
 
     var level = Main.current_level();
@@ -633,7 +625,7 @@ static function random_enemy_type(): Int->Int->Int {
     if (attack == 0) {
         attack = 1;
     }
-    var health = Stats.get({min: 4, max: 5, scaling: 2.5}, level); 
+    var health = Stats.get({min: 4, max: 5, scaling: 3.0}, level); 
 
     // Make first floor easy
     if (Main.current_floor == 0) {
@@ -653,8 +645,8 @@ static function random_enemy_type(): Int->Int->Int {
     } else if (aggression_type == AggressionType_Aggressive) {
         {
             type: Random.pick_chance([
-                // {v: MoveType_Astar, c: 1.0},
                 {v: MoveType_Straight, c: 2.0},
+                // {v: MoveType_Astar, c: 1.0},
                 // {v: MoveType_StayAway, c: 0.25},
                 // {v: MoveType_Random, c: (1.0 / (1 + level))},
                 ]),
@@ -700,6 +692,7 @@ static function random_enemy_type(): Int->Int->Int {
             char: name.charAt(0),
             color: color,
         };
+        Entity.draw_tile[e] = Tile.Enemy[type_number];
         Entity.combat[e] = {
             health: health, 
             health_max: health, 
@@ -853,13 +846,86 @@ static function loop_talker(x: Int, y: Int): Int {
 
     Entity.set_position(e, x, y);
     Entity.name[e] = 'Person';
-    Entity.description[e] = 'It\'s a person.';
     Entity.talk[e] = 
     'Person says: "Did you come here from the top floor?\nAll the monsters came back and they are only getting stronger.\nIf I were you I would leave the tower."';
     Entity.draw_tile[e] = Tile.Merchant;
     Entity.draw_char[e] = {
         char: 'P',
         color: Col.PINK,
+    };
+
+    Entity.validate(e);
+
+    return e;
+}
+
+static var talk_talker_talks = [
+'Skeleton says: "Summoned creatures can be very powerful if you\ncooperate with them"',
+'Skeleton says: "Merchants are very strong but I\'ve heard that\nsomeone has defeated one before"', 
+'Skeleton says: "You\'re it!"', 
+'Skeleton says: "There is treasure hidden behind walls"', 
+'Skeleton says: "I hate when monsters sneak up on me!\nHave to be very careful around cornerns nowadays"', 
+'Skeleton says: "It\'s so quiet here"', 
+'Skeleton says: " "Sometimes" means around 25% of the time\n...or was it 15%?"', 
+'Skeleton says: "There\'s nothing at the top of the tower"', 
+'Skeleton says: "What do merchants do with the copper?"', 
+'Skeleton says: "I\'m a skeleton. Spooky!"', 
+'Skeleton says: "The best way to be satisfied is to be satisfied"', 
+'Skeleton says: "Will you carry my can and fight the fairies?"', 
+'Skeleton says: "If you summon me and I don\'t talk,\ndon\'t think ill of me. Getting summoned disorients\nme quite a bit!"', 
+'Skeleton says: "You used to be able to copy a copy orb.\nThat didn\'t end well"', 
+];
+
+static function talk_talker(x: Int, y: Int, copy_one: Bool): Int {
+    var e = Entity.make();
+
+    var level = Main.current_level();
+
+    Entity.set_position(e, x, y);
+    Entity.name[e] = 'Skeleton';
+
+    if (copy_one) {
+        Entity.talk[e] = 'Skeleton says: "Copy spell can copy ANYTHING. Amazing!"';
+    } else if (Random.chance(10)) {
+        // NOTE: Talks with special insert vars can't be put into array
+        var power_level = 30 * (Player.defense + Player.defense_mod) + 100 * (Player.attack + Player.attack_mod) + 10 * Player.copper_count + 20 * Player.health_max + 60 * Player.pure_absorb;
+        var judgement = Random.pick(['I think you will survive!', 'You might struggle soon.', 'Get better items.', 'I can\'t help you, sorry.']);
+
+        Entity.talk[e] = Random.pick([
+            'Skeleton says: "This is floor ${Main.current_floor} of the tower.\n I wonder how many more there are?"', 
+            'Skeleton says: "Your power level is $power_level.\n$judgement"',
+            ]);
+    } else {
+        var unseen_talks = new Array<String>();
+        for (i in 0...talk_talker_talks.length) {
+            if (Main.seen_talks.indexOf(i) == -1) {
+                unseen_talks.push(talk_talker_talks[i]);
+            }
+        }
+
+        var picked_talk = 'Hi';
+        if (unseen_talks.length == 0) {
+            // Reset seen status once exhausted all talks
+            Main.seen_talks = new Array<Int>();
+            picked_talk = Random.pick(talk_talker_talks);    
+        } else {
+            picked_talk = Random.pick(unseen_talks);
+        }
+
+        var index = talk_talker_talks.indexOf(picked_talk);
+
+        Entity.talk[e] = picked_talk;
+
+        Main.seen_talks.push(index);
+
+        Main.obj.data.seen_talks = Main.seen_talks;
+        Main.obj.flush();
+    }
+
+    Entity.draw_tile[e] = Tile.Skeleton;
+    Entity.draw_char[e] = {
+        char: 'S',
+        color: Col.GRAY,
     };
 
     Entity.validate(e);

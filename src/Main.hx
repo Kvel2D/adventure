@@ -24,6 +24,12 @@ enum GameState {
     GameState_Dead;
 }
 
+enum TargetingState {
+    TargetingState_NotTargeting;
+    TargetingState_Targeting;
+    TargetingState_TargetingDone;
+}
+
 typedef EntityRenderData = {
     draw_tile: Int,
     draw_char: String,
@@ -120,8 +126,7 @@ static var four_dxdy: Array<Vec2i> = [{x: -1, y: 0}, {x: 1, y: 0}, {x: 0, y: 1},
 static var current_floor = 0;
 static var current_level_mod = 0;
 
-var start_targeting = false;
-var targeting_for_use = false;
+var targeting_state = TargetingState_NotTargeting;
 var use_entity_that_needs_target = Entity.NONE;
 var use_target = Entity.NONE;
 
@@ -141,7 +146,8 @@ EquipmentType_Weapon => null,
 ];
 var inventory_render_cache: Array<Array<EntityRenderData>> = Data.create2darray(Main.INVENTORY_WIDTH, Main.INVENTORY_HEIGHT, null);
 
-var obj: SharedObject;
+static var obj: SharedObject;
+static var seen_talks: Array<Int> = [1, 2, 3];
 
 function new() {
     // Load options
@@ -154,6 +160,10 @@ function new() {
     }
     if (obj.data.USER_draw_chars_only != null) {
         USER_draw_chars_only = obj.data.USER_draw_chars_only;
+    }
+
+    if (obj.data.seen_talks != null) {
+        seen_talks = obj.data.seen_talks;
     }
 
     Gfx.resizescreen(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -203,7 +213,7 @@ function new() {
     Gfx.drawtoscreen();
 
     Entities.read_name_corpus();
-    LOS.calculate_rays();
+    LOS.init_rays();
 
     restart_game();
     generate_level();
@@ -225,6 +235,51 @@ function new() {
             GenerateWorld.draw_mob(x * 2, y * 2);
         }
     }
+}
+
+var enemy_tile_colors = [
+// gray blue background
+[Col.GRAY, Col.WHITE, Col.RED, Col.PINK, Col.BROWN, Col.ORANGE, Col.YELLOW, Col.GREEN, Col.LIGHTGREEN, Col.LIGHTBLUE],
+// light blue background
+[Col.GRAY, Col.WHITE, Col.RED, Col.PINK, Col.BROWN, Col.ORANGE, Col.YELLOW, Col.GREEN, Col.LIGHTGREEN, Col.BLUE, Col.LIGHTBLUE],
+// dark green background
+[Col.BLACK, Col.GRAY, Col.WHITE, Col.RED, Col.PINK, Col.BROWN, Col.ORANGE, Col.YELLOW, Col.LIGHTGREEN],
+// gold yellow background
+[Col.BLACK, Col.WHITE, Col.RED, Col.PINK, Col.DARKBROWN, Col.BROWN, Col.ORANGE, Col.DARKGREEN, Col.GREEN, Col.LIGHTGREEN, Col.NIGHTBLUE, Col.DARKBLUE, Col.BLUE, Col.LIGHTBLUE],
+// brown red background
+[Col.BLACK, Col.GRAY, Col.WHITE, Col.PINK, Col.ORANGE, Col.YELLOW, Col.DARKGREEN, Col.GREEN, Col.LIGHTGREEN, Col.NIGHTBLUE, Col.DARKBLUE, Col.BLUE, Col.LIGHTBLUE],
+];
+
+function generate_enemy_tile(tile: Int) {
+    Gfx.scale(1);
+    Gfx.drawtotile(tile);
+    Gfx.clearscreentransparent();
+
+    var color = Random.pick(enemy_tile_colors[get_level_tile_index()]);
+
+    var pixel_chance = Random.int(25, 100);
+    var max_pixels = Random.int(20, 28);
+
+    var pixels_placed = 0;
+    while (pixels_placed == 0) {
+        for (x in 0...4) {
+            for (y in 0...8) {
+                if (Random.chance(pixel_chance)) {
+                    Gfx.set_pixel(x, y, color);
+                    Gfx.set_pixel(7 - x, y, color);
+                    pixels_placed++;
+                    if (pixels_placed >= max_pixels) {
+                        break;
+                    }
+                }
+            }
+            if (pixels_placed >= max_pixels) {
+                break;
+            }
+        }
+    }
+
+    Gfx.drawtoscreen();
 }
 
 function print_tutorial() {
@@ -467,7 +522,7 @@ function generate_level() {
         }
 
         // Generate and connect rooms
-        rooms = GenerateWorld.generate_via_digging();
+        rooms = GenerateWorld.generate_rooms();
         // NOTE: disconnect factor observations
         // 2.0 => very disconnected, no unnecessary connections
         // 0.5 => medium, a couple extra connections here and there
@@ -529,12 +584,12 @@ function generate_level() {
         Player.y = rooms[0].y;
         
         for (dx in 1...10) {
-            Entities.random_weapon(Player.x + dx, Player.y);
-            Entities.random_armor(Player.x + dx, Player.y + 1);
+            // Entities.random_weapon(Player.x + dx, Player.y);
+            // Entities.random_armor(Player.x + dx, Player.y + 1);
             // Entities.random_scroll(Player.x + dx, Player.y + 2);
             // Entities.random_potion(Player.x + dx, Player.y + 3);
             // Entities.random_orb(Player.x + dx, Player.y + 4);
-            Entities.random_ring(Player.x + dx, Player.y + 5);
+            // Entities.random_ring(Player.x + dx, Player.y + 5);
             // Entities.random_statue(Player.x + dx, Player.y + 6);
         }
 
@@ -636,6 +691,10 @@ function generate_level() {
             var pos = positions.pop();
             Entities.loop_talker(pos.x, pos.y);
         }
+    }
+
+    for (enemy_tile in Tile.Enemy) {
+        generate_enemy_tile(enemy_tile);
     }
 }
 
@@ -1736,24 +1795,26 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
         }
         case SpellType_Combust: {
-            var target_pos = Entity.position[use_target];
+            if (Entity.position.exists(use_target)) {
+                var target_pos = Entity.position[use_target];
 
-            var combust_dst2 = 18; // 7x7 square around entity
+                var combust_dst2 = 18; // 7x7 square around entity
 
-            // Player gets damaged too if he's close to target
-            if (Math.dst2(Player.x, Player.y, target_pos.x, target_pos.y) <= combust_dst2) {
-                damage_player(spell.value, ' from Combustion blast');
-            }
-            
-            var view_x = get_view_x();
-            var view_y = get_view_y();
-            // combust affects nearby entities
-            for (e in entities_with(Entity.combat)) {
-                if (Entity.position.exists(e)) {
-                    var pos = Entity.position[e];
+                // Player gets damaged too if he's close to target
+                if (Math.dst2(Player.x, Player.y, target_pos.x, target_pos.y) <= combust_dst2) {
+                    damage_player(spell.value, ' from Combustion blast');
+                }
+                
+                var view_x = get_view_x();
+                var view_y = get_view_y();
+                // combust affects nearby entities
+                for (e in entities_with(Entity.combat)) {
+                    if (Entity.position.exists(e)) {
+                        var pos = Entity.position[e];
 
-                    if (!out_of_view_bounds(pos.x, pos.y) && Math.dst2(pos.x, pos.y, target_pos.x, target_pos.y) <= combust_dst2) {
-                        player_attack_entity(e, spell.value);
+                        if (!out_of_view_bounds(pos.x, pos.y) && Math.dst2(pos.x, pos.y, target_pos.x, target_pos.y) <= combust_dst2) {
+                            player_attack_entity(e, spell.value);
+                        }
                     }
                 }
             }
@@ -1796,12 +1857,14 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             }
         }
         case SpellType_CopyEntity: {
-            // Copy target must be an item and in inventory
-            var pos = free_position_around_player();
-            if (pos.x != -1 && pos.y != -1) {
-                var copy = Entity.copy(use_target, pos.x, pos.y);
-            } else {
-                add_message('No space to drop copied item, it disappears into the Void.');
+            if (Entity.position.exists(use_target) || Entity.item.exists(use_target) || Entity.equipment.exists(use_target)) {
+                // Copy target must be an item and in inventory
+                var pos = free_position_around_player();
+                if (pos.x != -1 && pos.y != -1) {
+                    var copy = Entity.copy(use_target, pos.x, pos.y);
+                } else {
+                    add_message('No space to drop copied item, it disappears into the Void.');
+                }
             }
         }
         case SpellType_Passify: {
@@ -1983,14 +2046,6 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_Critical: {
             Player.critical += spell.value;
         }
-    }
-}
-
-function can_use_entity_on_target(e: Int): Bool {
-    if (Entity.use.exists(use_entity_that_needs_target)) {
-        return Spells.spell_can_be_used_on_target(Entity.use[use_entity_that_needs_target].spells[0].type, e);
-    } else {
-        return false;
     }
 }
 
@@ -2213,7 +2268,7 @@ function render_world() {
     Text.display(UI_X, SPELL_LIST_Y, active_spells);
 
     // Use targeting icon
-    if (targeting_for_use) {
+    if (targeting_state == TargetingState_Targeting) {
         Text.display(Mouse.x, Mouse.y, 'LEFT CLICK TARGET');
     }
 
@@ -2570,8 +2625,9 @@ function update_normal() {
             if (GUI.auto_text_button('Use')) {
                 if (Entity.use[interact_target].need_target) {
                     use_entity_that_needs_target = interact_target;
-                    start_targeting = true;
-                    done_interaction = true;
+                    targeting_state = TargetingState_Targeting;
+                    // NOTE: turn is not ended when starting targeted use, hence no "done_interaction = true"
+                    interact_target = Entity.NONE;
                 } else {
                     use_entity(interact_target);
                     done_interaction = true;
@@ -2648,8 +2704,9 @@ function update_normal() {
     //
     // Target entity for use, can't target the use entity itself
     // Check that target is appropriate for spell
-    if (targeting_for_use && !turn_ended && Mouse.leftclick() && hovered_anywhere != use_entity_that_needs_target) {
-        if (can_use_entity_on_target(hovered_anywhere)) {
+    if (targeting_state == TargetingState_Targeting && !turn_ended && Mouse.leftclick() && hovered_anywhere != use_entity_that_needs_target) {
+        if (Entity.use.exists(use_entity_that_needs_target) && Spells.spell_can_be_used_on_target(Entity.use[use_entity_that_needs_target].spells[0].type, hovered_anywhere)) {
+            targeting_state = TargetingState_TargetingDone;
             use_target = hovered_anywhere;
             turn_ended = true;
         }
@@ -2680,6 +2737,7 @@ function update_normal() {
                     equip_entity(hovered_anywhere);
                     turn_ended = true;
                 } else if (can_use && !can_pickup && !can_equip && !can_attack) {
+                    // NOTE: need to add need_target spell processing here? if there are ever entities with targetted spells which can't be picked up
                     use_entity(hovered_anywhere);
                     turn_ended = true;
                 } else if (can_open) {
@@ -2691,11 +2749,10 @@ function update_normal() {
             // Left-click interaction if entity is equipped or in inventory
             var can_use = Entity.use.exists(hovered_anywhere);
 
-            if (can_use && !targeting_for_use) {
+            if (can_use && targeting_state == TargetingState_NotTargeting) {
                 if (Entity.use[hovered_anywhere].need_target) {
                     use_entity_that_needs_target = hovered_anywhere;
-                    start_targeting = true;
-                    turn_ended = true;
+                    targeting_state = TargetingState_Targeting;
                 } else {
                     use_entity(hovered_anywhere);
                     turn_ended = true;
@@ -2762,17 +2819,13 @@ function update_normal() {
         // Clear interact target if done something
         interact_target = Entity.NONE;
 
-        // First turn after the start of use targeting, the flag is set, afterwards, targeting is unset and the mode is exited
-        if (start_targeting) {
-            start_targeting = false;
-            targeting_for_use = true;
-        } else {
-            targeting_for_use = false;
-        }
-        // Perform targeted use if the target is an item in inventory
-        // NOTE: use target is cleared after spells are done
-        if (can_use_entity_on_target(use_target)) {
+        // Perform targeted use
+        if (targeting_state == TargetingState_TargetingDone) {
             use_entity(use_entity_that_needs_target);
+            targeting_state = TargetingState_NotTargeting;
+        } else if (targeting_state == TargetingState_Targeting) {
+            // Cancel targeting if any other action is performed
+            targeting_state = TargetingState_NotTargeting;
         }
 
         // Recalculate player room if room changed
@@ -2944,9 +2997,6 @@ function update_normal() {
                 do_spell(spell);
             }
         }
-
-        // Clear use target after spells are done
-        use_target = Entity.NONE;
 
         // Limit health to health_max
         if (Player.health > Player.health_max + Player.health_max_mod) {

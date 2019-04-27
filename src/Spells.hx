@@ -92,6 +92,7 @@ typedef Spell = {
 class Spells {
 // force unindent
 
+// Some prio order idiosyncrasies:
 // Drop effects before everything else so that all drops that can be caused by spells are affected
 // Teleports last so that aoe hits stuff in old room
 // Must do NextFloor before ModDropLevel, otherwise all spawned entities will be +1 level
@@ -412,7 +413,7 @@ static function spell_can_be_used_on_target(type: SpellType, target: Int): Bool 
         case SpellType_ImproveEquipment: Entity.equipment.exists(target);
         case SpellType_EnchantEquipment: Entity.equipment.exists(target);
         case SpellType_SwapHealth: Entity.combat.exists(target) && !Entity.merchant.exists(target);
-        case SpellType_Combust: Entity.combat.exists(target);
+        case SpellType_Combust: Entity.combat.exists(target) && Entity.position.exists(target);
         default: false;
     }
 }
@@ -766,6 +767,17 @@ static function mod_copper(amount: Int): Spell {
 }
 
 static function random_potion_spell(level: Int, force_spell: SpellType): Spell {
+
+    function healthmax_chance(): Float {
+        var curr = GenerateWorld.healthmax_on_floor[Main.current_floor];
+        var prev = Main.current_floor > 0 && GenerateWorld.healthmax_on_floor[Main.current_floor - 1];
+        return if (!curr && !prev) {
+            3.0;
+        } else {
+            0.0;
+        }
+    }
+
     var type = if (force_spell != null) {
         force_spell;
     } else {
@@ -786,8 +798,14 @@ static function random_potion_spell(level: Int, force_spell: SpellType): Spell {
             {v: SpellType_Invisibility, c: 0.25},
 
             {v: SpellType_ModCopperChance, c: 1.0},
-            {v: SpellType_ModHealthMax, c: 2.0},
+            {v: SpellType_ModHealthMax, c: healthmax_chance()},
             ]);
+    }
+
+    // NOTE: only tally up non-forced healthmax, meaning non-merchant ones
+    if (type == SpellType_ModHealthMax && force_spell != SpellType_ModHealthMax) {
+        GenerateWorld.healthmax_on_floor[Main.current_floor] = true;
+        trace("healthmax");
     }
 
     var duration_type = SpellDuration_Permanent;
@@ -848,7 +866,7 @@ static function random_potion_spell(level: Int, force_spell: SpellType): Spell {
         case SpellType_ModHealthMax: {
             duration_type = SpellDuration_Permanent;
             duration = 0;
-            value = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+            value = Stats.get({min: 2, max: 3, scaling: 0.25}, level);
         }
         default: {
             trace('Unhandled potion spell type: ${type}');
@@ -877,7 +895,7 @@ static function random_scroll_spell(level: Int): Spell {
 
         {v: SpellType_RandomTeleport, c: 0.5},
         {v: SpellType_Nolos, c: 0.25},
-        {v: SpellType_Noclip, c: 0.5},
+        {v: SpellType_Noclip, c: 0.75},
 
         {v: SpellType_SummonGolem, c: 1.0},
         {v: SpellType_SummonSkeletons, c: 1.0},
@@ -1340,79 +1358,6 @@ static function teleport_room_spell(): Spell {
     };
 }
 
-static function random_equipment_spell_equip_negative(equipment_type: EquipmentType): Spell {
-    var level = Main.current_level();
-
-    var type = switch (equipment_type) {
-        case EquipmentType_Weapon: Random.pick_chance([
-            {v: SpellType_ModHealth, c: 1.0},
-            {v: SpellType_ModDefense, c: 1.0},
-            {v: SpellType_ModHealthMax, c: 1.0},
-            {v: SpellType_SummonSkeletons, c: 1.0},
-            {v: SpellType_SummonSkeletons, c: 1.0},
-            ]);
-        case EquipmentType_Head: Random.pick_chance([
-            {v: SpellType_ModHealthMax, c: 1.0},
-            ]);
-        case EquipmentType_Chest: Random.pick_chance([
-            {v: SpellType_ModHealthMax, c: 1.0},
-            ]);
-        case EquipmentType_Legs: Random.pick_chance([
-            {v: SpellType_ModHealthMax, c: 1.0},
-            ]);
-    }
-
-    var duration_type = switch (type) {
-        case SpellType_ModHealth: Random.pick_chance([
-            {v: SpellDuration_EveryAttackChance, c: 1.0},
-            {v: SpellDuration_EveryTurn, c: 0.5},
-            ]);
-        // TODO: what is summon skeletons doing in negatives?
-        case SpellType_SummonSkeletons: SpellDuration_EveryAttackChance;
-        case SpellType_ModHealthMax: SpellDuration_EveryTurn;
-        case SpellType_ModDefense: SpellDuration_EveryTurn;
-        default: SpellDuration_Permanent;
-    }
-
-    var interval = switch (type) {
-        case SpellType_ModHealth: switch (duration_type) {
-            case SpellDuration_EveryAttackChance: 10;
-            case SpellDuration_EveryTurn: Random.int(30, 50);
-            default: 1;
-        }
-        case SpellType_SummonSkeletons: 10;
-        default: 0;
-    }
-
-    var value = switch (type) {
-        case SpellType_ModHealth: -1 * Stats.get({min: 1, max: 1, scaling: 1.0}, level);
-        case SpellType_ModDefense: -1 * Stats.get({min: 1, max: 1, scaling: 1.0}, level);
-        case SpellType_ModHealthMax: -1 * Stats.get({min: 1, max: 1, scaling: 1.0}, level);
-        default: 0;
-    }
-
-    return {
-        type: type,
-        duration_type: duration_type,
-        duration: Entity.DURATION_INFINITE,
-        interval: interval,
-        interval_current: 0,
-        value: value,
-        origin_name: "noname",
-    };
-}
-
-static function get_weapon_equip_spell_weight(spell: Spell): Float {
-    return switch (spell.type) {
-        case SpellType_AoeDamage: 0.1 * spell.value;
-        case SpellType_ChainDamage: 0.1 * spell.value;
-        case SpellType_ModHealth: 0.1 * spell.value;
-        case SpellType_EnergyShield: 0.1 * spell.value;
-        case SpellType_ModAttackByCopper: 0.1 * spell.value;
-        default: 0;
-    }
-}
-
 static function random_equipment_spell_equip(equipment_type: EquipmentType): Spell {
     var level = Main.current_level();
 
@@ -1424,9 +1369,10 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
 
             {v: SpellType_ChainDamage, c: 1.0},
             {v: SpellType_ModHealth, c: 1.0},
-            {v: SpellType_ModAttackByCopper, c: 1.0},
+            {v: SpellType_ModAttackByCopper, c: 0.25},
 
             {v: SpellType_ModCopper, c: 1.0},
+            {v: SpellType_SummonSkeletons, c: 0.25},
             ]);
         case EquipmentType_Head: Random.pick_chance([
             {v: SpellType_ModDropChance, c: 1.0},
@@ -1439,7 +1385,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
             {v: SpellType_HealthLeech, c: 1.0},
             {v: SpellType_Nolos, c: 1.0},
 
-            {v: SpellType_ModAttackByCopper, c: 1.0},
+            {v: SpellType_ModAttackByCopper, c: 0.25},
             ]);
         case EquipmentType_Chest: Random.pick_chance([
             {v: SpellType_ModDropChance, c: 1.0},
@@ -1447,10 +1393,11 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
             {v: SpellType_EnergyShield, c: 1.0},
             {v: SpellType_LuckyCharge, c: 1.0},
             {v: SpellType_Critical, c: 1.0},
+            {v: SpellType_SummonSkeletons, c: 0.25},
 
             {v: SpellType_AoeDamage, c: 1.0},
 
-            {v: SpellType_ModDefenseByCopper, c: 1.0},
+            {v: SpellType_ModDefenseByCopper, c: 0.25},
             ]);
         case EquipmentType_Legs: Random.pick_chance([
             {v: SpellType_ModDropChance, c: 1.0},
@@ -1462,7 +1409,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
 
             {v: SpellType_DamageShield, c: 1.0},
 
-            {v: SpellType_ModDefenseByCopper, c: 1.0},
+            {v: SpellType_ModDefenseByCopper, c: 0.25},
             ]);
     }
 
@@ -1473,6 +1420,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
         case SpellType_EnergyShield: SpellDuration_EveryAttackChance;
         case SpellType_DamageShield: SpellDuration_EveryAttackChance;
         case SpellType_ModCopper: SpellDuration_EveryAttackChance;
+        case SpellType_SummonSkeletons: SpellDuration_EveryAttackChance;
 
         case SpellType_ShowThings: SpellDuration_EveryTurn;
         case SpellType_ModDropChance: SpellDuration_EveryTurn;
@@ -1493,6 +1441,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
         case SpellType_DamageShield: 20;
         case SpellType_ModHealth: 20;
         case SpellType_ModCopper: 20;
+        case SpellType_SummonSkeletons: 10;
         default: 0;
     }
 
@@ -1508,6 +1457,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
         case SpellType_Critical: Critical_value;
         case SpellType_HealthLeech: HealthLeech_value;
         case SpellType_ModCopper: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
+        case SpellType_SummonSkeletons: level;
         default: 0;
     }
 
@@ -1553,15 +1503,6 @@ static function get_spells_min_use_charges(spells: Array<Spell>) {
     return charges_min;
 }
 
-static function get_weapon_use_spell_weight(spell: Spell): Float {
-    return switch (spell.type) {
-        case SpellType_AoeDamage: 0.1 * spell.value;
-        case SpellType_SummonGolem: 0.3 * spell.value;
-        case SpellType_ModAttack: 0.3 * spell.value;
-        default: 0;
-    }
-}
-
 static function random_equipment_spell_use(equipment_type: EquipmentType): Spell {
     var level = Main.current_level();
 
@@ -1575,7 +1516,7 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
         case EquipmentType_Head: Random.pick_chance([
             {v: SpellType_SummonImp, c: 1.0},
             {v: SpellType_ChainDamage, c: 1.0},
-            {v: SpellType_Combust, c: 1.0},
+            {v: SpellType_Combust, c: 100000000.0},
             ]);
         case EquipmentType_Chest: Random.pick_chance([
             {v: SpellType_ModHealth, c: 1.0},
@@ -1630,7 +1571,6 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
     };
 }
 
-// NOTE: returns [equip spells, use spells]
 static function random_equipment_spells(equipment_type: EquipmentType): Array<Array<Spell>> {
     var level = Main.current_level();
     
@@ -1638,122 +1578,41 @@ static function random_equipment_spells(equipment_type: EquipmentType): Array<Ar
         {v: 0, c: 1.0},
         {v: 1, c: if (level > 0) 2.0 else 1.0},
         {v: 2, c: if (level > 0) 1.0 else 0},
-        // {v: 3, c: if (level > 1) 0.125 else 0},
         ]);
     var spell_equip_count = 0;
     var spell_use_count = 0;
-    var spell_equip_negative_count = 0;
 
-    // Nerf double spells for balance
-    if (total_spell_count == 2) {
-        Main.current_level_mod -= 1;
+    if (total_spell_count == 1) {
+        Random.pick_chance([
+            {v: function() {
+                spell_equip_count = 1;
+            }, c: 1.0},
+            {v: function() {
+                spell_use_count = 1;
+            }, c: 0.5},
+            ])
+        ();
+    } else if (total_spell_count == 2) {
+        Random.pick_chance([
+            {v: function() {
+                spell_equip_count = 1;
+                spell_use_count = 1;
+            }, c: 1.0},
+            {v: function() {
+                spell_equip_count = 2;
+            }, c: 0.5},
+            ])
+        ();
     }
-
-    // TODO: no negative spells for armor for now, figure out which ones are good
-
-    if (equipment_type == EquipmentType_Weapon) { 
-        if (total_spell_count == 1) {
-            Random.pick_chance([
-                {v: function() {
-                    spell_equip_count = 1;
-                }, c: 1.0},
-                {v: function() {
-                    spell_use_count = 1;
-                }, c: 1.0},
-                ])
-            ();
-        } else if (total_spell_count == 2) {
-            Random.pick_chance([
-                {v: function() {
-                    spell_equip_negative_count = 1;
-                    spell_equip_count = 1;
-                }, c: 1.0},
-                {v: function() {
-                    spell_equip_negative_count = 1;
-                    spell_use_count = 1;
-                }, c: 1.0},
-                {v: function() {
-                    spell_equip_count = 1;
-                    spell_use_count = 1;
-                }, c: 0.5},
-                {v: function() {
-                    spell_equip_count = 2;
-                }, c: 0.5},
-                ])
-            ();
-        } else if (total_spell_count == 3) {
-            Random.pick_chance([
-                {v: function() {
-                    spell_equip_negative_count = 1;
-                    spell_equip_count = 1;
-                    spell_use_count = 1;
-                }, c: 1.0},
-                {v: function() {
-                    spell_equip_negative_count = 1;
-                    spell_equip_count = 2;
-                }, c: 1.0},
-                {v: function() {
-                    spell_use_count = 1;
-                    spell_equip_count = 2;
-                }, c: 0.25},
-                {v: function() {
-                    spell_equip_count = 3;
-                }, c: 0.25},
-                ])
-            ();
-        }
-    } else { 
-        if (total_spell_count == 1) {
-            Random.pick_chance([
-                {v: function() {
-                    spell_equip_count = 1;
-                }, c: 1.0},
-                {v: function() {
-                    spell_use_count = 1;
-                }, c: 0.5},
-                ])
-            ();
-        } else if (total_spell_count == 2) {
-            Random.pick_chance([
-                {v: function() {
-                    spell_equip_count = 1;
-                    spell_use_count = 1;
-                }, c: 0.5},
-                {v: function() {
-                    spell_equip_count = 2;
-                }, c: 0.5},
-                ])
-            ();
-        } else if (total_spell_count == 3) {
-            Random.pick_chance([
-                {v: function() {
-                    spell_use_count = 1;
-                    spell_equip_count = 2;
-                }, c: 0.25},
-                {v: function() {
-                    spell_equip_count = 3;
-                }, c: 0.25},
-                ])
-            ();
-        }
-    }
-
 
     var equip_spells = new Array<Spell>();
     for (i in 0...spell_equip_count) {
         equip_spells.push(Spells.random_equipment_spell_equip(equipment_type));
     }
-    for (i in 0...spell_equip_negative_count) {
-        equip_spells.push(Spells.random_equipment_spell_equip_negative(equipment_type));
-    }
 
     var use_spells = new Array<Spell>();
     for (i in 0...spell_use_count) {
         use_spells.push(Spells.random_equipment_spell_use(equipment_type));
-    }
-
-    if (total_spell_count == 2) {
-        Main.current_level_mod += 1;
     }
 
     return [equip_spells, use_spells];

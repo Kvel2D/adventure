@@ -28,7 +28,7 @@ class LOS {
         return points;
     }
 
-    static function calculate_rays() {
+    static function init_rays() {
         var center_x = Math.floor(Main.VIEW_HEIGHT / 2);
         var center_y = Math.floor(Main.VIEW_HEIGHT / 2);
 

@@ -1,19 +1,9 @@
 ---------------------------------------------------------------------------------
 TODO
 
-19.04 balance changes
-    ENEMY_ITEM_IDEAL_RATIO      0.6 => 0.7
-        too easy in general
-    HEALTH_POTION_TALLY_SIZE    10 => 15
-        too many health potions last game
-    enemy health scaling        2.0 => 2.5
-        in the later half i sometimes one-hit enemies
-    new map variation might mess with balance a bit as well
+add more names to names corpus
 
-try generating enemy tiles
-    completely random?
-    pattern-based
-    automata
+can add some more spells in the similar spirit as SummonSkeletons EveryAttackChance that I just added
 
 ---------------------------------------------------------------------------------
 DONE
@@ -21,4 +11,39 @@ DONE
 
 ---------------------------------------------------------------------------------
 IDEAS
-    
+
+
+---------------------------------------------------------------------------------
+BALANCE HISTORY
+
+24.04 changes
+    MERCHANT_ITEM_COST scaling 2.5 => 3.0
+    enemy health scaling 2.5 => 3.0
+    healthmax value scaling 1.0 => 0.25
+        no point in scaling health maxes, almost linear scaling is fine
+    healthmax chance 1.5 => 3.0 (if none for 2 floors) else 0.0
+    enemy/item room armor chance 3.0 => 1.5
+    enemy/item room weapon chance 0.5 => 0.25
+    chest potion chance 2.0 => 1.0
+    add random_orb to unlocked_chest
+    add random_orb to locked_chest
+    enemy room random_orb chance 1.5 => 1.0
+    equipment ModAttackByCopper and ModDefenseByCopper chance 1.0 => 0.25
+
+23.04 game
+    first half good, second half slightly easy
+    too much health from healthmax's
+    enemies die in 2 hits
+
+19.04 changes
+    ENEMY_ITEM_IDEAL_RATIO      0.6 => 0.7
+        too easy in general
+    HEALTH_POTION_TALLY_SIZE    10 => 15
+        too many health potions last game
+    enemy health scaling        2.0 => 2.5
+        in the later half sometimes one-hit enemies
+    new map variation might mess with balance a bit as well
+
+
+
+
