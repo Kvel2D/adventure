@@ -174,10 +174,10 @@ static function get_description(spell: Spell): String {
         case SpellType_ModMoveSpeed: '$sign${spell.value} move speed';
         case SpellType_ModDropChance: if (spell.value > 0) '+item drop chance' else '$sign${spell.value}% item drop chance';
         case SpellType_ModCopperChance: '+copper drop chance';
-        case SpellType_ModLevelHealth: '$sign${spell.value} health to all enemies on the current floor';
-        case SpellType_ModLevelAttack: '$sign${spell.value} attack to all enemies on the current floor';
+        case SpellType_ModLevelHealth: '$sign${spell.value}% health to all enemies on the current floor';
+        case SpellType_ModLevelAttack: '$sign${spell.value}% attack to all enemies on the current floor';
         case SpellType_EnergyShield: if (long) 
-        'Energy Shield: get energy shield that absorbs ${spell.value} damage' else 
+        'Energy Shield: get energy shield that absorbs ${spell.value} damage (not additive)' else 
         'Energy Shield ${spell.value}';
         case SpellType_Invisibility: 'Turn invisible';
         case SpellType_ModDropLevel: '+item drop power';
@@ -805,7 +805,6 @@ static function random_potion_spell(level: Int, force_spell: SpellType): Spell {
     // NOTE: only tally up non-forced healthmax, meaning non-merchant ones
     if (type == SpellType_ModHealthMax && force_spell != SpellType_ModHealthMax) {
         GenerateWorld.healthmax_on_floor[Main.current_floor] = true;
-        trace("healthmax");
     }
 
     var duration_type = SpellDuration_Permanent;
@@ -816,7 +815,7 @@ static function random_potion_spell(level: Int, force_spell: SpellType): Spell {
         case SpellType_ModHealth: {
             duration_type = SpellDuration_Permanent;
             duration = 0;
-            value = Stats.get({min: 5, max: 5, scaling: 1.0}, level);
+            value = Stats.get({min: 5, max: 5, scaling: 0.5}, level);
         }
         case SpellType_ModAttack: {
             duration_type = SpellDuration_EveryAttack;
@@ -1144,8 +1143,8 @@ static function enemy_buff_spell(avoid_type: SpellType = null): Spell {
     }
 
     var value = switch (type) {
-        case SpellType_ModLevelHealth: Stats.get({min: 2, max: 3, scaling: 0.5}, level);
-        case SpellType_ModLevelAttack: Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+        case SpellType_ModLevelHealth: Random.pick([25, 40, 50]);
+        case SpellType_ModLevelAttack: Random.pick([25, 40, 50]);
         default: 100;
     }
 
@@ -1215,8 +1214,8 @@ static function statue_subere(level: Int): Array<Spell> {
             ]);
 
         var value = switch (type) {
-            case SpellType_ModLevelHealth: -1 * Stats.get({min: 2, max: 3, scaling: 0.5}, level);
-            case SpellType_ModLevelAttack: -1 * Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+            case SpellType_ModLevelHealth: -Random.pick([25, 40, 50]);
+            case SpellType_ModLevelAttack: -Random.pick([25, 40, 50]);
             default: 100;
         }
 
@@ -1369,10 +1368,11 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
 
             {v: SpellType_ChainDamage, c: 1.0},
             {v: SpellType_ModHealth, c: 1.0},
-            {v: SpellType_ModAttackByCopper, c: 0.25},
+            {v: SpellType_ModAttackByCopper, c: 0.15},
 
             {v: SpellType_ModCopper, c: 1.0},
             {v: SpellType_SummonSkeletons, c: 0.25},
+            {v: SpellType_SummonGolem, c: 0.5},
             ]);
         case EquipmentType_Head: Random.pick_chance([
             {v: SpellType_ModDropChance, c: 1.0},
@@ -1384,8 +1384,9 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
             {v: SpellType_ModHealth, c: 1.0},
             {v: SpellType_HealthLeech, c: 1.0},
             {v: SpellType_Nolos, c: 1.0},
+            {v: SpellType_ModAttack, c: 1.0},
 
-            {v: SpellType_ModAttackByCopper, c: 0.25},
+            {v: SpellType_ModAttackByCopper, c: 0.15},
             ]);
         case EquipmentType_Chest: Random.pick_chance([
             {v: SpellType_ModDropChance, c: 1.0},
@@ -1397,7 +1398,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
 
             {v: SpellType_AoeDamage, c: 1.0},
 
-            {v: SpellType_ModDefenseByCopper, c: 0.25},
+            {v: SpellType_ModDefenseByCopper, c: 0.15},
             ]);
         case EquipmentType_Legs: Random.pick_chance([
             {v: SpellType_ModDropChance, c: 1.0},
@@ -1408,8 +1409,10 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
             {v: SpellType_HealthLeech, c: 1.0},
 
             {v: SpellType_DamageShield, c: 1.0},
+            {v: SpellType_ModAttack, c: 1.0},
 
-            {v: SpellType_ModDefenseByCopper, c: 0.25},
+            {v: SpellType_SummonGolem, c: 0.5},
+            {v: SpellType_ModDefenseByCopper, c: 0.15},
             ]);
     }
 
@@ -1421,6 +1424,8 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
         case SpellType_DamageShield: SpellDuration_EveryAttackChance;
         case SpellType_ModCopper: SpellDuration_EveryAttackChance;
         case SpellType_SummonSkeletons: SpellDuration_EveryAttackChance;
+        case SpellType_SummonGolem: SpellDuration_EveryAttackChance;
+        case SpellType_ModAttack: SpellDuration_EveryAttackChance;
 
         case SpellType_ShowThings: SpellDuration_EveryTurn;
         case SpellType_ModDropChance: SpellDuration_EveryTurn;
@@ -1442,6 +1447,8 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
         case SpellType_ModHealth: 20;
         case SpellType_ModCopper: 20;
         case SpellType_SummonSkeletons: 10;
+        case SpellType_SummonGolem: 8;
+        case SpellType_ModAttack: 20;
         default: 0;
     }
 
@@ -1458,6 +1465,8 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
         case SpellType_HealthLeech: HealthLeech_value;
         case SpellType_ModCopper: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_SummonSkeletons: level;
+        case SpellType_SummonGolem: level;
+        case SpellType_ModAttack: Stats.get({min: 1, max: 1, scaling: 0.5}, level);
         default: 0;
     }
 
@@ -1483,11 +1492,11 @@ static function get_equipment_spell_use_charges(s: Spell): Int {
         case SpellType_ModMoveSpeed: Random.int(1, 2);
         case SpellType_SummonGolem: 1;
         case SpellType_SummonImp: 1;
-        case SpellType_ModAttack: Random.int(1, 2);
         case SpellType_ChainDamage: Random.int(1, 2);
         case SpellType_RandomTeleport: 1;
         case SpellType_SafeTeleport: 1;
         case SpellType_Combust: Random.int(1, 2);
+        case SpellType_Noclip: Random.int(1, 2);
         default: 100;
     }
 }
@@ -1511,7 +1520,6 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
             {v: SpellType_AoeDamage, c: 1.0},
             {v: SpellType_Invisibility, c: 0.5},
             {v: SpellType_SummonGolem, c: 1.0},
-            {v: SpellType_ModAttack, c: 1.0},
             ]);
         case EquipmentType_Head: Random.pick_chance([
             {v: SpellType_SummonImp, c: 1.0},
@@ -1522,12 +1530,12 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
             {v: SpellType_ModHealth, c: 1.0},
             {v: SpellType_AoeDamage, c: 1.0},
             {v: SpellType_Invisibility, c: 1.0},
-            {v: SpellType_ModAttack, c: 1.0},
             ]);
         case EquipmentType_Legs: Random.pick_chance([
             {v: SpellType_ModMoveSpeed, c: 1.0},
             {v: SpellType_RandomTeleport, c: 0.5},
             {v: SpellType_SafeTeleport, c: 0.5},
+            {v: SpellType_Noclip, c: 0.1},
             ]);
     }
 
@@ -1535,7 +1543,7 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
         case SpellType_Invisibility: SpellDuration_EveryTurn;
         case SpellType_Nolos: SpellDuration_EveryTurn;
         case SpellType_ModMoveSpeed: SpellDuration_EveryTurn;
-        case SpellType_ModAttack: SpellDuration_EveryAttack;
+        case SpellType_Noclip: SpellDuration_EveryTurn;
         default: SpellDuration_Permanent;
     }
 
@@ -1543,7 +1551,7 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
         case SpellType_Invisibility: Random.int(60, 80);
         case SpellType_Nolos: Random.int(60, 80);
         case SpellType_ModMoveSpeed: Random.int(60, 80);
-        case SpellType_ModAttack: Random.int(3, 4);
+        case SpellType_Noclip: Random.int(60, 80);
         default: 0;
     }
 
@@ -1553,7 +1561,6 @@ static function random_equipment_spell_use(equipment_type: EquipmentType): Spell
         case SpellType_Combust: Stats.get({min: 1, max: 1, scaling: 0.5}, level);
         case SpellType_EnergyShield: Stats.get({min: 1, max: 2, scaling: 1.0}, level);
         case SpellType_ModHealth: Stats.get({min: 3, max: 4, scaling: 1.0}, level);
-        case SpellType_ModAttack: Stats.get({min: 1, max: 1, scaling: 1.0}, level);
         case SpellType_SummonGolem: level;
         case SpellType_SummonImp: level;
         case SpellType_ModMoveSpeed: 1;

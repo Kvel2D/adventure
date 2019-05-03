@@ -1264,20 +1264,5 @@ static function decorate_rooms_with_walls() {
     }
 }
 
-static function draw_mob(x: Int, y: Int) {
-    Gfx.scale(1);
-    Gfx.drawtoimage('test_canvas');
-
-    for (dx in 0...8) {
-        for (dy in 0...8) {
-            if (Random.chance(50)) {
-                Gfx.fillbox(x * Main.TILESIZE + dx, y * Main.TILESIZE + dy, 1, 1, Col.BLUE);
-            }
-        }
-    }
-
-    Gfx.drawtoscreen();
-}
-
 function new() {}
 }

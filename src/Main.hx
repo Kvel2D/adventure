@@ -178,7 +178,7 @@ function new() {
     Gfx.createimage('minimap_canvas_full', MAP_WIDTH * MINIMAP_SCALE, MAP_HEIGHT * MINIMAP_SCALE);
     Gfx.createimage('ui_items_canvas', INVENTORY_WIDTH * TILESIZE * WORLD_SCALE, SCREEN_HEIGHT);
     
-    Gfx.createimage('test_canvas', 10 * TILESIZE, 10 * TILESIZE);
+    Gfx.createtiles('test_enemy_tiles', 8, 8, 100);
 
     Gfx.changetileset('tiles');
 
@@ -219,22 +219,11 @@ function new() {
     generate_level();
     print_tutorial();
 
-    Gfx.scale(1);
-    Gfx.scale(WORLD_SCALE);
-    Gfx.drawtoimage('test_canvas');
-    Gfx.clearscreen(Col.GRAY);
-    for (x in 0...5) {
-        for (y in 0...5) {
-            Gfx.drawtile(x * TILESIZE, y * TILESIZE, Tile.Ground);
-        }
-    }    
-    Gfx.drawtoscreen();
-
-    for (x in 0...4) {
-        for (y in 0...4) {
-            GenerateWorld.draw_mob(x * 2, y * 2);
-        }
+    Gfx.changetileset('test_enemy_tiles');
+    for (i in 0...Gfx.numberoftiles()) {
+        generate_enemy_tile(i);
     }
+    Gfx.changetileset('tiles');
 }
 
 var enemy_tile_colors = [
@@ -257,17 +246,43 @@ function generate_enemy_tile(tile: Int) {
 
     var color = Random.pick(enemy_tile_colors[get_level_tile_index()]);
 
-    var pixel_chance = Random.int(25, 100);
-    var max_pixels = Random.int(20, 28);
+    var half_width = 3;
+    var half_height = 3;
+
+    Random.pick_chance([
+        {v: function() { half_width = 3; half_height = 3; }, c: 1.0},
+        {v: function() { half_width = 3; half_height = 2; }, c: 1.0},
+        {v: function() { half_width = 2; half_height = 3; }, c: 1.0},
+        {v: function() { half_width = 2; half_height = 2; }, c: 1.0},
+        ])
+    ();
+
+    var area = half_width * 2 * half_height * 2;
+
+    var max_pixels = Math.floor(Random.int(20, 28) / (4 * 8) * area);
+    var pixel_chance = Random.int(25, Math.floor(100 * max_pixels / area));
+
+    // NOTE: clearscreentransparent doesn't work for tiles on html5, so need to clear like this
+    for (x in 0...8) {
+        for (y in 0...8) {
+            Gfx.set_pixel(x, y, 0, 0.0);
+        }
+    }
 
     var pixels_placed = 0;
-    while (pixels_placed == 0) {
-        for (x in 0...4) {
-            for (y in 0...8) {
+    var center_pixels = false;
+    while (pixels_placed <= 4 || (pixels_placed / area < 0.25 && pixels_placed < max_pixels && !center_pixels)) {
+        for (x in (4 - half_width)...4) {
+            for (y in (4 - half_height)...(4 + half_height)) {
                 if (Random.chance(pixel_chance)) {
                     Gfx.set_pixel(x, y, color);
                     Gfx.set_pixel(7 - x, y, color);
-                    pixels_placed++;
+                    pixels_placed += 2;
+
+                    if (x == 4) {
+                        center_pixels = true;
+                    }
+
                     if (pixels_placed >= max_pixels) {
                         break;
                     }
@@ -586,9 +601,9 @@ function generate_level() {
         for (dx in 1...10) {
             // Entities.random_weapon(Player.x + dx, Player.y);
             // Entities.random_armor(Player.x + dx, Player.y + 1);
-            // Entities.random_scroll(Player.x + dx, Player.y + 2);
+            Entities.random_scroll(Player.x + dx, Player.y + 2);
             // Entities.random_potion(Player.x + dx, Player.y + 3);
-            // Entities.random_orb(Player.x + dx, Player.y + 4);
+            Entities.random_orb(Player.x + dx, Player.y + 4);
             // Entities.random_ring(Player.x + dx, Player.y + 5);
             // Entities.random_statue(Player.x + dx, Player.y + 6);
         }
@@ -1383,19 +1398,6 @@ function entity_attack_player(e: Int): Bool {
         return false;
     }
 
-    // NeutralToAggressive become aggressive on attack and starts chasing
-    if (combat.aggression == AggressionType_NeutralToAggressive && combat.attacked_by_player) {
-        combat.aggression = AggressionType_Aggressive;
-
-        Entity.move[e] = {
-            type: MoveType_Astar,
-            cant_move: false,
-            successive_moves: 0,
-            chase_dst: Main.VIEW_WIDTH, // chase forever
-            target: MoveTarget_FriendlyThenPlayer,
-        }
-    }
-
     var should_attack = switch (combat.aggression) {
         case AggressionType_Aggressive: true;
         case AggressionType_Neutral: combat.attacked_by_player;
@@ -1504,6 +1506,19 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
 
     combat.health -= attack;
     combat.attacked_by_player = true;
+
+    // NeutralToAggressive mobs become aggressive on attack and start chasing
+    if (combat.aggression == AggressionType_NeutralToAggressive) {
+        combat.aggression = AggressionType_Aggressive;
+
+        Entity.move[e] = {
+            type: MoveType_Astar,
+            cant_move: false,
+            successive_moves: 0,
+            chase_dst: Main.VIEW_WIDTH, // chase forever
+            target: MoveTarget_FriendlyThenPlayer,
+        }
+    }
 
     var target_name = if (Entity.name.exists(e)) {
         Entity.name[e];
@@ -1824,7 +1839,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModLevelHealth: {
             for (e in entities_with(Entity.combat)) {
-                Entity.combat[e].health += spell.value;
+                Entity.combat[e].health = Math.round((1.0 + spell.value / 100.0) * Entity.combat[e].health);
 
                 // Negative mod can't bring health values below 1
                 if (Entity.combat[e].health <= 0) {
@@ -1834,11 +1849,11 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_ModLevelAttack: {
             for (e in entities_with(Entity.combat)) {
-                Entity.combat[e].attack += spell.value;
+                Entity.combat[e].attack = Math.round((1.0 + spell.value / 100.0) * Entity.combat[e].attack);
 
-                // Negative mod can't bring attack values below 0
-                if (Entity.combat[e].attack < 0) {
-                    Entity.combat[e].attack = 0;
+                // Negative mod can't bring attack values below 1
+                if (Entity.combat[e].attack <= 0) {
+                    Entity.combat[e].attack = 1;
                 }
             }
         }
@@ -1895,8 +1910,14 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
             if (Entity.equipment.exists(use_target)) {
                 for (s in Entity.equipment[use_target].spells) {
                     // NOTE: affects other attack/def spells than just the straight stat increase, but that's ok and like an extra bonus
+                    var improve_mod = switch (s.type) {
+                        case SpellType_ModAttack: 0.1;
+                        case SpellType_ModDefense: 0.2;
+                        default: 0.0;
+                    }
+
                     if (s.type == SpellType_ModAttack || s.type == SpellType_ModDefense) {
-                        s.value += Std.int(Math.max(1, Math.round(spell.value * 0.1)));
+                        s.value += Std.int(Math.max(1, Math.round(spell.value * improve_mod)));
                     }
                 }
                 add_message('You improve equipment.');
@@ -2484,7 +2505,7 @@ function update_normal() {
     if (Entity.position.exists(hovered_map)) {
         // Hovering over entity on map, must be visible
         var pos = Entity.position[hovered_map];
-        if (!los[pos.x - view_x][pos.y - view_y]) {
+        if (position_visible(pos.x - view_x, pos.y - view_y)) {
             hovered_anywhere = hovered_map;
             hovered_anywhere_x = screen_x(pos.x);
             hovered_anywhere_y = screen_y(pos.y);
@@ -2609,6 +2630,16 @@ function update_normal() {
         }
     }
 
+    // Target entity for use, can't target the use entity itself
+    // Check that target is appropriate for spell
+    if (targeting_state == TargetingState_Targeting && !turn_ended && Mouse.leftclick() && hovered_anywhere != use_entity_that_needs_target) {
+        if (Entity.use.exists(use_entity_that_needs_target) && Spells.spell_can_be_used_on_target(Entity.use[use_entity_that_needs_target].spells[0].type, hovered_anywhere)) {
+            targeting_state = TargetingState_TargetingDone;
+            use_target = hovered_anywhere;
+            turn_ended = true;
+        }
+    }
+
     // Interaction buttons
     // Can't use/pick up/equip if item has Buy, which means it's "in a shop"
     if (!turn_ended) {
@@ -2702,15 +2733,6 @@ function update_normal() {
     //
     // Left click action
     //
-    // Target entity for use, can't target the use entity itself
-    // Check that target is appropriate for spell
-    if (targeting_state == TargetingState_Targeting && !turn_ended && Mouse.leftclick() && hovered_anywhere != use_entity_that_needs_target) {
-        if (Entity.use.exists(use_entity_that_needs_target) && Spells.spell_can_be_used_on_target(Entity.use[use_entity_that_needs_target].spells[0].type, hovered_anywhere)) {
-            targeting_state = TargetingState_TargetingDone;
-            use_target = hovered_anywhere;
-            turn_ended = true;
-        }
-    }
 
     //
     // Default left-click actions
@@ -2720,7 +2742,7 @@ function update_normal() {
         if (Entity.position.exists(hovered_anywhere)) {
             var pos = Entity.position[hovered_anywhere];
             // Left-click interaction if entity is on map and is visible
-            if (player_next_to(Entity.position[hovered_anywhere]) && !los[pos.x - view_x][pos.y - view_y]) {
+            if (player_next_to(Entity.position[hovered_anywhere]) && position_visible(pos.x - view_x, pos.y - view_y)) {
                 var can_attack = Entity.combat.exists(hovered_anywhere);
                 var can_pickup = Entity.item.exists(hovered_anywhere) && !Entity.cost.exists(hovered_anywhere);
                 var can_equip = Entity.equipment.exists(hovered_anywhere) && !Entity.cost.exists(hovered_anywhere);
@@ -3028,25 +3050,23 @@ function update_normal() {
             }
         }
 
-        // Move player to nearest room if noclip ends while player is still inside a wall
+        // Move player to some room if noclip ends while player is still inside a wall
         if (walls[Player.x][Player.y] && !(Player.noclip || DEV_noclip)) {
-            var closest_room: Room = null;
-            var closest_dst2 = 100000000.0;
             for (r in rooms) {
-                var dst2 = Math.dst2(Player.x, Player.y, r.x, r.y);
+                var positions = GenerateWorld.room_free_positions_shuffled(r);
 
-                if (dst2 < closest_dst2) {
-                    closest_dst2 = dst2;
-                    closest_room = r;
+                if (positions.length > 0) {
+                    var pos = positions[0];
+                    // NOTE: position could have no path to stairs, if player blocks the path with items, won't handle this because player has to try really hard to screw this up
+
+                    if (Path.astar_map(pos.x, pos.y, stairs_x, stairs_y).length != 0) {
+                        Player.x = pos.x;
+                        Player.y = pos.y;
+                        Player.room = get_room_index(Player.x, Player.y);
+                        break;
+                    }
                 }
             }
-
-            var pos = GenerateWorld.room_free_positions_shuffled(closest_room)[0];
-
-            // NOTE: position could have no path to stairs, if player blocks the path with items, won't handle this because player has to try really hard to screw this up
-            Player.x = pos.x;
-            Player.y = pos.y;
-            Player.room = get_room_index(Player.x, Player.y);
         }
 
         if (Player.health <= 0) {
@@ -3198,8 +3218,36 @@ function update() {
         }
     }
 
+    // Enemy tile generation testing
+    // if (Input.justpressed(Key.J)) {
+    //     Gfx.changetileset('test_enemy_tiles');
+    //     for (i in 0...Gfx.numberoftiles()) {
+    //         generate_enemy_tile(i);
+    //     }
+    //     Gfx.changetileset('tiles');
+    // }
+
+    // Gfx.changetileset('test_enemy_tiles');
     // Gfx.scale(WORLD_SCALE);
-    // Gfx.drawimage(0, 0, 'test_canvas');
+    // var x = 0;
+    // var y = 0;
+    // for (i in 0...Gfx.numberoftiles()) {
+    //     Gfx.drawtile(x, y, i);
+    //     x += TILESIZE * WORLD_SCALE;
+    //     if (x > 500) {
+    //         x = 0;
+    //         y += TILESIZE * WORLD_SCALE;
+    //     }
+    // }
+    // Gfx.changetileset('tiles');
+
+    // Draw all current enemy tiles
+    // Gfx.scale(WORLD_SCALE);
+    // var x = 0;
+    // for (enemy_tile in Tile.Enemy) {
+    //     Gfx.drawtile(x, 0, enemy_tile);
+    //     x += TILESIZE * WORLD_SCALE;
+    // }
 }
 
 }

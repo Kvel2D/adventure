@@ -1,12 +1,10 @@
 ---------------------------------------------------------------------------------
 TODO
 
-add more names to names corpus
-
-can add some more spells in the similar spirit as SummonSkeletons EveryAttackChance that I just added
 
 ---------------------------------------------------------------------------------
 DONE
+
 
 
 ---------------------------------------------------------------------------------
@@ -15,6 +13,23 @@ IDEAS
 
 ---------------------------------------------------------------------------------
 BALANCE HISTORY
+
+02.05 changes
+    mod stat by copper spell chances 0.25 => 0.15
+    health potion value scaling 1.0 => 0.5
+
+02.05 games
+    died twice again
+    both times kind of because of my own mistakes?
+    first time felt a bit unfair though
+    beat the game once
+        was fairly difficult at the start, got a bit easy in later levels
+        felt like too many health potions
+
+30.04 game
+    decent, got some challenge
+    i died because i rushed into an enemy
+    need to play some more to know if this is hard vs impossible
 
 24.04 changes
     MERCHANT_ITEM_COST scaling 2.5 => 3.0
