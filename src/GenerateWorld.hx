@@ -56,17 +56,16 @@ static inline var ROOM_SPELL_CHANCE = 3;
 static inline var ROOM_SPELL_SPREADS_TO_NEIGHBORS_CHANCE = 50;
 static inline var ITEM_IN_ENEMY_ROOM_CHANCE = 33;
 static inline var TALK_TALKER_CHANCE = 10;
+static inline var DISCONNECTED_ROOM_CHANCE = 25;
 
 static function ENEMY_TYPES_PER_LEVEL() { return Random.int(2, 3); };
 
 static inline var KEY_ON_ENEMY_CHANCE = 50;
 static inline var MERCHANT_ITEM_LEVEL_BONUS = 1;
 
-static inline var ENEMY_ITEM_IDEAL_RATIO = 0.7;
+static function ENEMY_ITEM_IDEAL_RATIO() { return if (Player.more_enemies) 0.9 else 0.7; };
 static inline var HEALTH_POTION_TALLY_SIZE = 15;
 
-static var enemy_rooms_this_floor = 0;
-static var item_rooms_this_floor = 0;
 static var enemies_this_floor = 0;
 static var items_this_floor = 0;
 
@@ -204,9 +203,6 @@ static function fill_rooms_with_entities() {
         }
     }
 
-    enemy_rooms_this_floor = 0;
-    item_rooms_this_floor = 0;
-
     var enemies = new Array<Int>();
     var items = new Array<Int>();
 
@@ -263,8 +259,6 @@ static function fill_rooms_with_entities() {
 
                 items.push(e);
             }
-
-            enemy_rooms_this_floor++;
         }
 
         function merchant_room() {
@@ -340,8 +334,6 @@ static function fill_rooms_with_entities() {
 
                 items.push(e);
             }
-
-            item_rooms_this_floor++;
         }
 
         function locked_room() {
@@ -427,13 +419,14 @@ static function fill_rooms_with_entities() {
         Random.shuffle(items);
         var enemy_item_ratio = 1.0 * enemies.length / items.length;
         var item_enemy_ratio = 1.0 * items.length / enemies.length;
-        if (enemy_item_ratio > ENEMY_ITEM_IDEAL_RATIO) {
-            while (enemy_item_ratio > ENEMY_ITEM_IDEAL_RATIO) {
+
+        if (enemy_item_ratio > ENEMY_ITEM_IDEAL_RATIO()) {
+            while (enemy_item_ratio > ENEMY_ITEM_IDEAL_RATIO()) {
                 Entity.remove(enemies.pop());
                 enemy_item_ratio = 1.0 * enemies.length / items.length;
             }
-        } else if (item_enemy_ratio > (1.0 / ENEMY_ITEM_IDEAL_RATIO)) {
-            while (item_enemy_ratio > (1.0 / ENEMY_ITEM_IDEAL_RATIO)) {
+        } else if (item_enemy_ratio > (1.0 / ENEMY_ITEM_IDEAL_RATIO())) {
+            while (item_enemy_ratio > (1.0 / ENEMY_ITEM_IDEAL_RATIO())) {
                 Entity.remove(items.pop());
                 item_enemy_ratio = 1.0 * items.length / enemies.length;
             }
@@ -630,6 +623,21 @@ static function fill_rooms_with_entities() {
         }
     }
 
+    // Spawn MoreEnemies potion on first floor first room sometimes
+    // Optional hardmode
+    if (Main.current_floor == 0 && Random.chance(33)) {
+        var random_room = Random.pick(Main.rooms);
+        var positions = room_free_positions_shuffled(Main.rooms[0]);
+        var types = [SpellType_MoreEnemies, SpellType_WeakHeal, SpellType_StrongerEnemies];
+        Random.shuffle(types);
+        var potion_count = Random.int(1, 3);
+        while (positions.length > 0 && potion_count > 0) {
+            var type = types.pop();
+            var pos = positions.pop();
+            Entities.random_potion(pos.x, pos.y, type);
+            potion_count--;
+        }
+    }
 
     //
     // Trim down empty rooms to intersections and bends
@@ -1090,7 +1098,7 @@ static function connect_rooms(rooms: Array<Room>, disconnect_factor: Float = 0.0
     //
     // Add some disconnected rooms
     //
-    if (Random.chance(50)) {
+    if (Random.chance(DISCONNECTED_ROOM_CHANCE)) {
         var disconnected_count = 1;
 
         var width_max = Math.floor((Main.MAP_WIDTH - ORIGIN_X - 1) * 0.75);

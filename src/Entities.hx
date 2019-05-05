@@ -118,6 +118,10 @@ static function generate_name(): String {
     }
     generated_names.push(name);
     generated_first_chars.push(name.charAt(0));
+
+    var first_char = name.charAt(0);
+    name = first_char.toUpperCase() + name.substr(1);
+
     return name;
 }
 
@@ -328,7 +332,7 @@ static function stairs(x: Int, y: Int): Int {
         spells: [Spells.next_floor()],
         charges: 1,
         consumable: false,
-        flavor_text: 'You ascend the stairs.',
+        flavor_text: 'You ascend Stairs.',
         need_target: false,
         draw_charges: false,
     };
@@ -395,7 +399,7 @@ static function random_weapon(x: Int, y: Int): Int {
             spells: use_spells,
             charges: Spells.get_spells_min_use_charges(use_spells),
             consumable: false,
-            flavor_text: 'You use weapon\'s spell.',
+            flavor_text: 'You use Sword spell.',
             need_target: Spells.need_target(use_spells[0].type),
             draw_charges: true,
         };
@@ -479,7 +483,7 @@ static function random_armor(x: Int, y: Int): Int {
             spells: use_spells,
             charges: Spells.get_spells_min_use_charges(use_spells),
             consumable: false,
-            flavor_text: 'You use armor\'s spell.',
+            flavor_text: 'You use ${Entity.name[e]} spell.',
             need_target: Spells.need_target(use_spells[0].type),
             draw_charges: true,
         };
@@ -533,7 +537,7 @@ static function random_potion(x: Int, y: Int, force_spell: SpellType = null): In
         spells: [spell],
         charges: 1,
         consumable: true,
-        flavor_text: 'You chug the potion.',
+        flavor_text: 'You chug Potion.',
         need_target: false,
         draw_charges: true,
     };
@@ -565,7 +569,7 @@ static function random_scroll(x: Int, y: Int): Int {
         spells: [spell],
         charges: 1,
         consumable: true,
-        flavor_text: 'You read the scroll aloud.',
+        flavor_text: 'You read Scroll aloud.',
         need_target: Spells.need_target(spell.type),
         draw_charges: true,
     };
@@ -597,7 +601,7 @@ static function random_orb(x: Int, y: Int): Int {
         spells: [spell],
         charges: 1,
         consumable: true,
-        flavor_text: 'You crush the orb in your hands.',
+        flavor_text: 'You crush Orb in your hand.',
         need_target: Spells.need_target(spell.type),
         draw_charges: true,
     };
@@ -625,7 +629,9 @@ static function random_enemy_type(type_number: Int): Int->Int->Int {
     if (attack == 0) {
         attack = 1;
     }
-    var health = Stats.get({min: 4, max: 5, scaling: 3.0}, level); 
+    var health = if (Player.stronger_enemies) 
+    Stats.get({min: 5, max: 6, scaling: 4.0}, level) else 
+    Stats.get({min: 4, max: 5, scaling: 3.0}, level); 
 
     // Make first floor easy
     if (Main.current_floor == 0) {
@@ -1046,13 +1052,13 @@ static function copper(x: Int, y: Int): Int {
         char: 'C',
         color: Col.YELLOW,
     };
-    Entity.description[e] = 'A bunch of copper pieces';
+    Entity.description[e] = 'A bunch of Copper';
     Entity.draw_tile[e] = Tile.Copper;
     Entity.use[e] = {
         spells: [Spells.mod_copper(Stats.get({min: 1, max: 2, scaling: 1.0}, level))],
         charges: 1,
         consumable: true,
-        flavor_text: 'You pick up the copper.',
+        flavor_text: 'You pick up Copper.',
         need_target: false,
         draw_charges: false,
     };

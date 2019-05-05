@@ -49,5 +49,9 @@ static var full_minimap = false;
 static var invisible = false;
 static var increase_drop_level = false;
 static var summon_buff = false;
+static var more_enemies = false;
+static var weak_heal = false;
+static var stronger_enemies = false;
+static var extra_ring = false;
 
 }

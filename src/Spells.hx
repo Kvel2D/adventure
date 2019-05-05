@@ -48,9 +48,13 @@ enum SpellType {
 
     SpellType_ModCopper;
     SpellType_ModSpellDamage;
+    SpellType_MoreEnemies;
+    SpellType_WeakHeal;
+    SpellType_StrongerEnemies;
 
     SpellType_ModAttackByCopper;
     SpellType_ModDefenseByCopper;
+    SpellType_ExtraRing;
 }
 
 enum SpellDuration {
@@ -99,6 +103,10 @@ class Spells {
 static var prios = [
 SpellType_NextFloor => 0,
 
+SpellType_ExtraRing => 1,
+SpellType_MoreEnemies => 1,
+SpellType_WeakHeal => 1,
+SpellType_StrongerEnemies => 1,
 SpellType_CopyEntity => 1,
 SpellType_ModUseCharges => 1,
 SpellType_Invisibility => 1,
@@ -177,8 +185,8 @@ static function get_description(spell: Spell): String {
         case SpellType_ModLevelHealth: '$sign${spell.value}% health to all enemies on the current floor';
         case SpellType_ModLevelAttack: '$sign${spell.value}% attack to all enemies on the current floor';
         case SpellType_EnergyShield: if (long) 
-        'Energy Shield: get energy shield that absorbs ${spell.value} damage (not additive)' else 
-        'Energy Shield ${spell.value}';
+        'Shield: get shield that absorbs ${spell.value} damage (not additive)' else 
+        'Shield ${spell.value}';
         case SpellType_Invisibility: 'Turn invisible';
         case SpellType_ModDropLevel: '+item drop power';
         case SpellType_UncoverMap: 'Uncover map';
@@ -213,7 +221,7 @@ static function get_description(spell: Spell): String {
         else
             'Charm';
         case SpellType_ImproveEquipment: if (long)
-        'Improve equipment: make armor or weapons more powerful' 
+        'Improve equipment: make armor or a weapon more powerful' 
         else
             'Improve equipment';
         case SpellType_EnchantEquipment: if (long)
@@ -273,6 +281,13 @@ static function get_description(spell: Spell): String {
         'Critical: chance of dealing double damage' 
         else
             'Critical';
+        case SpellType_MoreEnemies: 'More enemies';
+        case SpellType_WeakHeal: 'Weaker healing potions';
+        case SpellType_StrongerEnemies: 'Stronger enemies';
+        case SpellType_ExtraRing: if (long)
+        'Third Finger: extra ring slot' 
+        else
+            'Third Finger';
     }
 
     var interval = 
@@ -343,6 +358,9 @@ static function get_color(spell: Spell): SpellColor {
         case SpellType_EnergyShield: SpellColor_Blue;
         case SpellType_DamageShield: SpellColor_Blue;
         case SpellType_LuckyCharge: SpellColor_Blue;
+        case SpellType_MoreEnemies: SpellColor_Blue;
+        case SpellType_WeakHeal: SpellColor_Blue;
+        case SpellType_StrongerEnemies: SpellColor_Blue;
 
         case SpellType_UncoverMap: SpellColor_Yellow;
         case SpellType_ShowThings: SpellColor_Yellow;
@@ -357,7 +375,7 @@ static function get_color(spell: Spell): SpellColor {
         case SpellType_SummonSkeletons: SpellColor_Purple;
         case SpellType_SummonGolem: SpellColor_Purple;
         case SpellType_SummonImp: SpellColor_Purple;
-
+        
         case SpellType_ModDropChance: SpellColor_Red;
         case SpellType_ModHealthMax: SpellColor_Red;
         case SpellType_AoeDamage: SpellColor_Red;
@@ -814,18 +832,34 @@ static function random_potion_spell(level: Int, force_spell: SpellType): Spell {
     switch (type) {
         case SpellType_ModHealth: {
             duration_type = SpellDuration_Permanent;
-            duration = 0;
-            value = Stats.get({min: 5, max: 5, scaling: 0.5}, level);
+            if (Player.weak_heal) {
+                value = Stats.get({min: 3, max: 4, scaling: 0.4}, level);
+            } else {
+                value = Stats.get({min: 5, max: 5, scaling: 0.5}, level);
+            }
         }
         case SpellType_ModAttack: {
             duration_type = SpellDuration_EveryAttack;
-            duration = Random.int(3, 5);
-            value = Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+
+            if (Random.chance(5)) {
+                duration = 1;
+                value = 100;
+            } else {
+                duration = Random.int(3, 5);
+                value = Stats.get({min: 1, max: 1, scaling: 0.5}, level);
+            }
         }
         case SpellType_ModDefense: {
-            duration_type = SpellDuration_EveryAttack;
-            duration = Random.int(3, 5);
-            value = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+
+            if (Random.chance(5)) {
+                duration_type = SpellDuration_EveryTurn;
+                duration = 5;
+                value = 100;
+            } else {
+                duration_type = SpellDuration_EveryAttack;
+                duration = Random.int(3, 5);
+                value = Stats.get({min: 2, max: 3, scaling: 1.0}, level);
+            }
         }
         case SpellType_ModCopperChance: {
             duration_type = SpellDuration_EveryAttack;
@@ -845,27 +879,32 @@ static function random_potion_spell(level: Int, force_spell: SpellType): Spell {
         case SpellType_UncoverMap: {
             duration_type = SpellDuration_EveryTurn;
             duration = Entity.DURATION_LEVEL;
-            value = 0;
         }
         case SpellType_ShowThings: {
             duration_type = SpellDuration_EveryTurn;
             duration = Entity.DURATION_LEVEL;
-            value = 0;
         }
         case SpellType_ModMoveSpeed: {
             duration_type = SpellDuration_EveryTurn;
-            duration = Random.int(4, 6);
+            duration = Random.int(5, 10);
             value = Random.int(1, 2);
         }
         case SpellType_Invisibility: {
             duration_type = SpellDuration_EveryTurn;
             duration = Random.int(60, 80);
-            value = 0;
         }
         case SpellType_ModHealthMax: {
             duration_type = SpellDuration_Permanent;
-            duration = 0;
             value = Stats.get({min: 2, max: 3, scaling: 0.25}, level);
+        }
+        case SpellType_MoreEnemies: {
+            duration_type = SpellDuration_Permanent;
+        }
+        case SpellType_WeakHeal: {
+            duration_type = SpellDuration_Permanent;
+        }
+        case SpellType_StrongerEnemies: {
+            duration_type = SpellDuration_Permanent;
         }
         default: {
             trace('Unhandled potion spell type: ${type}');
@@ -1395,6 +1434,7 @@ static function random_equipment_spell_equip(equipment_type: EquipmentType): Spe
             {v: SpellType_LuckyCharge, c: 1.0},
             {v: SpellType_Critical, c: 1.0},
             {v: SpellType_SummonSkeletons, c: 0.25},
+            {v: SpellType_ExtraRing, c: 0.1},
 
             {v: SpellType_AoeDamage, c: 1.0},
 

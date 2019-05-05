@@ -43,7 +43,7 @@ class Main {
 // force unindent
 
 static inline var SCREEN_WIDTH = 1600;
-static inline var SCREEN_HEIGHT = 1000;
+static inline var SCREEN_HEIGHT = 960;
 static inline var TILESIZE = 8;
 static inline var MAP_WIDTH = 125;
 static inline var MAP_HEIGHT = 125;
@@ -53,7 +53,7 @@ static inline var WORLD_SCALE = 4;
 static inline var MINIMAP_SCALE = 4;
 static inline var MINIMAP_X = 0;
 static inline var MINIMAP_Y = 0;
-static inline var RINGS_MAX = 2;
+static function RINGS_MAX(): Int { return if (Player.extra_ring) 3 else 2; };
 static inline var PLAYER_SPELLS_MAX = 10;
 static inline var SPELL_ITEM_LEVEL_BONUS = 1;
 static inline var FLOORS_PER_PALETTE = 3;
@@ -68,7 +68,7 @@ static inline var INVENTORY_Y = 210;
 static inline var INVENTORY_WIDTH = 4;
 static inline var INVENTORY_HEIGHT = 2;
 static inline var SPELL_LIST_Y = 300;
-static inline var MESSAGES_Y = 600;
+static inline var MESSAGES_Y = 580;
 static inline var MESSAGES_LENGTH_MAX = 20;
 static inline var TURN_DELIMITER = '------------------------------';
 static inline var TOOLTIP_WORDWRAP = 400;
@@ -300,25 +300,20 @@ function generate_enemy_tile(tile: Int) {
 function print_tutorial() {
     // Insert tutorial into messages
     var tutorial_text = [
-    'TUTORIAL',
-    'WASD to move',
-    'SPACE to skip a turn',
-    'Press ESC/TAB to open options menu.',
+    'CONTROLS',
+    TURN_DELIMITER,
+    'WASD to move.',
+    'SPACE to skip a turn.',
+    'ESCAPE to open options menu.',
     TURN_DELIMITER,
     'Right-click on things to interact with them.',
     'You can interact with things on the map if they are next to you.',
     'You can interact with your equipment and items.',
     TURN_DELIMITER,
+    'Left-clicking performs some default interactions:',
     'Left-click on enemies to attack them.',
     'Left-click on items and equipment on the ground to pick them up.',
     'Left-click on items in inventory to use them.',
-    TURN_DELIMITER,
-    'PLAYTEST NOTES',
-    'Press F to toggle frametime graph. Let me know if the',
-    'perfomance is bad!(above 16ms is bad)',
-    'Press L to print game log. It\'s printed to the browser console,',
-    'which is opened by ctrl+shift+J. I would appreciate if you copied', 
-    'and sent me that log after you are done playing.',
     ];
     messages = [for (i in 0...MESSAGES_LENGTH_MAX) TURN_DELIMITER];
     var tutorial_i = tutorial_text.length; 
@@ -346,6 +341,10 @@ function restart_game() {
     Player.damage_shield = 0;
     Player.attack = 1;
     Player.defense = 0;
+
+    Player.more_enemies = false;
+    Player.weak_heal = false;
+    Player.stronger_enemies = false;
 
     Entities.generated_names = new Array<String>();
 }
@@ -601,9 +600,9 @@ function generate_level() {
         for (dx in 1...10) {
             // Entities.random_weapon(Player.x + dx, Player.y);
             // Entities.random_armor(Player.x + dx, Player.y + 1);
-            Entities.random_scroll(Player.x + dx, Player.y + 2);
+            // Entities.random_scroll(Player.x + dx, Player.y + 2);
             // Entities.random_potion(Player.x + dx, Player.y + 3);
-            Entities.random_orb(Player.x + dx, Player.y + 4);
+            // Entities.random_orb(Player.x + dx, Player.y + 4);
             // Entities.random_ring(Player.x + dx, Player.y + 5);
             // Entities.random_statue(Player.x + dx, Player.y + 6);
         }
@@ -686,7 +685,6 @@ function generate_level() {
         floor_stats += '\n${padded_name}c=${enemy_counts[name]}\ta=${combat.attack}\th=${combat.health}\tr^2=${combat.range_squared}\ta=${aggression}';
     }
 
-    floor_stats += '\nenemy rooms = ${GenerateWorld.enemy_rooms_this_floor}\nitem rooms = ${GenerateWorld.item_rooms_this_floor}';
     floor_stats += '\nenemies = ${GenerateWorld.enemies_this_floor}\nitems = ${GenerateWorld.items_this_floor}';
 
     game_stats.push(floor_stats);
@@ -880,19 +878,7 @@ function drop_entity_from_entity(e: Int) {
     current_level_mod = 0;
 
     if (drop != Entity.NONE) {
-        var drop_name = if (Entity.name.exists(drop)) {
-            Entity.name[drop];
-        } else {
-            'unnamed_drop';
-        }
-
-        var dropping_entity_name = if (Entity.name.exists(e)) {
-            Entity.name[e];
-        } else {
-            'unnamed_dropping_entity';
-        }
-
-        add_message('$dropping_entity_name drops $drop_name.');
+        add_message('${entity_name(e, "Enemy")} drops ${entity_name(drop, "a thing")}.');
     }
 }
 
@@ -900,11 +886,7 @@ function try_open_entity(e: Int) {
     // Look for same color unlocker in inventory
     var locked = Entity.container[e];
 
-    var locked_name = if (Entity.name.exists(e)) {
-        Entity.name[e];
-    } else {
-        'unnamed_locked';
-    }
+    var locked_name = entity_name(e, "locked thing");
 
     function drop_from_locked() {
         if (Entity.drop_entity.exists(e) && Entity.position.exists(e)) {
@@ -957,11 +939,7 @@ function use_entity(e: Int) {
 
         // Save name before pushing spell onto player
         for (spell in use.spells) {
-            spell.origin_name = if (Entity.name.exists(e)) {
-                Entity.name[e];
-            } else {
-                'unnamed_origin';
-            }
+            spell.origin_name = entity_name(e, 'unnamed_origin');
             Player.spells.push(Spells.copy(spell));
 
             // If too many player spells, remove older ones
@@ -983,19 +961,48 @@ function use_entity(e: Int) {
     }
 }
 
+function count_rings() {
+    var ring_count = 0;
+
+    for (y in 0...INVENTORY_HEIGHT) {
+        for (x in 0...INVENTORY_WIDTH) {
+            var e = Player.inventory[x][y];
+            if (Entity.item.exists(e) && !Entity.position.exists(e) && Entity.ring.exists(e)) {
+                ring_count++;
+            }
+        }
+    }
+
+    return ring_count;
+}
+
+function extra_ring_check(e: Int): Bool {
+    // Check for number of rings in case item has ExtraRing spell
+    // If it does and player has 3 rings, armor can't be unequipped
+    if (Entity.equipment.exists(e)) {
+        var equip_spells = Entity.equipment[e].spells;
+        for (s in equip_spells) {
+            if (s.type == SpellType_ExtraRing && count_rings() > 2) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 function equip_entity(e: Int) {
     var e_equipment = Entity.equipment[e];
     var old_e = Player.equipment[e_equipment.type];
 
+    if (extra_ring_check(old_e)) {
+        add_message('Can\'t unequip ${entity_name(old_e, "armor")} while having extra ring.');
+        return;
+    }
+
     // Remove entity from map
     if (Entity.equipment.exists(old_e) && !Entity.position.exists(old_e)) {
         // If there's equipment in slot, swap position with new equipment
-        var unequip_name = if (Entity.name.exists(old_e)) {
-            Entity.name[old_e];
-        } else {
-            'unnamed_unequip';
-        }
-        add_message('You unequip $unequip_name.');
+        add_message('You unequip ${entity_name(old_e, "old equipment")}.');
 
         var e_pos = Entity.position[e];
         Entity.remove_position(e);
@@ -1004,12 +1011,7 @@ function equip_entity(e: Int) {
         Entity.remove_position(e);
     }
 
-    var equip_name = if (Entity.name.exists(e)) {
-        Entity.name[e];
-    } else {
-        'unnamed_equip';
-    }
-    add_message('You equip ${Entity.name[e]}.');
+    add_message('You equip ${entity_name(e, "new equipment")}.');
 
     Player.equipment[e_equipment.type] = e;
 }
@@ -1028,22 +1030,10 @@ function move_entity_into_inventory(e: Int) {
 
     if (Entity.ring.exists(e)) {
         // Entity is a ring, need to check that there are ring slots available
-        var ring_count = 0;
-        for (y in 0...INVENTORY_HEIGHT) {
-            for (x in 0...INVENTORY_WIDTH) {
-                var other_e = Player.inventory[x][y];
-                if (Entity.item.exists(other_e) && !Entity.position.exists(other_e)) {
-                    var other_item = Entity.item[other_e];
-                    if (Entity.ring.exists(other_e)) {
-                        ring_count++;
-
-                        if (ring_count >= RINGS_MAX) {
-                            add_message('Can\'t have more than $RINGS_MAX rings.');
-                            return;
-                        }
-                    }
-                }
-            }
+        var ring_count = count_rings();
+        if (ring_count >= RINGS_MAX()) {
+            add_message('Can\'t have more than ${RINGS_MAX()} rings.');
+            return;
         }
     }
 
@@ -1056,7 +1046,7 @@ function move_entity_into_inventory(e: Int) {
             if (doesnt_exist || not_in_inventory) {
                 Player.inventory[x][y] = e;
 
-                add_message('You pick up ${Entity.name[e]}.');
+                add_message('You pick up ${entity_name(e, "a thing")}.');
                 Entity.remove_position(e);
 
                 return;
@@ -1087,16 +1077,15 @@ function free_position_around_player(): Vec2i {
 }
 
 function drop_entity_from_player(e: Int) {
+    if (extra_ring_check(e)) {
+        add_message('Can\'t unequip ${entity_name(e, "armor")} while having extra ring.');
+        return;
+    }
+
     var pos = free_position_around_player();
 
     if (pos.x != -1 && pos.y != -1) {
-        var drop_name = if (Entity.name.exists(e)) {
-            Entity.name[e];
-        } else {
-            'unnamed_drop_from_player';
-        }
-
-        add_message('You drop ${drop_name}.');
+        add_message('You drop ${entity_name(e, "a thing")}.');
         Entity.set_position(e, pos.x, pos.y);
     } else {
         add_message('No space to drop item.');
@@ -1358,18 +1347,8 @@ function entity_attack_entity(e: Int, target: Int) {
 
     add_message(combat.message);
     
-    var e_name = if (Entity.name.exists(e)) {
-        Entity.name[e];
-    } else {
-        'unnamed_e';
-    }
-    var target_name = if (Entity.name.exists(target)) {
-        Entity.name[target];
-    } else {
-        'unnamed_target_of_e';
-    }
     if (combat.attack != 0) {
-        add_message('$e_name attacks $target_name for ${combat.attack} damage.');
+        add_message('${entity_name(e, "Monster")} attacks ${entity_name(target, "something")} for ${combat.attack} damage.');
     }
 
     // Can't move and attack in same turn
@@ -1425,13 +1404,7 @@ function entity_attack_player(e: Int): Bool {
     var damage = Std.int(Math.max(0, combat.attack - absorb));
     add_message(combat.message);
 
-    var target_name = if (Entity.name.exists(e)) {
-        Entity.name[e];
-    } else {
-        'unnamed_target';
-    }
-
-    damage_player(damage, ' from $target_name');
+    damage_player(damage, ' from ${entity_name(e, "something")}');
 
     // Can't move and attack in same turn
     if (Entity.move.exists(e)) {
@@ -1520,11 +1493,8 @@ function player_attack_entity(e: Int, attack: Int, is_spell: Bool = true) {
         }
     }
 
-    var target_name = if (Entity.name.exists(e)) {
-        Entity.name[e];
-    } else {
-        'unnamed_target';
-    }
+    var target_name = entity_name(e, "something");
+
     add_message('You attack $target_name for $attack.');
 
     if (Player.health_leech > 0 && Random.chance(Player.health_leech)) {
@@ -1649,6 +1619,14 @@ function damage_player(damage: Int, from_text: String = '') {
 
     if (absorb_amount > 0) {
         add_message('You absorb ${absorb_amount} damage${from_text}.');
+    }
+}
+
+function entity_name(e: Int, default_name: String): String {
+    return if (Entity.name.exists(e)) {
+        Entity.name[e];
+    } else {
+        default_name;
     }
 }
 
@@ -1868,7 +1846,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_ModUseCharges: {
             if (Entity.use.exists(use_target)) {
                 Entity.use[use_target].charges += spell.value;
-                add_message('You add charge to an item.');
+                add_message('You add charge to ${entity_name(use_target, "an item")}.');
             }
         }
         case SpellType_CopyEntity: {
@@ -1885,14 +1863,14 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         case SpellType_Passify: {
             if (Entity.combat.exists(use_target)) {
                 Entity.combat[use_target].aggression = AggressionType_Passive;
-                add_message('You passify the enemy.');
+                add_message('You passify ${entity_name(use_target, "the enemy")}.');
             }
         }
         case SpellType_Sleep: {
             if (Entity.combat.exists(use_target)) {
                 Entity.combat[use_target].aggression = AggressionType_NeutralToAggressive;
                 Entity.move.remove(use_target);
-                add_message('You put the enemy to sleep.');
+                add_message('You put ${entity_name(use_target, "the enemy")} to sleep.');
             }
         }
         case SpellType_Charm: {
@@ -1903,7 +1881,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 Entity.move[use_target].target = MoveTarget_EnemyThenPlayer;
                 Entity.move[use_target].chase_dst = 14;
 
-                add_message('You charm an enemy.');
+                add_message('You charm ${entity_name(use_target, "the enemy")}.');
             }
         }
         case SpellType_ImproveEquipment: {
@@ -1920,7 +1898,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                         s.value += Std.int(Math.max(1, Math.round(spell.value * improve_mod)));
                     }
                 }
-                add_message('You improve equipment.');
+                add_message('You improve ${entity_name(use_target, "equipment")}.');
             }
         }
         case SpellType_EnchantEquipment: {
@@ -1929,7 +1907,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 var spell = Spells.random_equipment_spell_equip(equipment.type);
                 equipment.spells.push(spell);
 
-                add_message('You enchant equipment.');
+                add_message('You enchant ${entity_name(use_target, "equipment")}.');
             }
         }
         case SpellType_SwapHealth: {
@@ -1942,7 +1920,7 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 }
                 combat.health = temp;
 
-                add_message('You swap yours and enemy health.');
+                add_message('You swap health with ${entity_name(use_target, "an enemy")}.');
             }
         }
         case SpellType_DamageShield: {
@@ -1986,12 +1964,10 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
                 }
             }
             
-            if (summon_count == 3) {
+            if (summon_count > 0) {
                 add_message('You summon skeletons. Spooky!.');
-            } else if (summon_count == 0) {
-                add_message('No space to summon skeletons, spell fails!');
             } else {
-                add_message('You summon skeletons but there was not enough space for all three.');
+                add_message('No space to summon skeletons, spell fails!');
             }
         }
         case SpellType_SummonImp: {
@@ -2066,6 +2042,18 @@ function do_spell(spell: Spell, effect_message: Bool = true) {
         }
         case SpellType_Critical: {
             Player.critical += spell.value;
+        }
+        case SpellType_MoreEnemies: {
+            Player.more_enemies = true;
+        }
+        case SpellType_WeakHeal: {
+            Player.weak_heal = true;
+        }
+        case SpellType_StrongerEnemies: {
+            Player.stronger_enemies = true;
+        }
+        case SpellType_ExtraRing: {
+            Player.extra_ring = true;
         }
     }
 }
@@ -2887,6 +2875,7 @@ function update_normal() {
         Player.full_minimap = false;
         Player.lucky_charge = 0;
         Player.critical = 0;
+        Player.extra_ring = false;
 
         //
         // Process spells
@@ -3209,9 +3198,13 @@ function update() {
             EquipmentType_Weapon => null,
             ];
         }
-        if (GUI.auto_text_button('Tutorial')) {
+        if (GUI.auto_text_button('Controls')) {
             print_tutorial();
             need_to_update_messages_canvas = true;
+        }
+        if (GUI.auto_text_button('Restart')) {
+            restart_game();
+            generate_level();
         }
         if (GUI.auto_text_button('Close menu')) {
             USER_show_buttons = false;
