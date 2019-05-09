@@ -105,6 +105,7 @@ var USER_show_buttons = false;
 var USER_tile_patterns = true;
 var USER_draw_chars_only = false;
 static var USER_long_spell_descriptions = true;
+var USER_version = false;
 
 static var stairs_x = 0;
 static var stairs_y = 0;
@@ -314,6 +315,10 @@ function print_tutorial() {
     'Left-click on enemies to attack them.',
     'Left-click on items and equipment on the ground to pick them up.',
     'Left-click on items in inventory to use them.',
+    TURN_DELIMITER,
+    'Equipment can have Passive and Use spells.',
+    'Passive spells are active all the time or randomly activated.',
+    'Use spells are listed after "Use:".',
     ];
     messages = [for (i in 0...MESSAGES_LENGTH_MAX) TURN_DELIMITER];
     var tutorial_i = tutorial_text.length; 
@@ -1347,9 +1352,7 @@ function entity_attack_entity(e: Int, target: Int) {
 
     add_message(combat.message);
     
-    if (combat.attack != 0) {
-        add_message('${entity_name(e, "Monster")} attacks ${entity_name(target, "something")} for ${combat.attack} damage.');
-    }
+    add_message('${entity_name(e, "Monster")} attacks ${entity_name(target, "something")} for ${combat.attack} damage.');
 
     // Can't move and attack in same turn
     if (Entity.move.exists(e)) {
@@ -1612,8 +1615,8 @@ function damage_player(damage: Int, from_text: String = '') {
 
     Player.health -= actual_damage;
 
+    add_message('You take ${actual_damage} damage${from_text}.');
     if (actual_damage > 0) {
-        add_message('You take ${actual_damage} damage${from_text}.');
         add_damage_number(-actual_damage);
     }
 
@@ -2374,10 +2377,12 @@ function render_world() {
     // Draw player
     Gfx.fillbox(MINIMAP_X + Player.x * MINIMAP_SCALE, MINIMAP_Y + Player.y * MINIMAP_SCALE, MINIMAP_SCALE, MINIMAP_SCALE, Col.RED);
 
-    Text.change_size(UI_TEXT_SIZE);
-    var meta = openfl.Lib.current.stage.application.meta;
-    var version = meta['version'];
-    Text.display(0, SCREEN_HEIGHT - Text.height() * 2, '${version}');
+    if (USER_version) {
+        Text.change_size(UI_TEXT_SIZE);
+        var meta = openfl.Lib.current.stage.application.meta;
+        var version = meta['version'];
+        Text.display(0, SCREEN_HEIGHT - Text.height() * 2, '${version}');
+    }
 }
 
 var move_timer = 0;
@@ -2734,7 +2739,7 @@ function update_normal() {
                 var can_attack = Entity.combat.exists(hovered_anywhere);
                 var can_pickup = Entity.item.exists(hovered_anywhere) && !Entity.cost.exists(hovered_anywhere);
                 var can_equip = Entity.equipment.exists(hovered_anywhere) && !Entity.cost.exists(hovered_anywhere);
-                var can_use = Entity.use.exists(hovered_anywhere);
+                var can_use = Entity.use.exists(hovered_anywhere) && !Entity.cost.exists(hovered_anywhere);
                 var can_open = Entity.container.exists(hovered_anywhere);
 
                 if (can_attack && !can_pickup && !can_equip) {
@@ -3206,6 +3211,9 @@ function update() {
             restart_game();
             generate_level();
         }
+        // if (GUI.auto_text_button('Show version: ' + if (USER_version) 'ON' else 'OFF')) {
+        //     USER_version = !USER_version;
+        // }
         if (GUI.auto_text_button('Close menu')) {
             USER_show_buttons = false;
         }

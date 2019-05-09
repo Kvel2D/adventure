@@ -63,7 +63,7 @@ static function ENEMY_TYPES_PER_LEVEL() { return Random.int(2, 3); };
 static inline var KEY_ON_ENEMY_CHANCE = 50;
 static inline var MERCHANT_ITEM_LEVEL_BONUS = 1;
 
-static function ENEMY_ITEM_IDEAL_RATIO() { return if (Player.more_enemies) 0.9 else 0.7; };
+static function ENEMY_ITEM_IDEAL_RATIO() { return if (Player.more_enemies) 0.7 else 0.6; };
 static inline var HEALTH_POTION_TALLY_SIZE = 15;
 
 static var enemies_this_floor = 0;

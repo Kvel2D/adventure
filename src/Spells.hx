@@ -237,7 +237,7 @@ static function get_description(spell: Spell): String {
         else
             'Summon Golem';
         case SpellType_SummonSkeletons: if (long)
-        'Summon Skeletons that attack nearby enemies' 
+        'Summon Skeletons that attack nearby enemies but don\'t follow you' 
         else
             'Summon Skeletons';
         case SpellType_SummonImp: if (long)
@@ -329,7 +329,7 @@ static function get_description(spell: Spell): String {
             case SpellDuration_EveryAttackChance: ' for ${spell.duration} attacks';
         }
     }
-
+    
     return '$effect$interval$duration';
 }
 
@@ -1133,10 +1133,14 @@ static function random_ring_spell(level: Int): Spell {
 static function random_orb_spell(level: Int): Spell {
     var type = Random.pick_chance([
         {v: SpellType_ModUseCharges, c: 1.0},
-        {v: SpellType_CopyEntity, c: 1.0},
+        {v: SpellType_CopyEntity, c: 0.5},
         {v: SpellType_ImproveEquipment, c: 1.0},
         {v: SpellType_EnchantEquipment, c: 1.0},
         ]);
+
+    if (type == SpellType_CopyEntity) {
+        trace("!");
+    }
 
     var duration_type = SpellDuration_Permanent;
     var duration = 0;
