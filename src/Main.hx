@@ -92,7 +92,7 @@ var need_to_update_messages_canvas = true;
 var damage_numbers = new Array<DamageNumber>();
 
 static inline var SHOW_SHOW_BUTTONS_BUTTON = false;
-static inline var DRAW_INVISIBLE_ENTITIES = true;
+static inline var DRAW_INVISIBLE_ENTITIES = false;
 var DEV_show_buttons = false;
 var DEV_noclip = false;
 var DEV_nolos = false;
@@ -139,13 +139,13 @@ var total_defense_this_level = 0;
 var attack_count_this_level = 0;
 var defense_count_this_level = 0;
 
-var equipment_render_cache: Map<EquipmentType, EntityRenderData> = [
-EquipmentType_Head => null,
-EquipmentType_Chest => null,
-EquipmentType_Legs => null,
-EquipmentType_Weapon => null,
-];
-var inventory_render_cache: Array<Array<EntityRenderData>> = Data.create2darray(Main.INVENTORY_WIDTH, Main.INVENTORY_HEIGHT, null);
+var player_stats_cache = '';
+var player_hp_cache = '';
+
+var entity_canvas_used = new Map<String, Bool>();
+var ENTITY_CANVAS_ID_MAX = 0;
+var entity_id_to_canvas = new Map<Int, String>();
+var entity_id_to_canvas_state = new Map<Int, EntityRenderData>();
 
 static var obj: SharedObject;
 static var seen_talks: Array<Int> = [1, 2, 3];
@@ -177,7 +177,8 @@ function new() {
     Gfx.createimage('minimap_canvas_connections', MAP_WIDTH * MINIMAP_SCALE, MAP_HEIGHT * MINIMAP_SCALE);
     Gfx.createimage('minimap_canvas_rooms', MAP_WIDTH * MINIMAP_SCALE, MAP_HEIGHT * MINIMAP_SCALE);
     Gfx.createimage('minimap_canvas_full', MAP_WIDTH * MINIMAP_SCALE, MAP_HEIGHT * MINIMAP_SCALE);
-    Gfx.createimage('ui_items_canvas', INVENTORY_WIDTH * TILESIZE * WORLD_SCALE, SCREEN_HEIGHT);
+    Gfx.createimage('player_stats_canvas', INVENTORY_WIDTH * TILESIZE * WORLD_SCALE, SCREEN_HEIGHT);
+    Gfx.createimage('player_hp_canvas', 100, 100);
     
     Gfx.createtiles('test_enemy_tiles', 8, 8, 100);
 
@@ -503,6 +504,12 @@ function redraw_screen_tiles() {
 }
 
 function generate_level() {
+    entity_id_to_canvas = new Map<Int, String>();
+    entity_id_to_canvas_state = new Map<Int, EntityRenderData>();
+    for (c in entity_canvas_used.keys()) {
+        entity_canvas_used[c] = false;
+    }
+
     do {
         // Remove all entities, except inventory items and equipped equipment
         for (e in entities_with(Entity.position)) {
@@ -717,14 +724,40 @@ function generate_level() {
 }
 
 static var time_stamp = 0.0;
-static function timer_start() {
+static function TIMER_START() {
     time_stamp = Timer.stamp();
 }
 
-static function timer_end() {
+static function TIMER_END() {
     var new_stamp = Timer.stamp();
     trace('${new_stamp - time_stamp}');
     time_stamp = new_stamp;
+}
+
+static var segment_starts = new Map<String, Float>();
+static var segment_deltas = new Map<String, Array<Float>>();
+static var started_timing_segment = false;
+
+static function TIME_SEGMENT(name: String) {
+    if (started_timing_segment) {
+        if (!segment_deltas.exists(name)) {
+            segment_deltas[name] = new Array<Float>();
+        }
+
+        var start = segment_starts[name];
+        var deltas = segment_deltas[name];
+
+        var delta = Timer.stamp() - start;
+
+        if (deltas.length > 180) {
+            deltas.shift();
+        }
+        deltas.push(delta);
+    } else {
+        segment_starts[name] = Timer.stamp();
+    }
+
+    started_timing_segment = !started_timing_segment;
 }
 
 inline function screen_x(x) {
@@ -1573,31 +1606,83 @@ static function get_entity_render_data(e: Int): EntityRenderData {
     };
 }
 
-function draw_entity(e: Int, x: Float, y: Float, render_data: EntityRenderData = null) {
-    if (render_data == null) {
-        render_data = get_entity_render_data(e);
+function draw_entity(e: Int, x: Float, y: Float) {
+    var render_data = get_entity_render_data(e);
+
+    var canvas: String = null;
+    if (entity_id_to_canvas.exists(e)) {
+        canvas = entity_id_to_canvas[e];
+    } else {
+        for (c in entity_canvas_used.keys()) {
+            if (!entity_canvas_used[c]) {
+                canvas = c;
+                break;
+            }
+        }
+
+        // Create new canvas if not enough
+        if (canvas == null) {
+            canvas = 'entity_canvas${ENTITY_CANVAS_ID_MAX}';
+            // TODO: scale 10 too?
+            Gfx.createimage(canvas, TILESIZE * WORLD_SCALE, TILESIZE * WORLD_SCALE + 10);
+            ENTITY_CANVAS_ID_MAX++;
+        }
+
+        entity_canvas_used[canvas] = true;
+        entity_id_to_canvas[e] = canvas;
+        entity_id_to_canvas_state[e] = null;
     }
 
-    if (render_data.draw_char != 'null' && (render_data.draw_tile == -1 || USER_draw_chars_only)) {
-        // Draw char
-        Text.change_size(DRAW_CHAR_TEXT_SIZE);
-        Text.display(x, y, render_data.draw_char, render_data.draw_char_color);
-    } else if (render_data.draw_tile != -1) {
-        // Draw tile
-        Gfx.drawtile(x, y, render_data.draw_tile);
+    var current_state = entity_id_to_canvas_state[e];
+
+    function copy_render_data(d: EntityRenderData): EntityRenderData {
+        return {
+            draw_tile: d.draw_tile,
+            draw_char: d.draw_char,
+            draw_char_color: d.draw_char_color,
+            charges: d.charges,
+            health_bar: d.health_bar,
+        };
     }
 
-    // Draw use charges
-    if (render_data.charges != -1) {
-        Text.change_size(CHARGES_TEXT_SIZE);
-        Text.display(x, y, '${render_data.charges}', Col.WHITE);
+    function render_data_equal(d1: EntityRenderData, d2: EntityRenderData): Bool {
+        return d1.draw_tile == d2.draw_tile && d1.draw_char == d2.draw_char && d1.draw_char_color == d2.draw_char_color && d1.charges == d2.charges && d1.health_bar == d2.health_bar;
     }
 
-    // Draw health bar
-    if (render_data.health_bar != 'null') {
-        Text.change_size(CHARGES_TEXT_SIZE);
-        Text.display(x, y - 10, render_data.health_bar);
+    // TODO: turn 10 into HEALTHBAR_OFFSET constant
+    if (current_state == null || !render_data_equal(current_state, render_data)) {
+        Gfx.scale(WORLD_SCALE);
+        Gfx.drawtoimage(canvas);
+        Gfx.clearscreentransparent();
+
+        if (render_data.draw_char != 'null' && (render_data.draw_tile == -1 || USER_draw_chars_only)) {
+            // Draw char
+            Text.change_size(DRAW_CHAR_TEXT_SIZE);
+            Text.display(0, 10, render_data.draw_char, render_data.draw_char_color);
+        } else if (render_data.draw_tile != -1) {
+            // Draw tile
+            Gfx.drawtile(0, 10, render_data.draw_tile);
+        }
+
+        // Draw use charges
+        if (render_data.charges != -1) {
+            Text.change_size(CHARGES_TEXT_SIZE);
+            Text.display(0, 10, '${render_data.charges}', Col.WHITE);
+        }
+
+        // Draw health bar
+        if (render_data.health_bar != 'null') {
+            Text.change_size(CHARGES_TEXT_SIZE);
+            Text.display(0, 0, render_data.health_bar);
+        }
+
+        Gfx.drawtoscreen();
+
+        entity_id_to_canvas_state[e] = render_data;
+        Gfx.scale(1);
     }
+
+    Gfx.drawimage(x, y - 10, canvas);
 }
 
 function damage_player(damage: Int, from_text: String = '') {
@@ -2110,6 +2195,7 @@ function render_world() {
     Gfx.drawimage(0, 0, "tiles_canvas");
 
     // Entities
+    Gfx.scale(1);
     Text.change_size(DRAW_CHAR_TEXT_SIZE);
     for (e in entities_with(Entity.position)) {
         var pos = Entity.position[e];
@@ -2119,6 +2205,7 @@ function render_world() {
     }
 
     // Player, draw as parts of each equipment
+    Gfx.scale(WORLD_SCALE);
     if (USER_draw_chars_only) {
         Text.change_size(DRAW_CHAR_TEXT_SIZE);
         Text.display(screen_x(Player.x), screen_y(Player.y), '@', Col.YELLOW);
@@ -2159,11 +2246,21 @@ function render_world() {
     }
 
     // Health above player
-    Gfx.scale(1);
     Text.change_size(PLAYER_HP_HUD_TEXT_SIZE);
-    Text.display(screen_x(Player.x), screen_y(Player.y) - 10, '${Player.health}/${Player.health_max + Player.health_max_mod}');
+    Gfx.scale(1);
+    var player_hp_text = '${Player.health}/${Player.health_max + Player.health_max_mod}';
+    if (player_hp_text != player_hp_cache) {
+        Gfx.drawtoimage('player_hp_canvas');
+        Gfx.clearscreentransparent();
+        Text.display(0, 0, player_hp_text);
+        Gfx.drawtoscreen();
+
+        player_hp_cache = player_hp_text;
+    }
+    Gfx.drawimage(screen_x(Player.x), screen_y(Player.y) - 10, 'player_hp_canvas');
 
     // Damage numbers
+    Text.change_size(PLAYER_HP_HUD_TEXT_SIZE);
     var removed_damage_numbers = new Array<DamageNumber>();
     for (n in damage_numbers) {
         Text.display(screen_x(Player.x) + n.x_offset, screen_y(Player.y) - n.time / 5, '${n.value}', n.color);
@@ -2192,52 +2289,34 @@ function render_world() {
     player_stats_right_text += '\n${Player.defense + Player.defense_mod}';
     player_stats_right_text += '\n${Player.pure_absorb}';
     player_stats_right_text += '\n${Player.copper_count}';
-    Text.display(UI_X + PLAYER_STATS_NUMBERS_OFFSET, PLAYER_STATS_Y, player_stats_right_text);
+
+    if (player_stats_right_text != player_stats_cache) {
+        Gfx.drawtoimage('player_stats_canvas');
+        Gfx.clearscreentransparent();
+        Text.display(PLAYER_STATS_NUMBERS_OFFSET, PLAYER_STATS_Y, player_stats_right_text);
+        Gfx.drawtoscreen();
+
+        player_stats_cache = player_stats_right_text;
+    }
 
     Gfx.scale(1);
     Gfx.drawimage(UI_X, 0, 'ui_canvas');
-
-    function draw_entity_selective(e: Int, x: Float, y: Float, current_data: EntityRenderData, new_data: EntityRenderData) {
-        var entity_changed = ((current_data == null && new_data != null) 
-            || (current_data != null && new_data != null && !render_data_equals(new_data, current_data)));
-        var entity_removed = current_data != null && new_data == null;
-
-        if (entity_changed || entity_removed) {
-            // Erase area
-            var box_pad = 1;
-            Gfx.fillbox(x + box_pad, y + box_pad, TILESIZE * WORLD_SCALE- box_pad * 2, TILESIZE * WORLD_SCALE - box_pad * 2, Col.BLACK);
-        }
-
-        if (entity_changed) {
-            draw_entity(e, x, y, new_data);
-        }
-    }
+    Gfx.drawimage(UI_X, 0, 'player_stats_canvas');
 
     //
     // Equipment and Inventory
     //
-    Gfx.scale(WORLD_SCALE);
-    Gfx.drawtoimage('ui_items_canvas');
-    
+    Gfx.scale(1);
     // Equipment
     var armor_i = 0;
     for (equipment_type in Type.allEnums(EquipmentType)) {
         var e = Player.equipment[equipment_type];
+        if (Entity.equipment.exists(e) && !Entity.position.exists(e)) {
+            var draw_x = UI_X + armor_i * TILESIZE * WORLD_SCALE;
+            var draw_y = EQUIPMENT_Y;
 
-        var draw_x = armor_i * TILESIZE * WORLD_SCALE;
-        var draw_y = EQUIPMENT_Y;
-
-        var current_data = equipment_render_cache[equipment_type];
-        
-        var new_data = if (Entity.equipment.exists(e) && !Entity.position.exists(e)) {
-            get_entity_render_data(e);
-        } else {
-            null;
+            draw_entity(e, draw_x, draw_y);
         }
-
-        draw_entity_selective(e, draw_x, draw_y, current_data, new_data);
-
-        equipment_render_cache[equipment_type] = new_data;
 
         armor_i++;
     }
@@ -2246,26 +2325,14 @@ function render_world() {
     for (x in 0...INVENTORY_WIDTH) {
         for (y in 0...INVENTORY_HEIGHT) {
             var e = Player.inventory[x][y];
+            if (Entity.item.exists(e) && !Entity.position.exists(e)) {
+                var draw_x = UI_X + x * TILESIZE * WORLD_SCALE;
+                var draw_y = INVENTORY_Y + y * TILESIZE * WORLD_SCALE;
 
-            var draw_x = x * TILESIZE * WORLD_SCALE;
-            var draw_y = INVENTORY_Y + y * TILESIZE * WORLD_SCALE;
-
-            var current_data = inventory_render_cache[x][y];
-            
-            var new_data = if (Entity.item.exists(e) && !Entity.position.exists(e)) {
-                get_entity_render_data(e);
-            } else {
-                null;
+                draw_entity(e, draw_x, draw_y);
             }
-
-            draw_entity_selective(e, draw_x, draw_y, current_data, new_data);
-
-            inventory_render_cache[x][y] = new_data;
         }
     }
-    Gfx.drawtoscreen();
-    Gfx.scale(1);
-    Gfx.drawimage(UI_X, 0, 'ui_items_canvas');
 
     //
     // Active spells list
@@ -2354,7 +2421,6 @@ function render_world() {
         Gfx.drawimage(0, 0, 'minimap_canvas_rooms');
     }
     
-
     // Draw seen things
     for (e in entities_with(Entity.draw_on_minimap)) {
         var draw_on_minimap = Entity.draw_on_minimap[e];
@@ -3162,6 +3228,19 @@ function update_dead() {
 }
 
 function update() {
+    if (Input.justpressed(Key.B)) {
+        for (s in segment_deltas.keys()) {
+            var deltas = segment_deltas[s];
+
+            var sum = 0.0;
+            for (d in deltas) {
+                sum += d;
+            }
+
+            trace('${s} = ${Math.round(sum / deltas.length * 10000)}');
+        }
+    }
+
     switch (game_state) {
         case GameState_Normal: update_normal();
         case GameState_Dead: update_dead();
@@ -3195,13 +3274,6 @@ function update() {
             USER_draw_chars_only = !USER_draw_chars_only;
             obj.data.USER_draw_chars_only = USER_draw_chars_only;
             obj.flush();
-            inventory_render_cache = Data.create2darray(Main.INVENTORY_WIDTH, Main.INVENTORY_HEIGHT, null);
-            equipment_render_cache = [
-            EquipmentType_Head => null,
-            EquipmentType_Chest => null,
-            EquipmentType_Legs => null,
-            EquipmentType_Weapon => null,
-            ];
         }
         if (GUI.auto_text_button('Controls')) {
             print_tutorial();

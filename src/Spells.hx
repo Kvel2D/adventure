@@ -1138,10 +1138,6 @@ static function random_orb_spell(level: Int): Spell {
         {v: SpellType_EnchantEquipment, c: 1.0},
         ]);
 
-    if (type == SpellType_CopyEntity) {
-        trace("!");
-    }
-
     var duration_type = SpellDuration_Permanent;
     var duration = 0;
     var value = 0;

@@ -103,7 +103,7 @@ class Gfx {
 
 	/** Rotates image drawing functions. */
 
-	public static function rotation(angle: Float, xpivot: Float = -15000, ypivot: Float = -15000) {
+	public static function rotation(angle: Float, xpivot: Float = 0, ypivot: Float = 0) {
 		imagerotate = angle;
 		imagerotatexpivot = xpivot;
 		imagerotateypivot = ypivot;
@@ -269,6 +269,10 @@ class Gfx {
 
 		var t: BitmapData = new BitmapData(Math.floor(width), Math.floor(height), true, 0);
 		images.push(t);
+	}
+
+	public static function imageexists(imagename: String): Bool {
+		return imageindex.exists(imagename);
 	}
 
 	/** Resizes an image to a new size and stores it with the same label. */
@@ -574,7 +578,7 @@ class Gfx {
 		if (!transform && !coltransform) {
 			settpoint(Std.int(x), Std.int(y));
 			drawto.copyPixels(tiles[currenttileset].tiles[t], tiles[currenttileset].tiles[t].rect, tpoint, null, null, true);
-		}else {     
+		} else {     
 			tempxalign = 0; tempyalign = 0;
 
 			shapematrix.identity();
@@ -640,7 +644,7 @@ class Gfx {
 		return y;
 	}
 
-	public static function draw_line(_x1: Float, _y1: Float, _x2: Float, _y2: Float, col: Int, alpha: Float = 1.0) {
+	public static function drawline(_x1: Float, _y1: Float, _x2: Float, _y2: Float, col: Int, alpha: Float = 1.0) {
 		if (!clearscreeneachframe) if (skiprender && drawingtoscreen) return;
 		tempshape.graphics.clear();
 		tempshape.graphics.lineStyle(line_thickness, col, alpha);
@@ -697,7 +701,7 @@ class Gfx {
 		drawto.draw(tempshape, shapematrix);
 	}
 
-	public static function draw_circle(x: Float, y: Float, radius: Float, col: Int, alpha: Float = 1.0) {
+	public static function drawcircle(x: Float, y: Float, radius: Float, col: Int, alpha: Float = 1.0) {
 		if (!clearscreeneachframe) if (skiprender && drawingtoscreen) return;
 		tempshape.graphics.clear();
 		tempshape.graphics.lineStyle(line_thickness, col, alpha);
@@ -1187,5 +1191,5 @@ class Gfx {
 
     public static var initrun: Bool;
     public static var skiprender: Bool;
-    private static var drawingtoscreen: Bool;
+    public static var drawingtoscreen: Bool;
 }

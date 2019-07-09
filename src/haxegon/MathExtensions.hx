@@ -10,6 +10,12 @@ typedef Vec2i = {
     y: Int
 }
 
+typedef Vec3i = {
+    x: Int,
+    y: Int,
+    z: Int
+}
+
 @:publicFields
 class MathExtensions {
 
@@ -283,6 +289,10 @@ class MathExtensions {
 
     static function dst(math: Class<Math> = null, x1: Float, y1: Float, x2: Float, y2: Float): Float {
         return Math.sqrt(dst2(x1, y1, x2, y2));
+    }
+
+    static function dst_iv2(math: Class<Math> = null, p1: IntVector2, p2: IntVector2): Float {
+        return dst(p1.x, p1.y, p2.x, p2.y);
     }
 
     static function dst2(math: Class<Math> = null, x1: Float, y1: Float, x2: Float, y2: Float): Float {

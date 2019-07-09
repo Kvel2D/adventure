@@ -405,7 +405,6 @@ class Text {
 		align(LEFT);
 		rotation(0);
 	}
-	
 	public static function display(x:Float, y:Float, text:String, col:Int = 0xFFFFFF) {
 		if (!Gfx.clearscreeneachframe) if (Gfx.skiprender && Gfx.drawingtoscreen) return;
 		if (text == "") return;
@@ -532,10 +531,10 @@ class Text {
 						addtypeface(currentfont, 1);
 						currentindex = typefaceindex.get(currentfont + "_1");
 					}
-				}else if (fontfile[fontfileindex.get(t)].type == "ttf") {
+				} else if (fontfile[fontfileindex.get(t)].type == "ttf") {
 					if (typefaceindex.exists(currentfont + "_" + Std.string(currentsize))) {
 						currentindex = typefaceindex.get(currentfont + "_" + Std.string(currentsize));
-					}else {
+					} else {
 						addtypeface(currentfont, currentsize);
 						currentindex = typefaceindex.get(currentfont + "_" + Std.string(currentsize));
 					}
